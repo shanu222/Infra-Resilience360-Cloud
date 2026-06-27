@@ -67,9 +67,8 @@ export function MaterialHubDetailsPanel({
             <ul className="mh-hub-panel__list">
               {inventory.materials.map((m) => (
                 <li key={m.id}>
-                  {m.name}
-                  {' — '}
-                  {formatMaterialStockQuantity(m, hub.id)}
+                  <span className="mh-hub-panel__material-name">{m.name}</span>
+                  <span className="mh-hub-panel__material-qty">{formatMaterialStockQuantity(m, hub.id)}</span>
                 </li>
               ))}
             </ul>

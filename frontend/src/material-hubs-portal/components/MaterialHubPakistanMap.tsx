@@ -96,6 +96,7 @@ export function MaterialHubPakistanMap({
   onSelectHub,
   onOpenDetails,
 }: MaterialHubPakistanMapProps) {
+  const [activePopupHubId, setActivePopupHubId] = useState<string | null>(null)
   const flyTarget = useMemo(() => {
     const hub = hubs.find((h) => h.id === selectedHubId)
     if (!hub) return null
@@ -103,7 +104,7 @@ export function MaterialHubPakistanMap({
   }, [hubs, selectedHubId])
 
   return (
-    <div className="mh-map-shell">
+    <div className={`mh-map-shell${activePopupHubId ? ' has-open-popup' : ''}`}>
       <MapContainer
         center={PAKISTAN_CENTER}
         zoom={5}
@@ -130,6 +131,8 @@ export function MaterialHubPakistanMap({
               icon={createHubIcon(hub.id, active)}
               eventHandlers={{
                 click: () => onSelectHub(hub.id),
+                popupopen: () => setActivePopupHubId(hub.id),
+                popupclose: () => setActivePopupHubId((prev) => (prev === hub.id ? null : prev)),
               }}
             >
               <Popup className="mh-map-popup" closeButton>
