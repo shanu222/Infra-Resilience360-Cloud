@@ -41,6 +41,10 @@ import {
 
 import { registerInstantProbeRoutes } from './routes/probes.routes.mjs'
 import { registerLocalApiRoutes } from './routes/localApi.routes.mjs'
+import {
+  getLiveEarthquakeResponse,
+  startEarthquakeRefreshLoop,
+} from './services/earthquake/aggregator.mjs'
 import { assertAdminApiKey } from './adminApiKey.mjs'
 import { readOnlyModeMiddleware } from './middleware/readOnlyMode.mjs'
 import {
@@ -348,11 +352,6 @@ const GLOBAL_EARTHQUAKE_FEED_URL =
 const GLOBAL_EARTHQUAKE_FEED_URL_BACKUP =
   process.env.GLOBAL_EARTHQUAKE_FEED_URL_BACKUP ??
   'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
-const USGS_FEED_URL =
-  process.env.USGS_FEED_URL ??
-  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
-const USGS_FEED_TIMEOUT_MS = Math.max(5_000, Number(process.env.USGS_FEED_TIMEOUT_MS ?? 20_000) || 20_000)
-const USGS_FEED_MAX_RETRIES = Math.max(1, Number(process.env.USGS_FEED_MAX_RETRIES ?? 3) || 3)
 const GLOBAL_BUILDING_ATLAS_WFS_URL =
   process.env.GLOBAL_BUILDING_ATLAS_WFS_URL ??
   'https://tubvsig-so2sat-vm1.srv.mwn.de/geoserver/ows?'
@@ -398,21 +397,6 @@ const greenBuildingCodesDataFile = path.join(adminDataDir, 'green-building-codes
 const uploadedGreenCodesDir = path.join(repoRootDir, 'frontend', 'public', 'pgbc', 'All Codes', 'Uploaded')
 const appStateDir = path.join(__dirname, 'data', 'app-state')
 const appStateFile = path.join(appStateDir, 'shared-state.json')
-const liveEarthquakeCacheDir = path.join(repoRootDir, 'storage', 'cache', 'earthquake')
-const liveEarthquakeCacheFile = path.join(liveEarthquakeCacheDir, 'latest.json')
-const LIVE_EARTHQUAKE_CACHE_TTL_MS = 60_000
-const LIVE_EARTHQUAKE_REFRESH_MS = Math.max(
-  LIVE_EARTHQUAKE_CACHE_TTL_MS,
-  Number(process.env.LIVE_EARTHQUAKE_REFRESH_MS ?? 120_000) || 120_000,
-)
-const sharedInfraModelsGitRelativePath = 'backend/data/infra-models/generated-models.json'
-const execFileAsync = promisify(execFile)
-const allowedCommunityIssueStatuses = new Set(['Submitted', 'In Review', 'In Progress', 'Resolved', 'Rejected'])
-const SHARED_INFRA_MODELS_MAX = 200
-let liveEarthquakeCacheMemory = {
-  loadedAt: 0,
-  payload: null,
-}
 const GREEN_CODE_LABEL_OVERRIDES = {
   bcp2007: 'BCP 2007',
   bcp2021: 'BCP 2021',
@@ -2419,146 +2403,9 @@ const writeSharedAppState = async (state) => {
 }
 
 // ======================================
-// HYBRID EARTHQUAKE SYSTEM (USGS + EMSC)
+// HYBRID EARTHQUAKE SYSTEM (USGS + EMSC) — used by /api/global-earthquakes
+// Live feed (/api/earthquake/live) is served by services/earthquake/aggregator.mjs
 // ======================================
-
-const normalizeLiveEarthquakeFeature = (feature, index = 0) => {
-  const id = String(feature?.id ?? `quake-${index}`).trim()
-  const properties = feature?.properties ?? {}
-  const geometry = feature?.geometry ?? {}
-  const coordinates = safeArray(geometry.coordinates)
-  const lng = Number(coordinates[0])
-  const lat = Number(coordinates[1])
-  const depthKm = Number(coordinates[2] ?? 0)
-  const mag = Number(properties.mag ?? 0)
-  const timeValue = Number(properties.time ?? Date.now())
-  if (!id || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
-  return {
-    type: 'Feature',
-    id,
-    properties: {
-      mag: Number.isFinite(mag) ? mag : 0,
-      place: String(properties.place ?? 'Unknown location').trim() || 'Unknown location',
-      time: Number.isFinite(timeValue) ? timeValue : Date.now(),
-      updated: Number.isFinite(timeValue) ? timeValue : Date.now(),
-      source: 'USGS',
-      status: String(properties.status ?? 'reviewed'),
-      title: String(properties.title ?? '').trim(),
-      url: String(properties.url ?? 'https://earthquake.usgs.gov/').trim(),
-      type: String(properties.type ?? 'earthquake').trim(),
-      tsunami: Number(properties.tsunami ?? 0),
-      sig: Number(properties.sig ?? 0),
-    },
-    geometry: {
-      type: 'Point',
-      coordinates: [lng, lat, Number.isFinite(depthKm) ? depthKm : 0],
-    },
-  }
-}
-
-const readLiveEarthquakeDiskCache = async () => {
-  try {
-    const raw = await fs.readFile(liveEarthquakeCacheFile, 'utf8')
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed?.features)) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-const writeLiveEarthquakeDiskCache = async (payload) => {
-  await fs.mkdir(liveEarthquakeCacheDir, { recursive: true })
-  await fs.writeFile(liveEarthquakeCacheFile, JSON.stringify(payload, null, 2), 'utf8')
-}
-
-const fetchLiveEarthquakesFromUSGS = async () => {
-  let payload = null
-  let lastError = null
-  for (let attempt = 1; attempt <= USGS_FEED_MAX_RETRIES; attempt += 1) {
-    try {
-      payload = await fetchRemoteJson(USGS_FEED_URL, USGS_FEED_TIMEOUT_MS)
-      break
-    } catch (error) {
-      lastError = error
-      if (attempt >= USGS_FEED_MAX_RETRIES) break
-      await sleep(350 * attempt)
-    }
-  }
-  if (!payload) {
-    throw (lastError instanceof Error ? lastError : new Error('Unable to fetch USGS feed'))
-  }
-
-  const features = safeArray(payload?.features)
-    .map((feature, index) => normalizeLiveEarthquakeFeature(feature, index))
-    .filter(Boolean)
-    .sort((a, b) => Number(b?.properties?.time ?? 0) - Number(a?.properties?.time ?? 0))
-
-  const sourceTimestamp = (() => {
-    const generatedMs = Number(payload?.metadata?.generated ?? payload?.metadata?.generatedAt ?? payload?.generated)
-    if (Number.isFinite(generatedMs) && generatedMs > 0) {
-      return new Date(generatedMs).toISOString()
-    }
-    return new Date().toISOString()
-  })()
-
-  const latestEvents = features.slice(0, 12).map((feature) => ({
-    id: String(feature?.id ?? ''),
-    magnitude: Number(feature?.properties?.mag ?? 0),
-    place: String(feature?.properties?.place ?? 'Unknown location'),
-    time: Number(feature?.properties?.time ?? Date.now()),
-    source: 'USGS',
-    coordinates: safeArray(feature?.geometry?.coordinates).slice(0, 3),
-  }))
-
-  const statistics = (() => {
-    const total = features.length
-    let significant = 0
-    let last24h = 0
-    let highestMagnitude = 0
-    const since24h = Date.now() - 24 * 60 * 60 * 1000
-    for (const feature of features) {
-      const mag = Number(feature?.properties?.mag ?? 0)
-      const time = Number(feature?.properties?.time ?? 0)
-      if (mag >= 5) significant += 1
-      if (Number.isFinite(time) && time >= since24h) last24h += 1
-      if (Number.isFinite(mag) && mag > highestMagnitude) highestMagnitude = mag
-    }
-    return {
-      total,
-      significant,
-      last24h,
-      highestMagnitude: Number(highestMagnitude.toFixed(1)),
-    }
-  })()
-
-  return {
-    type: 'FeatureCollection',
-    source: 'USGS',
-    sourceLabel: 'Source: USGS',
-    timestamp: sourceTimestamp,
-    feedUrl: USGS_FEED_URL,
-    metadata: {
-      generatedAt: sourceTimestamp,
-      source: 'USGS',
-      feed: USGS_FEED_URL,
-      count: features.length,
-    },
-    statistics,
-    latestEvents,
-    features,
-  }
-}
-
-const refreshLiveEarthquakeCache = async () => {
-  const payload = await fetchLiveEarthquakesFromUSGS()
-  liveEarthquakeCacheMemory = {
-    loadedAt: Date.now(),
-    payload,
-  }
-  await writeLiveEarthquakeDiskCache(payload)
-  return payload
-}
 
 /**
  * Fetch earthquakes from USGS feed with Pakistan focus
@@ -3187,48 +3034,21 @@ app.put('/api/app/state', async (req, res) => {
 
 app.get('/api/earthquake/live', async (_req, res) => {
   try {
-    const now = Date.now()
-    if (
-      liveEarthquakeCacheMemory.payload &&
-      now - Number(liveEarthquakeCacheMemory.loadedAt || 0) < LIVE_EARTHQUAKE_CACHE_TTL_MS
-    ) {
-      res.json({
-        ...liveEarthquakeCacheMemory.payload,
-        sourceLabel: 'Source: USGS',
-        fromCache: true,
-      })
-      return
-    }
-
-    const livePayload = await refreshLiveEarthquakeCache()
-    res.json({
-      ...livePayload,
-      sourceLabel: 'Source: USGS',
-      fromCache: false,
-    })
+    const payload = await getLiveEarthquakeResponse()
+    res.setHeader('Cache-Control', 'public, max-age=15')
+    res.status(200).json(payload)
   } catch (error) {
-    const fallback = await readLiveEarthquakeDiskCache()
-    if (fallback) {
-      liveEarthquakeCacheMemory = {
-        loadedAt: Date.now(),
-        payload: fallback,
-      }
-      res.json({
-        ...fallback,
-        sourceLabel: 'Source: USGS (cached)',
-        fromCache: true,
-        warning: 'USGS unreachable; served cached payload.',
-      })
-      return
-    }
-
-    const message = error instanceof Error ? error.message : 'Failed to fetch live earthquakes.'
-    res.status(503).json({
-      ok: false,
-      error: message,
+    console.error('[earthquake] live route error:', error instanceof Error ? error.message : error)
+    res.status(200).json({
+      type: 'FeatureCollection',
       source: 'USGS',
-      sourceLabel: 'Source: USGS',
+      sourceLabel: 'Source: USGS (cached)',
+      provider: 'USGS',
       timestamp: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      fromCache: true,
+      cacheAge: 0,
+      warning: error instanceof Error ? error.message : 'Failed to fetch live earthquakes.',
       statistics: { total: 0, significant: 0, last24h: 0, highestMagnitude: 0 },
       latestEvents: [],
       features: [],
@@ -6115,15 +5935,7 @@ async function startServer() {
       process.env.PUBLIC_API_BASE_URL || '(co-host /api on same origin as the web app, or set PUBLIC_API_BASE_URL)',
     )
     console.info('[API] Listening', { port: PORT, entry: 'backend/index.mjs' })
-    refreshLiveEarthquakeCache().catch((error) => {
-      console.warn('[earthquake] initial USGS refresh failed:', error instanceof Error ? error.message : error)
-    })
-    const refreshTimer = setInterval(() => {
-      refreshLiveEarthquakeCache().catch((error) => {
-        console.warn('[earthquake] periodic USGS refresh failed:', error instanceof Error ? error.message : error)
-      })
-    }, LIVE_EARTHQUAKE_REFRESH_MS)
-    if (typeof refreshTimer.unref === 'function') refreshTimer.unref()
+    startEarthquakeRefreshLoop()
   })
 }
 

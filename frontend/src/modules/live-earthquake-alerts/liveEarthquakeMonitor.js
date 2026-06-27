@@ -292,8 +292,24 @@ export function initLiveEarthquakeMonitor(root) {
         return String(value || '').replace(/\/+$/, '');
       }
 
+      function resolveApiBaseUrl() {
+        const globalBase = stripTrailingSlash(String(window.__R360_API_BASE_URL || window.__API_BASE_URL || ''));
+        if (globalBase) return globalBase;
+        const envBase = stripTrailingSlash(String(window.__ENV__?.VITE_API_BASE_URL || window.__ENV__?.VITE_API_URL || ''));
+        if (envBase) return envBase;
+        if (window.location.port === '5173') {
+          return `${window.location.protocol}//${window.location.hostname}:10000`;
+        }
+        return 'https://infra-resilience360-cloud-production.up.railway.app';
+      }
+
       function buildApiTargets(path) {
         const targets = new Set([path]);
+        const apiBase = resolveApiBaseUrl();
+        if (apiBase) {
+          targets.add(`${apiBase}${path}`);
+        }
+
         return Array.from(targets).map((item) => {
           if (/^https?:\/\//i.test(item)) return item;
           return stripTrailingSlash(item);
@@ -1582,10 +1598,14 @@ export function initLiveEarthquakeMonitor(root) {
         try {
           const payload = await requestJsonWithFallback(EARTHQUAKE_LIVE_ENDPOINT, { cache: 'no-store' });
           const features = Array.isArray(payload?.features) ? payload.features : [];
-          if (features.length > 0) {
+          const sourceLabel =
+            String(payload?.sourceLabel || '').trim() ||
+            (payload?.source ? `Source: ${payload.source}` : eqT('sourceLive'));
+
+          if (features.length > 0 || payload?.source || payload?.sourceLabel) {
             return {
               features,
-              sourceLabel: payload?.sourceLabel || 'USGS Live Feed',
+              sourceLabel,
               fromCache: Boolean(payload?.fromCache),
               warning: payload?.warning || null,
             };
@@ -1593,7 +1613,7 @@ export function initLiveEarthquakeMonitor(root) {
           if (payload?.warning) {
             return {
               features: [],
-              sourceLabel: payload?.sourceLabel || eqT('sourceUnavailable'),
+              sourceLabel,
               warning: payload.warning,
             };
           }

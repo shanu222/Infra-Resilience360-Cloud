@@ -259,7 +259,7 @@ async function main() {
     '- Added backend population raster proxy aliases:',
     '  - `/api/data/population/pakistan/pak_cog.tif`',
     '  - `/data/population/pakistan/pak_cog.tif`',
-    '  - `/api/geo/pak-cog.tif` now falls back to `/storage/content/data/population/pak_cog.tif` when local file is absent.',
+    '  - `/api/geo/pak-cog.tif` now falls back to `/storage/content/live-earthquake-alerts/pak_cog.tif` when local file is absent.',
     '',
     '## Earthquake Changes',
     `- /api/earthquake/live status: ${earthquake.status}`,
