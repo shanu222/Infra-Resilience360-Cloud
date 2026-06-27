@@ -130,14 +130,53 @@ const r2Client = isR2CredentialProxyEnabled ?
   : null
 
 const MEDIA_BASE_STORAGE_SUFFIX = '/storage/content'
+const MEDIA_CANONICAL_PREFIX = 'content'
+const MEDIA_PROXY_DEBUG = ['1', 'true', 'yes'].includes(String(process.env.R360_DEBUG_MEDIA_PROXY ?? '').trim().toLowerCase())
 
 function normalizeMediaSuffixFromRequest(req) {
   const original = String(req.originalUrl ?? req.url ?? '')
   return original.replace(/^\/storage\/content\/?/, '')
 }
 
-function buildRemoteMediaUrlCandidates(suffix) {
-  const cleanSuffix = String(suffix ?? '').trim().replace(/^\/+/, '')
+function normalizeR2ObjectKey(rawPath) {
+  let clean = String(rawPath ?? '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+
+  while (/^storage\/content\//i.test(clean)) {
+    clean = clean.replace(/^storage\/content\//i, '')
+  }
+  while (/^storage\//i.test(clean)) {
+    clean = clean.replace(/^storage\//i, '')
+  }
+  while (/^content\//i.test(clean)) {
+    clean = clean.replace(/^content\//i, '')
+  }
+
+  clean = clean.replace(/^\/+/, '')
+  if (!clean) return MEDIA_CANONICAL_PREFIX
+  return `${MEDIA_CANONICAL_PREFIX}/${clean}`
+}
+
+function buildR2KeyCandidates(suffix) {
+  const out = []
+  const seen = new Set()
+  const add = (raw) => {
+    const key = normalizeR2ObjectKey(raw)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    out.push(key)
+  }
+
+  add(suffix)
+  for (const candidate of mediaKeyCandidates(String(suffix ?? '').trim().replace(/^\/+/, ''))) {
+    add(candidate)
+  }
+  return out
+}
+
+function buildRemoteMediaUrlCandidates(r2KeyCandidates) {
   const rawBase = String(MEDIA_BASE_URL ?? '').trim().replace(/\/+$/, '')
   if (!rawBase) return []
 
@@ -150,38 +189,39 @@ function buildRemoteMediaUrlCandidates(suffix) {
     out.push(value)
   }
 
-  const base = rawBase
-  const pathLower = (() => {
+  const basePathLower = (() => {
     try {
-      return new URL(base).pathname.toLowerCase()
+      return new URL(rawBase).pathname.toLowerCase().replace(/\/+$/, '')
     } catch {
       return ''
     }
   })()
-  const hasStorageSuffix = pathLower.endsWith(MEDIA_BASE_STORAGE_SUFFIX)
+  const hasContentSuffix = basePathLower.endsWith('/content')
+  const hasStorageSuffix = basePathLower.endsWith(MEDIA_BASE_STORAGE_SUFFIX)
 
-  const asPath = (key) => String(key ?? '').trim().replace(/^\/+/, '')
-  const keyCandidates = mediaKeyCandidates(cleanSuffix)
+  const baseSansContent = rawBase.replace(/\/content$/i, '')
+  const baseSansStorage = rawBase.replace(/\/storage\/content$/i, '')
 
-  for (const key of keyCandidates) {
-    const normalizedKey = asPath(key)
-    if (!normalizedKey) continue
-    add(`${base}/${normalizedKey}`)
-    if (hasStorageSuffix) {
-      add(`${base.slice(0, -MEDIA_BASE_STORAGE_SUFFIX.length)}/${normalizedKey}`)
+  for (const r2Key of r2KeyCandidates) {
+    const keyNoPrefix = r2Key.replace(/^content\/?/i, '')
+    if (hasContentSuffix) {
+      add(`${rawBase}/${keyNoPrefix}`)
+    } else if (hasStorageSuffix) {
+      add(`${baseSansStorage}/${r2Key}`)
     } else {
-      add(`${base}${MEDIA_BASE_STORAGE_SUFFIX}/${normalizedKey}`)
+      add(`${rawBase}/${r2Key}`)
+      add(`${baseSansContent}/content/${keyNoPrefix}`)
     }
   }
 
   return out
 }
 
-async function tryStreamMediaFromR2({ method, keyCandidates, req, res }) {
+async function tryStreamMediaFromR2({ method, r2KeyCandidates, req, res }) {
   if (!r2Client) return false
-  const keys = Array.isArray(keyCandidates) ? keyCandidates : []
+  const keys = Array.isArray(r2KeyCandidates) ? r2KeyCandidates : []
   for (const key of keys) {
-    const normalizedKey = String(key ?? '').trim().replace(/^\/+/, '')
+    const normalizedKey = normalizeR2ObjectKey(key)
     if (!normalizedKey) continue
     try {
       const command = new GetObjectCommand({
@@ -550,9 +590,17 @@ app.use('/storage/content', async (req, res, next) => {
   }
 
   const suffix = normalizeMediaSuffixFromRequest(req)
-  const remoteUrlCandidates = buildRemoteMediaUrlCandidates(suffix)
+  const r2KeyCandidates = buildR2KeyCandidates(suffix)
+  const remoteUrlCandidates = buildRemoteMediaUrlCandidates(r2KeyCandidates)
   if (remoteUrlCandidates.length === 0) {
     return res.status(503).json({ error: 'media_base_url_not_configured' })
+  }
+  if (MEDIA_PROXY_DEBUG) {
+    console.info('[media-proxy]', {
+      incomingPath: `/storage/content/${String(suffix ?? '').replace(/^\/+/, '')}`,
+      resolvedR2Key: r2KeyCandidates[0] ?? null,
+      mediaBaseUrl: MEDIA_BASE_URL || null,
+    })
   }
 
   try {
@@ -571,16 +619,14 @@ app.use('/storage/content', async (req, res, next) => {
       if (attempt.status !== 404 && attempt.status !== 403) break
     }
 
-    const keyCandidates = mediaKeyCandidates(suffix)
-
     if (!upstream) {
-      const servedByR2 = await tryStreamMediaFromR2({ method, keyCandidates, req, res })
+      const servedByR2 = await tryStreamMediaFromR2({ method, r2KeyCandidates, req, res })
       if (servedByR2) return
       return res.status(502).json({ error: 'remote_media_unavailable' })
     }
 
     if (upstream.status === 404 || upstream.status === 403) {
-      const servedByR2 = await tryStreamMediaFromR2({ method, keyCandidates, req, res })
+      const servedByR2 = await tryStreamMediaFromR2({ method, r2KeyCandidates, req, res })
       if (servedByR2) return
     }
 
