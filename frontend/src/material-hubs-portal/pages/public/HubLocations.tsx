@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { mockHubs, mockInventory } from '@/config/materialHubCatalog'
 import { MaterialHubDetailsPanel } from '../../components/MaterialHubDetailsPanel'
@@ -20,7 +20,20 @@ export function HubLocations() {
     [selectedHub?.id],
   )
 
+  useEffect(() => {
+    if (!panelOpen) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [panelOpen])
+
   const selectHub = (hubId: string) => {
+    setSelectedHubId(hubId)
+  }
+
+  const openHubDetails = (hubId: string) => {
     setSelectedHubId(hubId)
     setPanelOpen(true)
   }
@@ -77,9 +90,7 @@ export function HubLocations() {
               hubs={mockHubs}
               selectedHubId={selectedHubId}
               onSelectHub={selectHub}
-              onOpenDetails={(id) => {
-                selectHub(id)
-              }}
+              onOpenDetails={openHubDetails}
             />
           </div>
 
@@ -89,19 +100,21 @@ export function HubLocations() {
         </div>
 
         {panelOpen ? (
-          <div className="mh-locations-sheet lg:hidden" role="dialog" aria-modal="true">
+          <div className="mh-hub-modal" role="dialog" aria-modal="true" aria-label={s.hubNetworkTitle}>
             <button
               type="button"
-              className="mh-locations-sheet__backdrop"
+              className="mh-hub-modal__backdrop"
               aria-label={s.closeHubDetails}
               onClick={() => setPanelOpen(false)}
             />
-            <MaterialHubDetailsPanel
-              hub={selectedHub}
-              inventory={selectedInventory}
-              variant="sheet"
-              onClose={() => setPanelOpen(false)}
-            />
+            <div className="mh-hub-modal__surface">
+              <MaterialHubDetailsPanel
+                hub={selectedHub}
+                inventory={selectedInventory}
+                variant="modal"
+                onClose={() => setPanelOpen(false)}
+              />
+            </div>
           </div>
         ) : null}
 
@@ -110,7 +123,7 @@ export function HubLocations() {
             <button
               type="button"
               className="w-full min-h-[44px] rounded-lg bg-emerald-600 text-white font-semibold"
-              onClick={() => setPanelOpen(true)}
+              onClick={() => openHubDetails(selectedHub.id)}
             >
               {s.viewHubDetails.replace('{location}', selectedHub.location)}
             </button>

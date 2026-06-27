@@ -325,10 +325,6 @@ export function initLiveEarthquakeMonitor(root) {
         refreshBtn.classList.toggle('is-loading', Boolean(isLoading));
       }
 
-      function isCompactPhoneViewport() {
-        return window.matchMedia('(max-width: 640px)').matches;
-      }
-
       function setMobilePanelView(nextView) {
         mobilePanelView = nextView === 'globe' ? 'globe' : 'events';
         const pageEl = root.querySelector('.page');
@@ -346,13 +342,8 @@ export function initLiveEarthquakeMonitor(root) {
           globeBtn.classList.toggle('is-active', !isEventsView);
           globeBtn.setAttribute('aria-selected', isEventsView ? 'false' : 'true');
         }
-
-        if (!isCompactPhoneViewport()) return;
-        pageEl.classList.add(isEventsView ? 'mobile-panel-events' : 'mobile-panel-globe');
-        if (!isEventsView) {
-          resizeGlobeViewport();
-          if (is2DMap) scheduleLeafletInvalidate();
-        }
+        resizeGlobeViewport();
+        if (is2DMap) scheduleLeafletInvalidate();
       }
 
       function stripTrailingSlash(value) {

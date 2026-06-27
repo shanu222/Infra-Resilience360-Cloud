@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { useEffect, useMemo } from 'react'
+import { GeoJSON, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import type { FeatureCollection, Geometry } from 'geojson'
 import type { MaterialHub } from '@/config/materialHubCatalog'
-import { getMaterialHubLocationDetail } from '@/config/materialHubLocationDetails'
-import { MaterialHubMediaImage } from './MaterialHubMedia'
 import { MaterialHubMapFlyTo } from './MaterialHubMapFlyTo'
 import 'leaflet/dist/leaflet.css'
 
@@ -96,7 +94,6 @@ export function MaterialHubPakistanMap({
   onSelectHub,
   onOpenDetails,
 }: MaterialHubPakistanMapProps) {
-  const [activePopupHubId, setActivePopupHubId] = useState<string | null>(null)
   const flyTarget = useMemo(() => {
     const hub = hubs.find((h) => h.id === selectedHubId)
     if (!hub) return null
@@ -104,7 +101,7 @@ export function MaterialHubPakistanMap({
   }, [hubs, selectedHubId])
 
   return (
-    <div className={`mh-map-shell${activePopupHubId ? ' has-open-popup' : ''}`}>
+    <div className="mh-map-shell">
       <MapContainer
         center={PAKISTAN_CENTER}
         zoom={5}
@@ -122,7 +119,6 @@ export function MaterialHubPakistanMap({
         <MaterialHubMapFlyTo target={flyTarget} zoom={8} />
 
         {hubs.map((hub) => {
-          const detail = getMaterialHubLocationDetail(hub)
           const active = hub.id === selectedHubId
           return (
             <Marker
@@ -130,40 +126,12 @@ export function MaterialHubPakistanMap({
               position={[hub.coordinates[0], hub.coordinates[1]]}
               icon={createHubIcon(hub.id, active)}
               eventHandlers={{
-                click: () => onSelectHub(hub.id),
-                popupopen: () => setActivePopupHubId(hub.id),
-                popupclose: () => setActivePopupHubId((prev) => (prev === hub.id ? null : prev)),
+                click: () => {
+                  onSelectHub(hub.id)
+                  onOpenDetails(hub.id)
+                },
               }}
-            >
-              <Popup className="mh-map-popup" closeButton>
-                <div className="mh-map-popup__inner">
-                  {hub.imageUrl?.trim() ?
-                    <div className="mh-map-popup__thumb">
-                      <MaterialHubMediaImage
-                        src={hub.imageUrl}
-                        alt={hub.name}
-                        className="w-full h-full object-cover"
-                        wrapperClassName="w-full h-20"
-                      />
-                    </div>
-                  : null}
-                  <p className="mh-map-popup__name">{hub.name}</p>
-                  <p className="mh-map-popup__loc">
-                    {hub.location} · {detail.province}
-                  </p>
-                  <button
-                    type="button"
-                    className="mh-map-popup__cta"
-                    onClick={() => {
-                      onSelectHub(hub.id)
-                      onOpenDetails(hub.id)
-                    }}
-                  >
-                    Open Hub Details
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
+            />
           )
         })}
       </MapContainer>

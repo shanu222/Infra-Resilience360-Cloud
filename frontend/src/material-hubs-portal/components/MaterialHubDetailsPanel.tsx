@@ -10,7 +10,7 @@ type MaterialHubDetailsPanelProps = {
   hub: MaterialHub
   inventory: HubInventory | undefined
   onClose?: () => void
-  variant: 'sidebar' | 'sheet'
+  variant: 'sidebar' | 'sheet' | 'modal'
 }
 
 export function MaterialHubDetailsPanel({
@@ -23,6 +23,8 @@ export function MaterialHubDetailsPanel({
   const panelClass =
     variant === 'sheet'
       ? 'mh-hub-panel mh-hub-panel--sheet'
+      : variant === 'modal'
+        ? 'mh-hub-panel mh-hub-panel--modal'
       : 'mh-hub-panel mh-hub-panel--sidebar'
 
   return (

@@ -985,6 +985,33 @@
   z-index: 410;
 }
 
+.mh-hub-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(0.65rem, 2.5vw, 1.5rem);
+}
+
+.mh-hub-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 8, 23, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.mh-hub-modal__surface {
+  position: relative;
+  z-index: 1;
+  width: min(980px, calc(100vw - 1.2rem));
+  max-height: min(92dvh, 860px);
+  display: flex;
+}
+
 @media (max-width: 480px) {
   .mh-map-popup .leaflet-popup-content-wrapper {
     width: min(95vw, 340px);
@@ -1116,6 +1143,64 @@
 
 .mh-hub-panel--sidebar {
   min-height: 100%;
+}
+
+.mh-hub-panel--modal {
+  width: 100%;
+  max-height: inherit;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(4, 13, 30, 0.98), rgba(7, 17, 34, 0.96));
+  border: 1px solid rgba(151, 192, 255, 0.3);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+}
+
+.mh-hub-panel--modal .mh-hub-panel__header {
+  padding: 1rem 1.2rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(4, 13, 30, 0.97);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.mh-hub-panel--modal .mh-hub-panel__title {
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+}
+
+.mh-hub-panel--modal .mh-hub-panel__body {
+  max-height: min(64dvh, 560px);
+}
+
+@media (max-width: 767px) {
+  .mh-hub-modal {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .mh-hub-modal__surface {
+    width: 100%;
+    max-height: min(90dvh, 760px);
+  }
+
+  .mh-hub-panel--modal {
+    border-radius: 1rem 1rem 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .mh-hub-panel--modal .mh-hub-panel__body {
+    max-height: min(72dvh, 620px);
+    padding-bottom: max(1.15rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .mh-hub-modal__surface {
+    width: min(760px, calc(100vw - 2rem));
+    max-height: min(88dvh, 820px);
+  }
 }
 
 .mh-hub-panel__header {
@@ -1597,5 +1682,17 @@
 
   .material-hubs-portal-root .mh-locations-sheet .mh-hub-panel--sheet {
     max-height: min(88dvh, 720px);
+  }
+
+  .mh-hub-modal__surface {
+    width: 100%;
+  }
+
+  .mh-hub-panel--modal {
+    border-radius: 0.85rem;
+  }
+
+  .mh-hub-panel--modal .mh-hub-panel__body {
+    max-height: min(66dvh, 520px);
   }
 }
