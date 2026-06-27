@@ -11,8 +11,8 @@ import { rewriteMediaUrlsDeep } from './localUrlRewrite.mjs'
 import { loadHomepageStaticDefaults } from '../homepageStaticDefaults.mjs'
 import { loadRetrofitCmsStaticDefaults } from '../retrofitCmsStaticDefaults.mjs'
 
-const FALLBACK_BG_VIDEO = '/static/media/local/resilience360/background/home.mp4'
-const FALLBACK_BG_IMAGE = '/static/media/local/resilience360/background/home.jpg'
+const FALLBACK_BG_VIDEO = '/storage/content/home/videos/home.mp4'
+const FALLBACK_BG_IMAGE = '/storage/content/home/images/home.png'
 
 const PAGE_SLUG_ALIASES = {
   home: 'homepage',

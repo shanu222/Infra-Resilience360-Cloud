@@ -86,7 +86,7 @@ function rewriteKnownApiMediaPath(url: string): string | null {
   return null
 }
 
-/** Resolve relative API paths (e.g. `/static/content/media/...`) to absolute URLs on native. */
+/** Resolve relative media paths to backend-routed `/storage/content/*` URLs. */
 export function resolveSectionMediaUrl(maybeRelative: string): string {
   const u = String(maybeRelative ?? '').trim()
   if (!u) return ''
@@ -101,8 +101,14 @@ export function resolveSectionMediaUrl(maybeRelative: string): string {
   const fixed = fixApiUrl(u)
   if (fixed) return enforceHttpsOnSecurePage(fixed)
   const path = u.startsWith('/') ? u.replace(/^\/+/, '') : u
-  if (path.startsWith('content/') || path.startsWith('static/')) {
+  if (path.startsWith('storage/content/')) {
     return enforceHttpsOnSecurePage(`/${path}`)
+  }
+  if (path.startsWith('static/media/local/')) {
+    return enforceHttpsOnSecurePage(`/${path.replace(/^static\/media\/local\//, 'storage/content/')}`)
+  }
+  if (path.startsWith('content/')) {
+    return enforceHttpsOnSecurePage(`/${path.replace(/^content\//, 'storage/content/')}`)
   }
   return enforceHttpsOnSecurePage(localStaticMediaUrl(path))
 }

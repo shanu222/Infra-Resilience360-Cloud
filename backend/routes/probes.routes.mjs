@@ -7,11 +7,6 @@ import { streamLocalMediaToResponse } from '../services/localMediaResolver.mjs'
  * Instant probes before CORS / JSON / admin middleware so load balancers always get a response.
  */
 export function registerInstantProbeRoutes(app) {
-  app.get('/health', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    res.status(200).json({ status: 'ok' })
-  })
-
   app.get('/api/health', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store')
     res.status(200).json({ status: 'ok', uptime: process.uptime() })
@@ -39,9 +34,5 @@ export function registerInstantProbeRoutes(app) {
     if (!res.headersSent) res.status(404).json({ ok: false, error: 'Geo raster not found locally.' })
   })
 
-  /** Plain-text liveness (does not replace `/`, which remains the SPA via static + fallback). */
-  app.get('/server-alive', (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    res.status(200).type('text/plain').send('Server is alive')
-  })
+  /** Backend is API-only: root status is served in `backend/index.mjs`. */
 }

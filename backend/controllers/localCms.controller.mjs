@@ -7,7 +7,6 @@ import {
   readLocalRetrofitCms,
   readLocalSectionManifest,
 } from '../services/localCms.service.mjs'
-import { mediaKeyCandidates, streamLocalMediaToResponse } from '../services/localMediaResolver.mjs'
 import { mediaKeyToLocalMediaUrl } from '../services/localUrlRewrite.mjs'
 
 function safeString(v) {
@@ -96,43 +95,9 @@ export function registerPageConfigRoutes(app, _deps = {}) {
   })
 }
 
-function decodeS3PathPathParam(rawPath) {
-  const raw = safeString(rawPath)
-  if (!raw) return ''
-  const pathOnly = raw.split('?')[0].replace(/^\/+/, '')
-  try {
-    return decodeURIComponent(pathOnly)
-  } catch {
-    return pathOnly
-  }
-}
-
-async function handleLocalS3MediaProxy(req, res, applyCors) {
-  if (typeof applyCors === 'function') applyCors(req, res)
-  const key = decodeS3PathPathParam(req.params?.[0])
-  if (!key) return res.status(400).json({ error: 'Missing media key.' })
-  const candidates = mediaKeyCandidates(key)
-  for (const candidate of candidates) {
-     
-    const ok = await streamLocalMediaToResponse(candidate, res)
-    if (ok) return
-  }
-  return res.status(404).json({ error: 'Media not found', key })
-}
-
-export function registerLocalPlatformRoutes(app, { applyCors } = {}) {
+export function registerLocalPlatformRoutes(app) {
   app.get('/api/section-content/:section', respondPublicSectionManifest)
-
-  app.get('/static/media/:disaster', respondPublicDisasterMediaPresign)
-
-  app.get('/static/media', async (_req, res) => {
-    res.setHeader('Cache-Control', 'no-store')
-    return res.status(200).json([])
-  })
-
-  const bindProxy = (req, res) => handleLocalS3MediaProxy(req, res, applyCors)
-  app.get('/static/media/local/*', bindProxy)
-  app.head('/static/media/local/*', bindProxy)
+  app.get('/api/disaster-media/:disaster', respondPublicDisasterMediaPresign)
 
   console.log('✅ Local platform routes registered (content, media)')
 }

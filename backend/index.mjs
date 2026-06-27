@@ -212,11 +212,6 @@ const RESEND_API_KEY = String(process.env.RESEND_API_KEY ?? '').trim()
 const BREVO_API_KEY = String(process.env.BREVO_API_KEY ?? '').trim()
 const INFRA_MODELS_GIT_SYNC_ENABLED = envFlag(process.env.INFRA_MODELS_GIT_SYNC_ENABLED, 'false')
 const INFRA_MODELS_GIT_SYNC_BRANCH = String(process.env.INFRA_MODELS_GIT_SYNC_BRANCH ?? '').trim()
-const ADMIN_SERVICE_MODE = envFlag(process.env.ADMIN_SERVICE_MODE, 'false')
-const SERVE_FRONTEND_ASSETS = envFlag(
-  process.env.SERVE_FRONTEND_ASSETS,
-  process.env.NODE_ENV === 'production' ? 'false' : 'true',
-)
 /** Optional legacy media sync toggle retained as disabled by default. */
 const CMS_SYNC_ENABLED = envFlag(process.env.CMS_SYNC_ENABLED, 'false')
 const RECOVERY_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.RECOVERY_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000) || 15 * 60 * 1000)
@@ -231,9 +226,6 @@ const communityIssuesDataFile = path.join(communityIssuesDir, 'issues.json')
 const sharedInfraModelsDir = path.join(__dirname, 'data', 'infra-models')
 const sharedInfraModelsDataFile = path.join(sharedInfraModelsDir, 'generated-models.json')
 const repoRootDir = path.resolve(__dirname, '..')
-/** Support both root/dist and frontend/dist build outputs. */
-const distCandidates = [path.resolve(repoRootDir, 'dist'), path.resolve(repoRootDir, 'frontend', 'dist')]
-const distPath = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0]
 const adminDataDir = path.join(__dirname, 'data', 'admin')
 const greenBuildingCodesDataFile = path.join(adminDataDir, 'green-building-codes.json')
 const uploadedGreenCodesDir = path.join(repoRootDir, 'frontend', 'public', 'pgbc', 'All Codes', 'Uploaded')
@@ -406,9 +398,8 @@ app.use(readOnlyModeMiddleware)
 
 
 /** Public local-first content/media routes (filesystem-backed). */
-registerLocalPlatformRoutes(app, { applyCors: applyApiCorsHeaders })
+registerLocalPlatformRoutes(app)
 registerLocalApiRoutes(app)
-app.use('/data', express.static(DATA_DIR, { maxAge: '1h', fallthrough: true }))
 app.use('/storage', (req, res, next) => {
   applyApiCorsHeaders(req, res)
   res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS')
@@ -422,7 +413,12 @@ app.use('/storage', (req, res, next) => {
   next()
 })
 app.use('/storage/content', async (req, res, next) => {
-  if (!isRemoteMediaMode) return next()
+  if (!isRemoteMediaMode) {
+    if (String(process.env.NODE_ENV ?? '').toLowerCase() === 'production') {
+      return res.status(503).json({ error: 'media_base_url_not_configured' })
+    }
+    return next()
+  }
   const method = String(req.method ?? '').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD') {
     return res.status(405).json({ error: 'method_not_allowed' })
@@ -474,9 +470,6 @@ app.use('/storage/content', async (req, res, next) => {
 app.use('/storage', express.static(STORAGE_DIR, { maxAge: '1h', fallthrough: true }))
 app.use('/storage/content', (_req, res) => {
   res.status(404).json({ error: 'media_not_found' })
-})
-app.use('/content', (_req, res) => {
-  res.status(404).json({ error: 'legacy_content_path_removed' })
 })
 
 /** Require `x-admin-key` for `/api/admin/*` mutations (except OPTIONS). */
@@ -544,19 +537,6 @@ app.use((req, res, next) => {
   })
   next()
 })
-
-/** Long-cache versioned portal assets; keep HTML entrypoints fresh for deploys + BFCache. */
-const publicPortalStaticHeaders = (res, filePath) => {
-  const fp = String(filePath ?? '')
-  const base = path.basename(fp)
-  if (base.toLowerCase() === 'index.html') {
-    res.setHeader('Cache-Control', 'no-cache')
-    return
-  }
-  if (/\.(js|mjs|css|woff2|woff|ttf|png|jpe?g|gif|svg|webp|avif|ico|map|json|wasm|mp4|webm|mov|m4v)$/i.test(base)) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  }
-}
 
 /** Set in process environment (.env or host config). Connection happens after HTTP bind so healthchecks can reach the process. */
 const mongoUri = normalizeEnvValue(process.env.MONGODB_URI ?? '')
@@ -1807,22 +1787,6 @@ if (truthyEnv(process.env.R360_DEBUG_ROUTES)) {
   })
   console.log('? Debug route enabled: GET /api/debug/routes (R360_DEBUG_ROUTES=1)')
 }
-
-/** Portal & uploads static ? after all `/api` route registration so nothing shadows API paths. */
-app.use('/uploads/community-issues', express.static(communityIssueImagesDir))
-app.use('/pgbc', express.static(path.join(repoRootDir, 'frontend', 'public', 'pgbc'), { setHeaders: publicPortalStaticHeaders }))
-app.use(
-  '/material-hubs',
-  express.static(path.join(repoRootDir, 'frontend', 'public', 'material-hubs'), { setHeaders: publicPortalStaticHeaders }),
-)
-app.use(
-  '/disaster-dashboard',
-  express.static(path.join(repoRootDir, 'frontend', 'public', 'disaster-dashboard'), {
-    index: 'index.html',
-    setHeaders: publicPortalStaticHeaders,
-  }),
-)
-console.log('? Portal & public static mounts registered (uploads, pgbc, material-hubs, disaster-dashboard)')
 
 const parseJsonBodyField = (value, fallback = null) => {
   if (typeof value !== 'string' || !value.trim()) {
@@ -5549,7 +5513,7 @@ app.delete('/api/admin/green-codes/:id', async (req, res) => {
     }
 
     if (existing?.pdfPath) {
-      if (String(existing.pdfPath).includes('/static/media/local/')) {
+      if (String(existing.pdfPath).includes('/storage/content/') || String(existing.pdfPath).includes('/static/media/local/')) {
         await deleteLocalObjectByPublicUrl(String(existing.pdfPath))
       } else if (/^All Codes\/Uploaded\//i.test(existing.pdfPath)) {
         const absolutePath = path.join(repoRootDir, 'frontend', 'public', 'pgbc', existing.pdfPath)
@@ -5811,75 +5775,6 @@ app.delete('/api/admin/material-hubs/entries/:id', async (req, res) => {
 
 // ========== END ADMIN APP ENDPOINTS ==========
 
-if (SERVE_FRONTEND_ASSETS) {
-  const adminPublicDir = path.join(repoRootDir, 'frontend', 'public', 'admin')
-  /** In admin-only mode, extra static assets live under `public/admin`; built `admin.html` + chunks always come from `dist`. */
-  const frontendStaticPath = ADMIN_SERVICE_MODE ? adminPublicDir : distPath
-
-  const isRestrictedPublicPath = () => false
-
-  /** PDF MIME + long-cache hashed build assets; keep HTML entrypoints revalidating for deploys + bfcache. */
-  const staticPdfHeaders = (res, filePath) => {
-    const fp = String(filePath ?? '')
-    const lower = fp.toLowerCase()
-    if (lower.endsWith('.pdf')) {
-      res.setHeader('Content-Type', 'application/pdf')
-    }
-    const base = path.basename(fp)
-    if (base === 'index.html' || base === 'admin.html' || base === 'admin-homepage.html') {
-      res.setHeader('Cache-Control', 'no-cache')
-      return
-    }
-    if (/^sw\.js$/i.test(base) || /^workbox-[a-z0-9]+\.js$/i.test(base) || /^manifest\.webmanifest$/i.test(base)) {
-      res.setHeader('Cache-Control', 'no-cache')
-      return
-    }
-    if (/\.(js|mjs|css|woff2|woff|ttf|png|jpe?g|gif|svg|webp|avif|ico|map|json|wasm)$/i.test(base)) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    }
-  }
-
-  app.use((req, res, next) => {
-    if (ADMIN_SERVICE_MODE) {
-      next()
-      return
-    }
-
-    if (isRestrictedPublicPath(req.path)) {
-      res.status(404).json({ error: 'Not found.' })
-      return
-    }
-
-    next()
-  })
-
-  // Admin/CMS editing UI is permanently disabled ? serve the read-only notice (built from admin-disabled entry).
-  const sendAdministrativeEditingDisabledPage = (res) => {
-    const filePath = path.join(distPath, 'admin.html')
-    if (!existsSync(filePath)) {
-      return res
-        .status(503)
-        .type('text/html; charset=utf-8')
-        .send(
-          '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;text-align:center"><h1>Resilience360</h1><p>Administrative editing has been permanently disabled.</p><p><a href="/">Return to the public application</a></p></body></html>',
-        )
-    }
-    res.setHeader('Cache-Control', 'no-cache')
-    return res.sendFile(path.resolve(filePath))
-  }
-
-  app.get('/admin.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
-  app.get('/admin-homepage.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
-  app.get('/admin', (_req, res) => res.redirect(302, '/admin.html'))
-  app.get(/^\/admin\/[^.]*$/i, (_req, res) => sendAdministrativeEditingDisabledPage(res))
-
-  if (ADMIN_SERVICE_MODE) {
-    app.use(express.static(distPath, { index: false, setHeaders: staticPdfHeaders }))
-  }
-
-  app.use(express.static(frontendStaticPath, { setHeaders: staticPdfHeaders }))
-}
-
 app.use((error, req, res, next) => {
   const apiPath = String(req.path ?? '')
   if (apiPath.startsWith('/api')) {
@@ -5905,26 +5800,26 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found' })
 })
 
-if (SERVE_FRONTEND_ASSETS) {
-  // Never serve SPA HTML for direct PDF requests.
-  app.use((req, res, next) => {
-    if (String(req.path).toLowerCase().endsWith('.pdf')) {
-      res.status(404).type('application/pdf').end()
-      return
-    }
-    next()
+app.get('/', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(200).json({
+    status: 'ok',
+    service: 'resilience360-api',
+    mode: 'api-only',
+    frontend: 'served-by-vercel',
+    mediaProxy: isRemoteMediaMode ? 'remote' : 'local',
+    mediaBaseUrl: isRemoteMediaMode ? MEDIA_BASE_URL : null,
   })
+})
 
-  // SPA fallback: index.html always comes from Vite `dist/` (same for combined and admin-shell builds).
-  app.use((req, res) => {
-    const indexPath = path.join(distPath, 'index.html')
-    if (!existsSync(indexPath)) {
-      return res.status(404).json({ error: 'spa_index_not_found' })
-    }
-    res.setHeader('Cache-Control', 'no-cache')
-    res.sendFile(path.resolve(indexPath))
-  })
-}
+app.use((req, res) => {
+  const pathName = String(req.path ?? '')
+  if (pathName.startsWith('/storage')) {
+    res.status(404).json({ error: 'storage_route_not_found' })
+    return
+  }
+  res.status(404).json({ error: 'route_not_found', allowedRoots: ['/api', '/storage'] })
+})
 
 async function startServer() {
   if (

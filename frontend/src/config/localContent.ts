@@ -26,14 +26,17 @@ export function localStaticMediaUrl(s3Key: string): string {
     .filter(Boolean)
     .map((seg) => encodeURIComponent(seg))
     .join('/')
-  return `/static/media/local/${encoded}`
+  return getMediaUrl(encoded)
 }
 
 /** Rewrite legacy absolute media URLs to local proxy paths. */
 export function rewriteLegacyS3Url(raw: string): string {
   const s = String(raw ?? '').trim()
   if (!s) return s
-  if (s.startsWith('/storage/content/') || s.startsWith('/static/media/') || s.startsWith('/data/')) {
+  if (s.startsWith('/static/media/local/')) {
+    return s.replace(/^\/static\/media\/local\//, '/storage/content/')
+  }
+  if (s.startsWith('/storage/content/') || s.startsWith('/data/')) {
     return s
   }
   try {

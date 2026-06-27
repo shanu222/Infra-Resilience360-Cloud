@@ -20,13 +20,16 @@ export function mediaKeyToLocalMediaUrl(key) {
     .filter(Boolean)
     .map((seg) => encodeURIComponent(seg))
     .join('/')
-  return `/static/media/local/${encoded}`
+  return `/storage/content/${encoded}`
 }
 
 export function rewriteMediaUrl(raw) {
   const s = String(raw ?? '').trim()
   if (!s) return s
-  if (s.startsWith('/storage/content/') || s.startsWith('/static/media/') || s.startsWith('/data/')) {
+  if (s.startsWith('/static/media/local/')) {
+    return s.replace(/^\/static\/media\/local\//, '/storage/content/')
+  }
+  if (s.startsWith('/storage/content/') || s.startsWith('/data/')) {
     return s
   }
   const key = extractMediaKeyFromUrl(s)
