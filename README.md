@@ -1,117 +1,324 @@
-﻿# Infra Resilience360
+# Infra Resilience360 Cloud
 
-Infrastructure safety and disaster engineering toolkit for Pakistan: district planning, hazard overlays, NDMA-aligned guidance, AI-assisted tools, and field-ready outputs (web PWA + Android + iOS).
+## Infrastructure Safety & Disaster Engineering Toolkit for Pakistan
 
-**Production:** [www.infraresilience.org](https://www.infraresilience.org) · API [api.infraresilience.org](https://api.infraresilience.org)
+Infra Resilience360 is an enterprise disaster resilience platform developed to support engineers, planners, emergency managers, researchers, and government organizations in improving infrastructure resilience across Pakistan.
 
-## Architecture
+The platform provides hazard-aware engineering guidance, infrastructure assessment tools, AI-assisted recommendations, technical documentation, and disaster preparedness resources through a single unified application.
 
-```text
-┌─────────────────┐     HTTPS      ┌──────────────────┐
-│  Web / Capacitor │ ──────────────► │  Express API      │
-│  (Vite + React)  │   /api/*       │  server/index.mjs │
-└────────┬────────┘                 └────────┬─────────┘
-         │ direct GET (static media)          │ MongoDB, AI, S3 sync
-         ▼                                    ▼
-┌─────────────────┐                 ┌──────────────────┐
-│  S3 public media │                 │  MongoDB Atlas   │
-│  pak-population- │                 │  (CMS / config)  │
-│  data/resilience360/               └──────────────────┘
-└─────────────────┘
+The cloud edition is designed for:
+
+* Web Application
+* Progressive Web App (PWA)
+* Android Application
+* iOS Application
+
+using a centralized cloud architecture that can later be migrated to an NDMA local server without changing the application.
+
+---
+
+# Cloud Architecture
+
+```
+Users
+    │
+    ▼
+Vercel (Frontend)
+    │
+    ▼
+Railway (Backend API)
+    │
+    ├────────► Cloudflare R2
+    │             storage/content/
+    │
+    └────────► OpenAI API
 ```
 
-| Layer | Location |
-|-------|----------|
-| Frontend | `src/`, `public/`, `index.html` |
-| Portals (in-repo) | `src/disaster-dashboard-portal/`, `src/material-hubs-portal/` |
-| Backend | `server/` |
-| Android | `android/` |
-| iOS | `ios/` |
-| Media config | `src/config/disasterDashboardMedia.ts`, S3 |
+---
 
-## Technology stack
+# Technology Stack
 
-- **UI:** React 19, TypeScript, Vite 7, Tailwind CSS 4, Leaflet
-- **Mobile:** Capacitor 6 (Android + iOS)
-- **API:** Express, MongoDB/Mongoose, Socket.IO
-- **AI:** OpenAI (with optional Hugging Face / Gemini / Azure)
-- **Media:** AWS S3 (`pak-population-data` / `resilience360/`)
-- **PWA:** vite-plugin-pwa
+## Frontend
 
-## Quick start (new developer)
+* React 19
+* TypeScript
+* Vite
+* Tailwind CSS
+* Leaflet
+* Capacitor
+* Progressive Web App (PWA)
 
-```bash
-git clone https://github.com/shanu222/Resilience360.git
-cd Resilience360
+---
+
+## Backend
+
+* Node.js
+* Express.js
+* REST API
+* OpenAI Integration
+
+---
+
+## Media Storage
+
+Cloudflare R2
+
+All runtime media is centralized inside:
+
+```
+storage/content/
+```
+
+Media includes only:
+
+* Images
+* Videos
+* PDFs
+* Audio
+
+No runtime media is bundled into the frontend.
+
+---
+
+# Application Modules
+
+The platform currently includes:
+
+1. Home
+2. Retrofit Guide
+3. Resilience Infra Models
+4. Design Toolkit
+5. Smart Construction
+6. Material Hubs
+7. Building Codes
+8. Best Practices
+9. Readiness Calculator
+10. Learn & Train
+11. Live Earthquake Alerts
+12. Disaster Dashboard
+
+Each module loads its runtime media from the centralized storage repository.
+
+---
+
+# Repository Structure
+
+```
+Resilience360/
+
+backend/
+frontend/
+modules/
+storage/
+data/
+scripts/
+
+package.json
+README.md
+```
+
+---
+
+# Storage Structure
+
+```
+storage/
+
+content/
+
+home/
+retrofit-guide/
+resilience-models/
+design-toolkit/
+smart-construction/
+material-hubs/
+building-codes/
+best-practices/
+readiness-calculator/
+learn-train/
+live-earthquake-alerts/
+disaster-dashboard/
+```
+
+Each module contains only its own runtime media.
+
+Example:
+
+```
+retrofit-guide/
+
+images/
+videos/
+pdfs/
+audio/
+metadata.json
+```
+
+Only folders that actually contain media are present.
+
+---
+
+# Centralized Media Policy
+
+The centralized storage repository contains only:
+
+* Images
+* Videos
+* PDFs
+* Audio
+* metadata.json
+
+It does not contain:
+
+* Logos
+* Icons
+* Fonts
+* UI assets
+* CSS
+* JavaScript
+* React components
+* Source code
+
+These remain bundled with the frontend application.
+
+---
+
+# Development
+
+Install dependencies:
+
+```
 npm install
-cp .env.example .env
-# Edit .env — at minimum MONGODB_URI, OPENAI_API_KEY, ADMIN_API_KEY, AWS_* for S3 features
+```
+
+Run the full development environment:
+
+```
 npm run dev:full
 ```
 
-- Web UI: Vite dev server (default port **5173**)
-- API: **http://localhost:10000** (proxied as `/api` from Vite)
+Default ports:
 
-## Scripts
+Frontend
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Frontend only |
-| `npm run server` | Backend only |
-| `npm run dev:full` | Frontend + backend |
-| `npm run build` | Production web build → `dist/` |
-| `npm run build:capacitor` | Mobile production web build |
-| `npm run mobile:prepare` | Build + Capacitor sync (Android + iOS) |
-| `npm run cap:open:android` | Open Android Studio |
-| `npm run cap:open:ios` | Open Xcode (macOS) |
-
-## Build & deploy documentation
-
-| Topic | Doc |
-|-------|-----|
-| Environment variables | [.env.example](./.env.example) |
-| AWS / S3 | [docs/AWS_SETUP.md](./docs/AWS_SETUP.md) |
-| Web / Vercel | [docs/WEB_DEPLOYMENT.md](./docs/WEB_DEPLOYMENT.md) |
-| Backend / PM2 | [docs/BACKEND_DEPLOYMENT.md](./docs/BACKEND_DEPLOYMENT.md) |
-| Android APK / AAB | [docs/ANDROID_BUILD.md](./docs/ANDROID_BUILD.md) |
-| iOS / Xcode | [docs/IOS_BUILD.md](./docs/IOS_BUILD.md) |
-| Store release checklist | [docs/MOBILE_RELEASE_GUIDE.md](./docs/MOBILE_RELEASE_GUIDE.md) |
-| Release consolidation | [docs/RELEASE_CONSOLIDATION_REPORT.md](./docs/RELEASE_CONSOLIDATION_REPORT.md) |
-| Android readiness | [docs/ANDROID_RELEASE_READINESS.md](./docs/ANDROID_RELEASE_READINESS.md) |
-| iOS readiness | [docs/IOS_RELEASE_READINESS.md](./docs/IOS_RELEASE_READINESS.md) |
-| Web readiness | [docs/WEB_RELEASE_READINESS.md](./docs/WEB_RELEASE_READINESS.md) |
-| Android signing | [docs/SIGNING_SETUP_GUIDE.md](./docs/SIGNING_SETUP_GUIDE.md) |
-| Repository audit | [docs/REPOSITORY_COMPLETENESS_AUDIT.md](./docs/REPOSITORY_COMPLETENESS_AUDIT.md) |
-
-## Android & iOS (summary)
-
-```bash
-npm run mobile:prepare
-npm run cap:open:android   # or cap:open:ios on macOS
+```
+http://localhost:5173
 ```
 
-Release signing: copy `android/keystore.properties.template` → `android/keystore.properties` (local only, gitignored). See [docs/ANDROID_BUILD.md](./docs/ANDROID_BUILD.md).
+Backend
 
-## What is intentionally not in Git
+```
+http://localhost:10000
+```
 
-| Item | Reason |
-|------|--------|
-| `.env` | Secrets |
-| `node_modules/`, `dist/` | Generated |
-| `*.keystore`, `keystore.properties` | Signing secrets |
-| Large GeoTIFF rasters | Served from S3 / external; see `.gitignore` |
-| `server/data/earthquake-alerts/sent-alerts.json` | Runtime state (may change locally) |
+---
 
-## Troubleshooting
+# Build
 
-| Problem | Check |
-|---------|--------|
-| API 404 on localhost | Server running on port **10000**; use `npm run dev:full` |
-| AI routes fail | `OPENAI_API_KEY` in `.env`; `ALLOW_MISSING_OPENAI_KEY` only for local smoke tests |
-| S3 media 403/404 | Folder **case** on S3 (`Flood` not `flood`); [docs/AWS_SETUP.md](./docs/AWS_SETUP.md) |
-| Capacitor blank WebView | Run `npm run build:capacitor` then `npx cap sync` |
-| Type errors | `npx tsc --noEmit` |
+Web
 
-## License / contributions
+```
+npm run build
+```
 
-Private production repository. Open issues on GitHub for defects and deployment questions.
+Android / iOS
+
+```
+npm run mobile:prepare
+```
+
+Android Studio
+
+```
+npm run cap:open:android
+```
+
+Xcode (macOS)
+
+```
+npm run cap:open:ios
+```
+
+---
+
+# Environment Variables
+
+Typical environment variables include:
+
+```
+PORT
+
+VITE_API_BASE_URL
+
+MEDIA_PROVIDER
+
+R2_ACCOUNT_ID
+
+R2_BUCKET
+
+R2_ACCESS_KEY_ID
+
+R2_SECRET_ACCESS_KEY
+
+OPENAI_API_KEY
+```
+
+No media paths are hardcoded.
+
+---
+
+# Cloud Deployment
+
+## Frontend
+
+Vercel
+
+## Backend
+
+Railway
+
+## Media Storage
+
+Cloudflare R2
+
+Runtime media is served by the backend from Cloudflare R2.
+
+---
+
+# NDMA Local Deployment
+
+The same application can later be deployed entirely within the NDMA infrastructure.
+
+Cloudflare R2 can be replaced with a local storage directory, such as:
+
+```
+D:\NDMA_STORAGE\content\
+```
+
+No frontend code changes are required.
+
+---
+
+# Git Repository
+
+This repository intentionally excludes:
+
+* Runtime media
+* Build artifacts
+* Cache
+* Logs
+* Uploads
+* Environment secrets
+* Node modules
+
+The repository contains only application source code and configuration.
+
+---
+
+# License
+
+Private repository.
+
+Developed for Infrastructure Resilience360.
+
+All rights reserved.
