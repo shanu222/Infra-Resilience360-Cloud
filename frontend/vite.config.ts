@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
   root: __dirname,
   base,
   build: {
-    outDir: path.resolve(__dirname, '../dist'),
+    outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
     target: 'es2022',
     cssCodeSplit: true,

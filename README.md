@@ -1,324 +1,126 @@
 # Infra Resilience360 Cloud
 
-## Infrastructure Safety & Disaster Engineering Toolkit for Pakistan
+Infra Resilience360 Cloud is a production web platform for infrastructure resilience workflows, decision support, and disaster-readiness guidance.
 
-Infra Resilience360 is an enterprise disaster resilience platform developed to support engineers, planners, emergency managers, researchers, and government organizations in improving infrastructure resilience across Pakistan.
+## Architecture
 
-The platform provides hazard-aware engineering guidance, infrastructure assessment tools, AI-assisted recommendations, technical documentation, and disaster preparedness resources through a single unified application.
-
-The cloud edition is designed for:
-
-* Web Application
-* Progressive Web App (PWA)
-* Android Application
-* iOS Application
-
-using a centralized cloud architecture that can later be migrated to an NDMA local server without changing the application.
-
----
-
-# Cloud Architecture
-
-```
+```text
 Users
-    │
-    ▼
-Vercel (Frontend)
-    │
-    ▼
-Railway (Backend API)
-    │
-    ├────────► Cloudflare R2
-    │             storage/content/
-    │
-    └────────► OpenAI API
+  |
+  v
+Vercel (React + Vite frontend)
+  |
+  v
+Railway (Node.js + Express API)
+  |
+  +--> Cloudflare R2 (runtime media objects)
+  |
+  +--> OpenAI API
 ```
 
----
+## Deployment Model
 
-# Technology Stack
+- Frontend deploy target: Vercel
+- Frontend root directory: `frontend`
+- Backend deploy target: Railway
+- Runtime media source: Cloudflare R2 via backend media proxy (`/storage/content/*`)
+- No MongoDB required for production cloud deployment
 
-## Frontend
+## Project Structure
 
-* React 19
-* TypeScript
-* Vite
-* Tailwind CSS
-* Leaflet
-* Capacitor
-* Progressive Web App (PWA)
-
----
-
-## Backend
-
-* Node.js
-* Express.js
-* REST API
-* OpenAI Integration
-
----
-
-## Media Storage
-
-Cloudflare R2
-
-All runtime media is centralized inside:
-
-```
-storage/content/
+```text
+backend/      Express API and integration services
+frontend/     React + Vite application (Vercel root)
+scripts/      Operational and migration utility scripts
+docs/         Deployment and technical documentation
+storage/      Development-only metadata structure
+data/         Static/local datasets used by selected modules
 ```
 
-Media includes only:
+## Frontend (Vercel) Deployment
 
-* Images
-* Videos
-* PDFs
-* Audio
+Set Vercel project settings:
 
-No runtime media is bundled into the frontend.
+- Root Directory: `frontend`
+- Install Command: `npm install`
+- Build Command: `npm run build`
+- Output Directory: `dist`
 
----
+Required frontend env var:
 
-# Application Modules
+- `VITE_API_BASE_URL` (Railway backend public URL)
 
-The platform currently includes:
+## Backend (Railway) Deployment
 
-1. Home
-2. Retrofit Guide
-3. Resilience Infra Models
-4. Design Toolkit
-5. Smart Construction
-6. Material Hubs
-7. Building Codes
-8. Best Practices
-9. Readiness Calculator
-10. Learn & Train
-11. Live Earthquake Alerts
-12. Disaster Dashboard
+Railway commands (root):
 
-Each module loads its runtime media from the centralized storage repository.
-
----
-
-# Repository Structure
-
-```
-Resilience360/
-
-backend/
-frontend/
-modules/
-storage/
-data/
-scripts/
-
-package.json
-README.md
-```
-
----
-
-# Storage Structure
-
-```
-storage/
-
-content/
-
-home/
-retrofit-guide/
-resilience-models/
-design-toolkit/
-smart-construction/
-material-hubs/
-building-codes/
-best-practices/
-readiness-calculator/
-learn-train/
-live-earthquake-alerts/
-disaster-dashboard/
-```
-
-Each module contains only its own runtime media.
-
-Example:
-
-```
-retrofit-guide/
-
-images/
-videos/
-pdfs/
-audio/
-metadata.json
-```
-
-Only folders that actually contain media are present.
-
----
-
-# Centralized Media Policy
-
-The centralized storage repository contains only:
-
-* Images
-* Videos
-* PDFs
-* Audio
-* metadata.json
-
-It does not contain:
-
-* Logos
-* Icons
-* Fonts
-* UI assets
-* CSS
-* JavaScript
-* React components
-* Source code
-
-These remain bundled with the frontend application.
-
----
-
-# Development
-
-Install dependencies:
-
-```
+```bash
 npm install
+npm start
 ```
 
-Run the full development environment:
+Health checks:
 
-```
+- `GET /health`
+- `GET /api/health`
+
+## Cloudflare R2 Configuration
+
+Runtime media requests are served through backend route:
+
+- `GET /storage/content/<module>/<path>`
+
+Production recommendation:
+
+- Set `MEDIA_BASE_URL` to your Cloudflare R2 public media base URL.
+- Keep frontend media URLs unchanged; frontend always calls backend media route.
+
+## Environment Variables
+
+### Backend
+
+- `NODE_ENV`
+- `PORT`
+- `OPENAI_API_KEY`
+- `MEDIA_BASE_URL`
+- `MEDIA_ROOT`
+- `R2_ACCOUNT_ID`
+- `R2_BUCKET`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_ENDPOINT`
+- `API_BASE_URL`
+- `JWT_SECRET` (if auth signing is enabled)
+
+### Frontend
+
+- `VITE_API_BASE_URL`
+
+## Local Development
+
+From repository root:
+
+```bash
+npm install
 npm run dev:full
 ```
 
-Default ports:
+Or frontend only:
 
-Frontend
-
-```
-http://localhost:5173
-```
-
-Backend
-
-```
-http://localhost:10000
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
----
+## Production Validation Checklist
 
-# Build
+- Frontend install/build succeeds from `frontend/`
+- Backend starts and serves `/api/health` with `200`
+- Media route `/storage/content/*` resolves through backend proxy in production
+- No build artifacts or runtime media binaries are committed
 
-Web
+## Notes
 
-```
-npm run build
-```
-
-Android / iOS
-
-```
-npm run mobile:prepare
-```
-
-Android Studio
-
-```
-npm run cap:open:android
-```
-
-Xcode (macOS)
-
-```
-npm run cap:open:ios
-```
-
----
-
-# Environment Variables
-
-Typical environment variables include:
-
-```
-PORT
-
-VITE_API_BASE_URL
-
-MEDIA_PROVIDER
-
-R2_ACCOUNT_ID
-
-R2_BUCKET
-
-R2_ACCESS_KEY_ID
-
-R2_SECRET_ACCESS_KEY
-
-OPENAI_API_KEY
-```
-
-No media paths are hardcoded.
-
----
-
-# Cloud Deployment
-
-## Frontend
-
-Vercel
-
-## Backend
-
-Railway
-
-## Media Storage
-
-Cloudflare R2
-
-Runtime media is served by the backend from Cloudflare R2.
-
----
-
-# NDMA Local Deployment
-
-The same application can later be deployed entirely within the NDMA infrastructure.
-
-Cloudflare R2 can be replaced with a local storage directory, such as:
-
-```
-D:\NDMA_STORAGE\content\
-```
-
-No frontend code changes are required.
-
----
-
-# Git Repository
-
-This repository intentionally excludes:
-
-* Runtime media
-* Build artifacts
-* Cache
-* Logs
-* Uploads
-* Environment secrets
-* Node modules
-
-The repository contains only application source code and configuration.
-
----
-
-# License
-
-Private repository.
-
-Developed for Infrastructure Resilience360.
-
-All rights reserved.
+- UI/UX, routes, and business logic are intentionally unchanged during deployment hardening.
+- This repository is prepared for production CI/CD with Vercel + Railway + Cloudflare R2.

@@ -227,8 +227,9 @@ const communityIssuesDataFile = path.join(communityIssuesDir, 'issues.json')
 const sharedInfraModelsDir = path.join(__dirname, 'data', 'infra-models')
 const sharedInfraModelsDataFile = path.join(sharedInfraModelsDir, 'generated-models.json')
 const repoRootDir = path.resolve(__dirname, '..')
-/** Vite `dist/` lives at repo root (`backend/` is one level below). */
-const distPath = path.resolve(repoRootDir, 'dist')
+/** Support both root/dist and frontend/dist build outputs. */
+const distCandidates = [path.resolve(repoRootDir, 'dist'), path.resolve(repoRootDir, 'frontend', 'dist')]
+const distPath = distCandidates.find((candidate) => existsSync(path.join(candidate, 'index.html'))) ?? distCandidates[0]
 const adminDataDir = path.join(__dirname, 'data', 'admin')
 const greenBuildingCodesDataFile = path.join(adminDataDir, 'green-building-codes.json')
 const uploadedGreenCodesDir = path.join(repoRootDir, 'frontend', 'public', 'pgbc', 'All Codes', 'Uploaded')
