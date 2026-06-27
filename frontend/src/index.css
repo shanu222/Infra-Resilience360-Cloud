@@ -5074,6 +5074,11 @@ h4 {
   color: #f0f6ff !important;
 }
 
+.home-settings-card label,
+.home-settings-card .switch-row {
+  color: #f0f6ff !important;
+}
+
 .section-settings label.switch-row {
   display: flex;
   flex-direction: row;
@@ -5098,7 +5103,34 @@ h4 {
     background 0.25s ease;
 }
 
+.home-settings-card label.switch-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 0.6rem !important;
+  padding: 0.95rem 1.15rem;
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(36, 58, 102, 0.5) 0%, rgba(20, 36, 72, 0.46) 100%);
+  border: 1px solid rgba(120, 175, 245, 0.35);
+  font-weight: 600;
+  font-size: clamp(0.95rem, 0.88rem + 0.22vw, 1.06rem);
+  line-height: 1.35;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(2, 8, 28, 0.25);
+}
+
 .section-settings label.switch-row:hover {
+  border-color: rgba(168, 210, 255, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 12px 32px rgba(2, 12, 40, 0.35);
+}
+
+.home-settings-card label.switch-row:hover {
   border-color: rgba(168, 210, 255, 0.55);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
@@ -5116,13 +5148,40 @@ h4 {
   border-radius: 6px;
 }
 
+.home-settings-card label.switch-row input[type='checkbox'] {
+  width: 1.28rem;
+  height: 1.28rem;
+  min-width: 1.28rem;
+  min-height: 1.28rem;
+  accent-color: #38bdf8;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
 .section-settings label.switch-row:focus-within {
+  outline: 2px solid rgba(125, 211, 252, 0.65);
+  outline-offset: 2px;
+}
+
+.home-settings-card label.switch-row:focus-within {
   outline: 2px solid rgba(125, 211, 252, 0.65);
   outline-offset: 2px;
 }
 
 .section-settings .settings-card {
   margin-top: 0.5rem;
+  padding: clamp(0.95rem, 0.7rem + 0.8vw, 1.35rem);
+  border-radius: 16px;
+  border: 1px solid rgba(120, 175, 245, 0.35);
+  background: linear-gradient(165deg, rgba(29, 49, 89, 0.55) 0%, rgba(16, 30, 60, 0.55) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 30px rgba(2, 10, 32, 0.28);
+}
+
+.home-settings-card {
+  margin: 0.2rem 0 1rem;
   padding: clamp(0.95rem, 0.7rem + 0.8vw, 1.35rem);
   border-radius: 16px;
   border: 1px solid rgba(120, 175, 245, 0.35);
@@ -5139,13 +5198,31 @@ h4 {
   color: #f4f8ff;
 }
 
+.home-settings-card .settings-card__title {
+  margin: 0;
+  font-size: clamp(1.08rem, 0.95rem + 0.45vw, 1.25rem);
+  font-weight: 700;
+  color: #f4f8ff;
+}
+
 .section-settings .settings-card__subtitle {
   margin: 0.45rem 0 0.85rem;
   color: rgba(218, 230, 255, 0.92);
   line-height: 1.5;
 }
 
+.home-settings-card .settings-card__subtitle {
+  margin: 0.45rem 0 0.85rem;
+  color: rgba(218, 230, 255, 0.92);
+  line-height: 1.5;
+}
+
 .section-settings .settings-card__group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.home-settings-card .settings-card__group {
   display: grid;
   gap: 0.55rem;
 }
@@ -5157,11 +5234,73 @@ h4 {
   gap: 0.55rem;
 }
 
+.home-settings-card .settings-card__actions {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .section-settings .settings-card__meta,
 .section-settings .settings-card__status {
   margin: 0.65rem 0 0;
   color: rgba(221, 233, 255, 0.94);
   font-size: 0.93rem;
+}
+
+.home-settings-card .settings-card__meta,
+.home-settings-card .settings-card__status {
+  margin: 0.65rem 0 0;
+  color: rgba(221, 233, 255, 0.94);
+  font-size: 0.93rem;
+}
+
+.settings-card__switch-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.settings-card__icon {
+  display: inline-flex;
+  width: 1.1rem;
+  justify-content: center;
+}
+
+.settings-permission-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.settings-permission-badge.is-granted {
+  background: rgba(34, 197, 94, 0.24);
+  border-color: rgba(74, 222, 128, 0.5);
+  color: #bbf7d0;
+}
+
+.settings-permission-badge.is-denied {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(248, 113, 113, 0.48);
+  color: #fecaca;
+}
+
+.settings-permission-badge.is-pending,
+.settings-permission-badge.is-unsupported {
+  background: rgba(148, 163, 184, 0.2);
+  border-color: rgba(203, 213, 225, 0.4);
+  color: #e2e8f0;
+}
+
+@media (max-width: 1023px) {
+  .home-settings-card {
+    display: none;
+  }
 }
 
 details {

@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ReactNode,
   type CSSProperties,
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -28,6 +29,7 @@ export type HomePageCarouselBodyProps = {
   onAdminCardClick?: (key: SectionKey, row: HomeCardRow, anchor: HTMLElement) => void
   onAdminFooterClick?: () => void
   showSettingsButton?: boolean
+  desktopSettingsCard?: ReactNode
 }
 
 export function HomePageCarouselBody({
@@ -40,6 +42,7 @@ export function HomePageCarouselBody({
   onAdminCardClick,
   onAdminFooterClick,
   showSettingsButton,
+  desktopSettingsCard,
 }: HomePageCarouselBodyProps) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [dragDx, setDragDx] = useState(0)
@@ -259,6 +262,7 @@ export function HomePageCarouselBody({
           </div>
         : null}
       </section>
+      {desktopSettingsCard}
 
       <HomeBottomStrip
         t={t}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { HomepageFooterConfig } from '../../types/homepageConfig'
 import type { AppLocaleStrings } from '../../i18n/appLocale'
 import type { Language, SectionKey } from '../../types/sectionKeys'
@@ -17,6 +18,7 @@ export type HomePageHomeBodyProps = {
   onAdminCardClick?: (key: SectionKey, row: HomeCardRow, anchor: HTMLElement) => void
   onAdminFooterClick?: () => void
   showSettingsButton?: boolean
+  desktopSettingsCard?: ReactNode
 }
 
 /** Home card grid + bottom strip only (used inside App shell when `activeSection === null`). */
@@ -30,6 +32,7 @@ export function HomePageHomeBody({
   onAdminCardClick,
   onAdminFooterClick,
   showSettingsButton,
+  desktopSettingsCard,
 }: HomePageHomeBodyProps) {
   return (
     <>
@@ -48,6 +51,7 @@ export function HomePageHomeBody({
           />
         ))}
       </section>
+      {desktopSettingsCard}
 
       <HomeBottomStrip
         t={t}

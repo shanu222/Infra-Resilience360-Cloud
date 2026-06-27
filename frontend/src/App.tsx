@@ -1098,6 +1098,10 @@ function App(_props: AppProps = {}) {
     earthquakePushNotificationService.getSettings(),
   )
   const [earthquakeNotifyStatusMsg, setEarthquakeNotifyStatusMsg] = useState<string | null>(null)
+  const [isSettingsCardViewport, setIsSettingsCardViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+    return window.matchMedia('(min-width: 1024px)').matches
+  })
   const { language, setLanguage, t, isUrdu } = useLanguage()
   const [activeSection, setActiveSection] = useState<SectionKey | null>(() => readInitialSectionFromUrl())
   const [visitedSections, setVisitedSections] = useState<Set<SectionKey>>(() => {
@@ -1821,6 +1825,15 @@ function App(_props: AppProps = {}) {
     return () => window.clearTimeout(timer)
   }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia('(min-width: 1024px)')
+    const onChange = () => setIsSettingsCardViewport(media.matches)
+    onChange()
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
   const enableEarthquakeBrowserNotifications = useCallback(async () => {
     const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
     setEarthquakeNotifyPermission(permission)
@@ -1850,6 +1863,22 @@ function App(_props: AppProps = {}) {
     const ok = await earthquakePushNotificationService.showTestNotification()
     setEarthquakeNotifyStatusMsg(ok ? 'Test alert delivered.' : 'Test alert failed. Grant browser permission first.')
   }, [])
+
+  const sendEarthquakeSoundTest = useCallback(async () => {
+    const ok = await earthquakePushNotificationService.playTestSound()
+    setEarthquakeNotifyStatusMsg(ok ? 'Alert sound played.' : 'Sound playback blocked by browser autoplay policy.')
+  }, [])
+
+  const toggleBrowserNotificationPreference = useCallback(
+    (enabled: boolean) => {
+      if (enabled) {
+        void enableEarthquakeBrowserNotifications()
+        return
+      }
+      setEarthquakeNotifyStatusMsg('Browser notification permission can be changed from browser site settings.')
+    },
+    [enableEarthquakeBrowserNotifications],
+  )
 
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
   const availableMapDistricts = useMemo(() => listDistrictsByProvince(selectedProvince), [selectedProvince])
@@ -3850,6 +3879,80 @@ function App(_props: AppProps = {}) {
       </PageConfigElementsProvider>
     )
   }
+
+  const notificationPermissionLabel =
+    earthquakeNotifyPermission === 'granted' ? 'Granted'
+    : earthquakeNotifyPermission === 'denied' ? 'Denied'
+    : earthquakeNotifyPermission === 'unsupported' ? 'Unsupported'
+    : 'Not Requested'
+  const notificationPermissionTone =
+    earthquakeNotifyPermission === 'granted' ? 'is-granted'
+    : earthquakeNotifyPermission === 'denied' ? 'is-denied'
+    : earthquakeNotifyPermission === 'unsupported' ? 'is-unsupported'
+    : 'is-pending'
+
+  const notificationSettingsPanel = (
+    <>
+      <h3 className="settings-card__title">Settings</h3>
+      <p className="settings-card__subtitle">Notification Preferences</p>
+      <div className="settings-card__group" role="group" aria-label="Notification settings">
+        <label className="switch-row">
+          <span className="settings-card__switch-label">
+            <span className="settings-card__icon" aria-hidden>
+              🌍
+            </span>
+            <span>Enable Earthquake Alerts</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={earthquakeNotifySettings.enabled}
+            onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
+          />
+        </label>
+        <label className="switch-row">
+          <span className="settings-card__switch-label">
+            <span className="settings-card__icon" aria-hidden>
+              🔔
+            </span>
+            <span>Enable Browser Notifications</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={earthquakeNotifyPermission === 'granted'}
+            onChange={(event) => toggleBrowserNotificationPreference(event.target.checked)}
+          />
+        </label>
+        <label className="switch-row">
+          <span className="settings-card__switch-label">
+            <span className="settings-card__icon" aria-hidden>
+              🔊
+            </span>
+            <span>Enable Notification Sound</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={earthquakeNotifySettings.soundEnabled}
+            onChange={(event) => updateEarthquakeNotifySettings({ soundEnabled: event.target.checked })}
+          />
+        </label>
+      </div>
+      <div className="settings-card__actions">
+        <button type="button" onClick={sendEarthquakeNotificationTest} disabled={earthquakeNotifyPermission !== 'granted'}>
+          Test Notification
+        </button>
+        <button type="button" onClick={sendEarthquakeSoundTest}>
+          Test Sound
+        </button>
+      </div>
+      <p className="settings-card__meta">
+        Permission:{' '}
+        <span className={`settings-permission-badge ${notificationPermissionTone}`}>
+          {notificationPermissionLabel}
+        </span>
+      </p>
+      {earthquakeNotifyStatusMsg ? <p className="settings-card__status">{earthquakeNotifyStatusMsg}</p> : null}
+    </>
+  )
 
   const renderSectionContent = (section: SectionKey) => {
     const rf = (pageId: 'main' | 'analysis' | 'estimate', key: string) =>
@@ -6665,48 +6768,19 @@ function App(_props: AppProps = {}) {
       <div className="panel section-panel section-settings">
         <CmsSectionHeading fallback={t.sections.settings} />
         <CmsText id="sectionIntro" fallback={t.homeCards.settings.subtitle} className="section-lead" />
-        <div className="settings-card">
-          <h3 className="settings-card__title">Earthquake Notifications</h3>
-          <p className="settings-card__subtitle">
-            Browser notifications are triggered only from real live earthquake events that pass your threshold.
-          </p>
-          <div className="settings-card__group" role="group" aria-label="Earthquake notification preferences">
-            <label className="switch-row">
-              Enable earthquake alerts
-              <input
-                type="checkbox"
-                checked={earthquakeNotifySettings.enabled}
-                onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
-              />
-            </label>
-            <label className="switch-row">
-              Enable notification sound
-              <input
-                type="checkbox"
-                checked={earthquakeNotifySettings.soundEnabled}
-                onChange={(event) => updateEarthquakeNotifySettings({ soundEnabled: event.target.checked })}
-              />
-            </label>
-          </div>
-          <div className="settings-card__actions">
-            <button type="button" onClick={enableEarthquakeBrowserNotifications}>
-              Enable Browser Notifications
-            </button>
-            <button type="button" onClick={sendEarthquakeNotificationTest} disabled={earthquakeNotifyPermission !== 'granted'}>
-              Send Test Alert
-            </button>
-          </div>
-          <p className="settings-card__meta">
-            Permission: <strong>{earthquakeNotifyPermission}</strong> · Support:{' '}
-            <strong>{earthquakePushNotificationService.isSupported() ? 'available' : 'unsupported'}</strong>
-          </p>
-          {earthquakeNotifyStatusMsg ? <p className="settings-card__status">{earthquakeNotifyStatusMsg}</p> : null}
-        </div>
+        <div className="settings-card">{notificationSettingsPanel}</div>
       </div>
     )
   }
 
   const useWebSingleRowHeader = !isCapacitorNativeRuntime()
+  const showDesktopSettingsCard = isHomeView && isSettingsCardViewport
+  const desktopHomeSettingsCard =
+    showDesktopSettingsCard ?
+      <section className="home-settings-card settings-card" aria-label="Settings">
+        {notificationSettingsPanel}
+      </section>
+    : null
 
   const navbarBrandContent = (
     <div className="brand">
@@ -6760,7 +6834,7 @@ function App(_props: AppProps = {}) {
       language={language}
       setLanguage={setLanguage}
       showLanguageToggle={true}
-      showSettingsToggle={true}
+      showSettingsToggle={!isSettingsCardViewport}
       selectedRole={selectedRole}
       setSelectedRole={setSelectedRole}
       interfaceToggleLabel={interfaceToggleLabel}
@@ -6892,6 +6966,7 @@ function App(_props: AppProps = {}) {
               onAdminFooterClick={undefined}
               footerCms={homepageConfig.footer}
               showSettingsButton={isCapacitorNativeRuntime()}
+              desktopSettingsCard={desktopHomeSettingsCard}
             />
           : <HomePageHomeBody
             t={t}
@@ -6903,6 +6978,7 @@ function App(_props: AppProps = {}) {
             onAdminFooterClick={undefined}
             footerCms={homepageConfig.footer}
             showSettingsButton={isCapacitorNativeRuntime()}
+            desktopSettingsCard={desktopHomeSettingsCard}
           />)}
         {visitedSections.size > 0 ?
           <PersistentSectionHost

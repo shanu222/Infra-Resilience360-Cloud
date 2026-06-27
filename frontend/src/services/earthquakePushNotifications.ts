@@ -1,4 +1,5 @@
 import { fetchApi } from './apiBase'
+import { EARTHQUAKE_ALERT_SOUND_DATA_URI } from '../assets/audio/earthquakeAlertSound'
 
 export type EarthquakeNotificationPayload = {
   magnitude: number
@@ -17,6 +18,7 @@ class EarthquakePushNotificationService {
   private readonly promptKey = 'r360-earthquake-notify-prompt-state'
   private readonly promptTsKey = 'r360-earthquake-notify-prompt-ts'
   private readonly permissionKey = 'r360-earthquake-notify-permission'
+  private audio: HTMLAudioElement | null = null
 
   async initialize(): Promise<void> {
     if (this.initialized) return
@@ -132,6 +134,20 @@ class EarthquakePushNotificationService {
         }
         window.location.assign('/view/live-earthquake-map')
       }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async playTestSound(): Promise<boolean> {
+    try {
+      if (!this.audio) {
+        this.audio = new Audio(EARTHQUAKE_ALERT_SOUND_DATA_URI)
+        this.audio.preload = 'auto'
+      }
+      this.audio.currentTime = 0
+      await this.audio.play()
       return true
     } catch {
       return false
