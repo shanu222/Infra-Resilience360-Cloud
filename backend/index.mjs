@@ -213,6 +213,10 @@ const BREVO_API_KEY = String(process.env.BREVO_API_KEY ?? '').trim()
 const INFRA_MODELS_GIT_SYNC_ENABLED = envFlag(process.env.INFRA_MODELS_GIT_SYNC_ENABLED, 'false')
 const INFRA_MODELS_GIT_SYNC_BRANCH = String(process.env.INFRA_MODELS_GIT_SYNC_BRANCH ?? '').trim()
 const ADMIN_SERVICE_MODE = envFlag(process.env.ADMIN_SERVICE_MODE, 'false')
+const SERVE_FRONTEND_ASSETS = envFlag(
+  process.env.SERVE_FRONTEND_ASSETS,
+  process.env.NODE_ENV === 'production' ? 'false' : 'true',
+)
 /** Optional legacy media sync toggle retained as disabled by default. */
 const CMS_SYNC_ENABLED = envFlag(process.env.CMS_SYNC_ENABLED, 'false')
 const RECOVERY_RATE_LIMIT_WINDOW_MS = Math.max(60_000, Number(process.env.RECOVERY_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000) || 15 * 60 * 1000)
@@ -5807,72 +5811,74 @@ app.delete('/api/admin/material-hubs/entries/:id', async (req, res) => {
 
 // ========== END ADMIN APP ENDPOINTS ==========
 
-const adminPublicDir = path.join(repoRootDir, 'frontend', 'public', 'admin')
-/** In admin-only mode, extra static assets live under `public/admin`; built `admin.html` + chunks always come from `dist`. */
-const frontendStaticPath = ADMIN_SERVICE_MODE ? adminPublicDir : distPath
+if (SERVE_FRONTEND_ASSETS) {
+  const adminPublicDir = path.join(repoRootDir, 'frontend', 'public', 'admin')
+  /** In admin-only mode, extra static assets live under `public/admin`; built `admin.html` + chunks always come from `dist`. */
+  const frontendStaticPath = ADMIN_SERVICE_MODE ? adminPublicDir : distPath
 
-const isRestrictedPublicPath = () => false
+  const isRestrictedPublicPath = () => false
 
-/** PDF MIME + long-cache hashed build assets; keep HTML entrypoints revalidating for deploys + bfcache. */
-const staticPdfHeaders = (res, filePath) => {
-  const fp = String(filePath ?? '')
-  const lower = fp.toLowerCase()
-  if (lower.endsWith('.pdf')) {
-    res.setHeader('Content-Type', 'application/pdf')
+  /** PDF MIME + long-cache hashed build assets; keep HTML entrypoints revalidating for deploys + bfcache. */
+  const staticPdfHeaders = (res, filePath) => {
+    const fp = String(filePath ?? '')
+    const lower = fp.toLowerCase()
+    if (lower.endsWith('.pdf')) {
+      res.setHeader('Content-Type', 'application/pdf')
+    }
+    const base = path.basename(fp)
+    if (base === 'index.html' || base === 'admin.html' || base === 'admin-homepage.html') {
+      res.setHeader('Cache-Control', 'no-cache')
+      return
+    }
+    if (/^sw\.js$/i.test(base) || /^workbox-[a-z0-9]+\.js$/i.test(base) || /^manifest\.webmanifest$/i.test(base)) {
+      res.setHeader('Cache-Control', 'no-cache')
+      return
+    }
+    if (/\.(js|mjs|css|woff2|woff|ttf|png|jpe?g|gif|svg|webp|avif|ico|map|json|wasm)$/i.test(base)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    }
   }
-  const base = path.basename(fp)
-  if (base === 'index.html' || base === 'admin.html' || base === 'admin-homepage.html') {
-    res.setHeader('Cache-Control', 'no-cache')
-    return
-  }
-  if (/^sw\.js$/i.test(base) || /^workbox-[a-z0-9]+\.js$/i.test(base) || /^manifest\.webmanifest$/i.test(base)) {
-    res.setHeader('Cache-Control', 'no-cache')
-    return
-  }
-  if (/\.(js|mjs|css|woff2|woff|ttf|png|jpe?g|gif|svg|webp|avif|ico|map|json|wasm)$/i.test(base)) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-  }
-}
 
-app.use((req, res, next) => {
-  if (ADMIN_SERVICE_MODE) {
+  app.use((req, res, next) => {
+    if (ADMIN_SERVICE_MODE) {
+      next()
+      return
+    }
+
+    if (isRestrictedPublicPath(req.path)) {
+      res.status(404).json({ error: 'Not found.' })
+      return
+    }
+
     next()
-    return
+  })
+
+  // Admin/CMS editing UI is permanently disabled ? serve the read-only notice (built from admin-disabled entry).
+  const sendAdministrativeEditingDisabledPage = (res) => {
+    const filePath = path.join(distPath, 'admin.html')
+    if (!existsSync(filePath)) {
+      return res
+        .status(503)
+        .type('text/html; charset=utf-8')
+        .send(
+          '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;text-align:center"><h1>Resilience360</h1><p>Administrative editing has been permanently disabled.</p><p><a href="/">Return to the public application</a></p></body></html>',
+        )
+    }
+    res.setHeader('Cache-Control', 'no-cache')
+    return res.sendFile(path.resolve(filePath))
   }
 
-  if (isRestrictedPublicPath(req.path)) {
-    res.status(404).json({ error: 'Not found.' })
-    return
+  app.get('/admin.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
+  app.get('/admin-homepage.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
+  app.get('/admin', (_req, res) => res.redirect(302, '/admin.html'))
+  app.get(/^\/admin\/[^.]*$/i, (_req, res) => sendAdministrativeEditingDisabledPage(res))
+
+  if (ADMIN_SERVICE_MODE) {
+    app.use(express.static(distPath, { index: false, setHeaders: staticPdfHeaders }))
   }
 
-  next()
-})
-
-// Admin/CMS editing UI is permanently disabled ? serve the read-only notice (built from admin-disabled entry).
-const sendAdministrativeEditingDisabledPage = (res) => {
-  const filePath = path.join(distPath, 'admin.html')
-  if (!existsSync(filePath)) {
-    return res
-      .status(503)
-      .type('text/html; charset=utf-8')
-      .send(
-        '<!DOCTYPE html><html><body style="font-family:system-ui;padding:2rem;text-align:center"><h1>Resilience360</h1><p>Administrative editing has been permanently disabled.</p><p><a href="/">Return to the public application</a></p></body></html>',
-      )
-  }
-  res.setHeader('Cache-Control', 'no-cache')
-  return res.sendFile(path.resolve(filePath))
+  app.use(express.static(frontendStaticPath, { setHeaders: staticPdfHeaders }))
 }
-
-app.get('/admin.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
-app.get('/admin-homepage.html', (_req, res) => sendAdministrativeEditingDisabledPage(res))
-app.get('/admin', (_req, res) => res.redirect(302, '/admin.html'))
-app.get(/^\/admin\/[^.]*$/i, (_req, res) => sendAdministrativeEditingDisabledPage(res))
-
-if (ADMIN_SERVICE_MODE) {
-  app.use(express.static(distPath, { index: false, setHeaders: staticPdfHeaders }))
-}
-
-app.use(express.static(frontendStaticPath, { setHeaders: staticPdfHeaders }))
 
 app.use((error, req, res, next) => {
   const apiPath = String(req.path ?? '')
@@ -5899,24 +5905,26 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found' })
 })
 
-// Never serve SPA HTML for direct PDF requests.
-app.use((req, res, next) => {
-  if (String(req.path).toLowerCase().endsWith('.pdf')) {
-    res.status(404).type('application/pdf').end()
-    return
-  }
-  next()
-})
+if (SERVE_FRONTEND_ASSETS) {
+  // Never serve SPA HTML for direct PDF requests.
+  app.use((req, res, next) => {
+    if (String(req.path).toLowerCase().endsWith('.pdf')) {
+      res.status(404).type('application/pdf').end()
+      return
+    }
+    next()
+  })
 
-// SPA fallback: index.html always comes from Vite `dist/` (same for combined and admin-shell builds).
-app.use((req, res) => {
-  const indexPath = path.join(distPath, 'index.html')
-  if (!existsSync(indexPath)) {
-    return res.status(404).json({ error: 'spa_index_not_found' })
-  }
-  res.setHeader('Cache-Control', 'no-cache')
-  res.sendFile(path.resolve(indexPath))
-})
+  // SPA fallback: index.html always comes from Vite `dist/` (same for combined and admin-shell builds).
+  app.use((req, res) => {
+    const indexPath = path.join(distPath, 'index.html')
+    if (!existsSync(indexPath)) {
+      return res.status(404).json({ error: 'spa_index_not_found' })
+    }
+    res.setHeader('Cache-Control', 'no-cache')
+    res.sendFile(path.resolve(indexPath))
+  })
+}
 
 async function startServer() {
   if (

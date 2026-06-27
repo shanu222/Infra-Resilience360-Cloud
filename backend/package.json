@@ -3,7 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node -e \"console.log('Backend build completed')\"",
     "start": "node ./server.js",
     "dev": "node ./index.mjs"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^4.21.2",
+    "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
+    "openai": "^6.22.0",
+    "pino": "^10.1.0",
+    "zod": "^4.4.3"
   }
 }

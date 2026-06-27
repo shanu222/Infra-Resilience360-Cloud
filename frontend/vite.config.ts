@@ -10,7 +10,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const configuredBase = process.env.VITE_BASE_PATH ?? '/'
 const base = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`
 const siteUrl = String(process.env.VITE_SITE_URL ?? 'https://www.infraresilience.org').replace(/\/+$/, '')
-const localApiTarget = String(process.env.VITE_API_BASE_URL ?? 'http://localhost:10000').trim().replace(/\/+$/, '')
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -237,46 +236,5 @@ export default defineConfig(({ mode }) => ({
     host: 'localhost',
     port: 5173,
     strictPort: true,
-    proxy: {
-      '/api/ndma/advisories': {
-        target: 'https://ndma.gov.pk',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/advisories',
-      },
-      '/api/ndma/sitreps': {
-        target: 'https://ndma.gov.pk',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/sitreps',
-      },
-      '/api/ndma/projections': {
-        target: 'https://ndma.gov.pk',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/projection-impact-list_new',
-      },
-      '/api/pmd/rss': {
-        target: 'https://cap-sources.s3.amazonaws.com',
-        changeOrigin: true,
-        secure: true,
-        rewrite: () => '/pk-pmd-en/rss.xml',
-      },
-      '/data': {
-        target: localApiTarget,
-        changeOrigin: true,
-        secure: false,
-      },
-      '/static/media': {
-        target: localApiTarget,
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api': {
-        target: localApiTarget,
-        changeOrigin: true,
-        secure: false,
-      },
-    },
   },
 }))
