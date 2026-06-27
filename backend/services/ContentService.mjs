@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { DATA_DIR, MEDIA_ROOT } from '../config/localPaths.mjs'
 import { readJsonFile } from './JsonDatabase.mjs'
+import { mapStorageContentToPublicMediaUrl } from './localUrlRewrite.mjs'
 
 const MODULE_KEYS = [
   'home',
@@ -55,7 +56,7 @@ function normalizeMetadataMediaPath(value, moduleKey) {
 function toPublicMediaPath(value, moduleKey) {
   const rel = normalizeMetadataMediaPath(value, moduleKey)
   if (!rel) return ''
-  return `/storage/content/${moduleKey}/${rel}`
+  return mapStorageContentToPublicMediaUrl(`/storage/content/${moduleKey}/${rel}`)
 }
 
 function normalizeMetadataShape(raw, moduleKey) {
@@ -145,6 +146,8 @@ export class ContentService {
     const base = path.join(MEDIA_ROOT, resolved, normalizedSub)
     if (!existsSync(base)) return []
     const entries = await fs.readdir(base)
-    return entries.map((name) => `/storage/content/${resolved}/${normalizedSub}/${encodeURIComponent(name)}`)
+    return entries.map((name) =>
+      mapStorageContentToPublicMediaUrl(`/storage/content/${resolved}/${normalizedSub}/${encodeURIComponent(name)}`),
+    )
   }
 }

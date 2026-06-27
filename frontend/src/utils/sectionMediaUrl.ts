@@ -1,6 +1,7 @@
 ﻿import { rewriteLegacyS3Url, localStaticMediaUrl } from '../config/localContent'
 import { fixApiUrl } from './fixApiUrl'
 import { inferS3KeysFromLocalPath, buildS3ProxyMediaUrl } from './contentMediaResolver'
+import { getMediaUrl } from './mediaUrl'
 
 function decodePathSegment(seg: string): string {
   try {
@@ -102,13 +103,13 @@ export function resolveSectionMediaUrl(maybeRelative: string): string {
   if (fixed) return enforceHttpsOnSecurePage(fixed)
   const path = u.startsWith('/') ? u.replace(/^\/+/, '') : u
   if (path.startsWith('storage/content/')) {
-    return enforceHttpsOnSecurePage(`/${path}`)
+    return enforceHttpsOnSecurePage(getMediaUrl(path.slice('storage/content/'.length)))
   }
   if (path.startsWith('static/media/local/')) {
-    return enforceHttpsOnSecurePage(`/${path.replace(/^static\/media\/local\//, 'storage/content/')}`)
+    return enforceHttpsOnSecurePage(getMediaUrl(path.replace(/^static\/media\/local\//, '')))
   }
   if (path.startsWith('content/')) {
-    return enforceHttpsOnSecurePage(`/${path.replace(/^content\//, 'storage/content/')}`)
+    return enforceHttpsOnSecurePage(getMediaUrl(path.replace(/^content\//, '')))
   }
   return enforceHttpsOnSecurePage(localStaticMediaUrl(path))
 }

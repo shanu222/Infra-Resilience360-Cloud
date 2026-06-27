@@ -5,9 +5,31 @@ import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
+const MEDIA_BASE_URL = String(import.meta.env.VITE_MEDIA_BASE_URL ?? import.meta.env.VITE_PUBLIC_MEDIA_BASE_URL ?? '')
+  .trim()
+  .replace(/\/+$/, '')
 
 if (typeof window !== 'undefined') {
-  ;(window as Window & { __R360_API_BASE_URL?: string }).__R360_API_BASE_URL = API_BASE_URL
+  ;(window as Window & { __R360_API_BASE_URL?: string; __R360_MEDIA_BASE_URL?: string }).__R360_API_BASE_URL = API_BASE_URL
+  if (MEDIA_BASE_URL) {
+    ;(window as Window & { __R360_API_BASE_URL?: string; __R360_MEDIA_BASE_URL?: string }).__R360_MEDIA_BASE_URL =
+      MEDIA_BASE_URL
+  }
+}
+
+function ensureMediaPreconnect() {
+  if (typeof document === 'undefined' || !MEDIA_BASE_URL) return
+  try {
+    const origin = new URL(MEDIA_BASE_URL).origin
+    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return
+    const preconnect = document.createElement('link')
+    preconnect.rel = 'preconnect'
+    preconnect.href = origin
+    preconnect.crossOrigin = 'anonymous'
+    document.head.appendChild(preconnect)
+  } catch {
+    /* ignore malformed media base URL */
+  }
 }
 
 const root = createRoot(document.getElementById('root')!)
@@ -75,6 +97,7 @@ async function setupServiceWorkerBootstrap() {
 }
 
 void setupServiceWorkerBootstrap()
+ensureMediaPreconnect()
 
 root.render(
   <LanguageProvider>

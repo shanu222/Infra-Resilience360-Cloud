@@ -1,3 +1,11 @@
+const normalizeEnvValue = (rawValue, fallback = '') =>
+  String(rawValue ?? fallback)
+    .trim()
+    .replace(/^['\"]|['\"]$/g, '')
+
+const MEDIA_BASE_URL = normalizeEnvValue(process.env.MEDIA_BASE_URL, '').replace(/\/+$/, '')
+const MEDIA_BASE_STORAGE_SUFFIX = '/storage/content'
+
 function extractMediaKeyFromUrl(url) {
   const s = String(url ?? '').trim()
   if (!s) return ''
@@ -23,17 +31,74 @@ export function mediaKeyToLocalMediaUrl(key) {
   return `/storage/content/${encoded}`
 }
 
+function normalizeStorageSuffix(rawPath) {
+  return String(rawPath ?? '')
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/^storage\/content\/?/i, '')
+}
+
+function buildPublicMediaUrlFromSuffix(suffix) {
+  const cleanSuffix = normalizeStorageSuffix(suffix)
+  if (!cleanSuffix) return ''
+  const rawBase = String(MEDIA_BASE_URL ?? '').trim().replace(/\/+$/, '')
+  if (!rawBase) return `/storage/content/${cleanSuffix}`
+
+  const basePathLower = (() => {
+    try {
+      return new URL(rawBase).pathname.toLowerCase().replace(/\/+$/, '')
+    } catch {
+      return ''
+    }
+  })()
+  const hasContentSuffix = basePathLower.endsWith('/content')
+  const hasStorageSuffix = basePathLower.endsWith(MEDIA_BASE_STORAGE_SUFFIX)
+
+  if (hasContentSuffix) return `${rawBase}/${cleanSuffix}`
+  if (hasStorageSuffix) return `${rawBase.replace(/\/storage\/content$/i, '')}/content/${cleanSuffix}`
+  return `${rawBase}/content/${cleanSuffix}`
+}
+
+export function mapStorageContentToPublicMediaUrl(rawPath) {
+  const clean = String(rawPath ?? '').trim()
+  if (!clean) return clean
+  if (clean.startsWith('/data/')) return clean
+  const normalizedRaw = clean.replace(/\\/g, '/')
+  if (normalizedRaw.startsWith('/storage/content/')) {
+    return buildPublicMediaUrlFromSuffix(normalizedRaw.slice('/storage/content/'.length))
+  }
+  if (normalizedRaw.startsWith('storage/content/')) {
+    return buildPublicMediaUrlFromSuffix(normalizedRaw.slice('storage/content/'.length))
+  }
+  return clean
+}
+
 export function rewriteMediaUrl(raw) {
   const s = String(raw ?? '').trim()
   if (!s) return s
   if (s.startsWith('/static/media/local/')) {
-    return s.replace(/^\/static\/media\/local\//, '/storage/content/')
+    return mapStorageContentToPublicMediaUrl(s.replace(/^\/static\/media\/local\//, '/storage/content/'))
   }
-  if (s.startsWith('/storage/content/') || s.startsWith('/data/')) {
+  if (s.startsWith('/storage/content/') || s.startsWith('storage/content/')) {
+    return mapStorageContentToPublicMediaUrl(s)
+  }
+  if (s.startsWith('/data/')) {
     return s
   }
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s)
+      const p = u.pathname.replace(/\\/g, '/')
+      if (p.startsWith('/storage/content/')) {
+        return mapStorageContentToPublicMediaUrl(p)
+      }
+    } catch {
+      /* keep original URL */
+    }
+  }
   const key = extractMediaKeyFromUrl(s)
-  if (key) return mediaKeyToLocalMediaUrl(key)
+  if (key) return mapStorageContentToPublicMediaUrl(mediaKeyToLocalMediaUrl(key))
   return s
 }
 

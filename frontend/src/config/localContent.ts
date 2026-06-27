@@ -34,9 +34,12 @@ export function rewriteLegacyS3Url(raw: string): string {
   const s = String(raw ?? '').trim()
   if (!s) return s
   if (s.startsWith('/static/media/local/')) {
-    return s.replace(/^\/static\/media\/local\//, '/storage/content/')
+    return getMediaUrl(s.replace(/^\/static\/media\/local\//, ''))
   }
-  if (s.startsWith('/storage/content/') || s.startsWith('/data/')) {
+  if (s.startsWith('/storage/content/')) {
+    return getMediaUrl(s.slice('/storage/content/'.length))
+  }
+  if (s.startsWith('/data/')) {
     return s
   }
   try {
