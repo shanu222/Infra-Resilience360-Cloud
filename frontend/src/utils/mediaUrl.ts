@@ -9,8 +9,6 @@ function normalizeRelativeMediaPath(relativePath: string): string {
 
 /** Build absolute media URL, preferring direct R2 delivery when configured. */
 export function getMediaUrl(relativePath: string): string {
-  const raw = String(relativePath ?? '').trim()
-  if (/^https?:\/\//i.test(raw)) return raw
   const clean = normalizeRelativeMediaPath(relativePath)
   return mediaManager.resolveRuntimeMediaUrl(clean)
 }

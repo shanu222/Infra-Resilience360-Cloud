@@ -45,6 +45,22 @@ class MediaManager {
     if (cacheHit) return cacheHit
 
     if (/^https?:\/\//i.test(input)) {
+      try {
+        const parsed = new URL(input)
+        const path = normalizeRelativePath(parsed.pathname)
+        if (path.toLowerCase().startsWith('storage/content/')) {
+          const resolved = `${this.getMediaBaseUrl()}/content/${path.slice('storage/content/'.length)}`
+          this.resolvedUrlCache.set(input, resolved)
+          return resolved
+        }
+        if (path.toLowerCase().startsWith('content/')) {
+          const resolved = `${this.getMediaBaseUrl()}/content/${path.slice('content/'.length)}`
+          this.resolvedUrlCache.set(input, resolved)
+          return resolved
+        }
+      } catch {
+        /* keep original URL if parsing fails */
+      }
       this.resolvedUrlCache.set(input, input)
       return input
     }
