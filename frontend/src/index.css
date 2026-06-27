@@ -3631,8 +3631,7 @@ h4 {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
   overflow: visible;
 }
 
@@ -3641,8 +3640,7 @@ h4 {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
   overflow: visible;
 }
 
@@ -3657,8 +3655,7 @@ h4 {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
   overflow: visible;
 }
 
@@ -3676,15 +3673,14 @@ h4 {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
   isolation: isolate;
   overflow: visible;
   background-image: var(--smart-construction-bg-url);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: scroll;
 }
 
 .portal-page-smart-construction.smart-construction-layout::before {
@@ -3720,8 +3716,8 @@ h4 {
   display: block;
   width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
-  min-height: max(560px, calc(100dvh - 12rem));
+  flex: 0 0 auto;
+  min-height: 0;
   height: auto;
   border: 0;
   border-radius: 12px;
@@ -3733,8 +3729,8 @@ h4 {
   display: block;
   width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
-  min-height: max(560px, calc(100dvh - 12rem));
+  flex: 0 0 auto;
+  min-height: 0;
   height: auto;
   max-height: none;
   background: transparent;
@@ -3746,37 +3742,35 @@ h4 {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 0;
 }
 
 @media (max-width: 1023px) {
   .section-panel.section-retrofit-calculator {
-    min-height: auto;
+    min-height: 0;
   }
 
   .section-panel.section-building-codes {
-    min-height: auto;
+    min-height: 0;
   }
 
   .section-panel.section-smart-construction {
-    min-height: auto;
+    min-height: 0;
   }
 
   .portal-page-smart-construction.smart-construction-layout {
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: 0;
     background-attachment: scroll;
   }
 
   .portal-page-smart-construction .smart-construction-portal-frame {
-    min-height: 100dvh;
+    min-height: 0;
     border-radius: 10px;
   }
 
   .portal-page-retrofit-calculator .retrofit-calculator-portal-frame,
   .portal-page-pgbc .pgbc-portal-frame {
-    min-height: 100dvh;
+    min-height: 0;
     border-radius: 10px;
   }
 }
@@ -3837,8 +3831,8 @@ h4 {
 }
 
 .portal-page-pgbc .pgbc-portal-frame {
-  min-height: calc(100svh - var(--r360-shell-chrome));
-  height: calc(100dvh - var(--r360-shell-chrome));
+  min-height: 0;
+  height: auto;
 }
 
 /* Disaster Dashboard iframe: transparent frame + panel so shell hero video shows through */

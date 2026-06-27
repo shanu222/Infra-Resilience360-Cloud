@@ -4,7 +4,7 @@ import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
-import { getModuleMediaUrl } from '../../utils/mediaUrl'
+import smartConstructionBackground from '../../assets/backgrounds/smart_construction_bg.png'
 
 export function SmartConstructionPage({
   language,
@@ -16,7 +16,6 @@ export function SmartConstructionPage({
   isEditMode?: boolean
 }) {
   const iframeRef = useIframeAutoHeight(0)
-  const smartConstructionBackgroundUrl = getModuleMediaUrl('smart-construction', 'images', 'smart_construction_bg.png')
 
   useEffect(() => {
     persistLanguage(language)
@@ -31,7 +30,7 @@ export function SmartConstructionPage({
       data-edit-mode={isEditMode ? 'true' : 'false'}
       style={
         {
-          '--smart-construction-bg-url': `url("${smartConstructionBackgroundUrl}")`,
+          '--smart-construction-bg-url': `url("${smartConstructionBackground}")`,
         } as CSSProperties
       }
     >
