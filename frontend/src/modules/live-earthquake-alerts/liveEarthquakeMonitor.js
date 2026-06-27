@@ -132,6 +132,8 @@ export function initLiveEarthquakeMonitor(root) {
           sourceUnavailable: 'Source: unavailable',
           displayLabel: 'Display',
           allLabel: 'All',
+          mobileRecentEvents: 'Recent Events',
+          mobileGlobeView: 'Globe View',
           buildingsLoading: 'Buildings: loading',
           buildingsUnavailable: 'Buildings: unavailable',
           buildingsLabel: 'Buildings:',
@@ -191,6 +193,8 @@ export function initLiveEarthquakeMonitor(root) {
           sourceUnavailable: 'ماخذ: دستیاب نہیں',
           displayLabel: 'دکھائیں',
           allLabel: 'تمام',
+          mobileRecentEvents: 'حالیہ واقعات',
+          mobileGlobeView: 'گلوب منظر',
           buildingsLoading: 'عمارتیں: لوڈ',
           buildingsUnavailable: 'عمارتیں: دستیاب نہیں',
           buildingsLabel: 'عمارتیں:',
@@ -278,6 +282,8 @@ export function initLiveEarthquakeMonitor(root) {
         }
         const displayLabel = document.querySelector('.list-toolbar-label');
         if (displayLabel) displayLabel.textContent = eqT('displayLabel');
+        setTxt('mobileEventsViewBtn', eqT('mobileRecentEvents'));
+        setTxt('mobileGlobeViewBtn', eqT('mobileGlobeView'));
         const displaySelect = document.getElementById('eventDisplayCountSelect');
         if (displaySelect) {
           Array.from(displaySelect.options || []).forEach((option) => {
@@ -317,6 +323,36 @@ export function initLiveEarthquakeMonitor(root) {
         refreshBtn.disabled = Boolean(isLoading);
         refreshBtn.setAttribute('aria-busy', isLoading ? 'true' : 'false');
         refreshBtn.classList.toggle('is-loading', Boolean(isLoading));
+      }
+
+      function isCompactPhoneViewport() {
+        return window.matchMedia('(max-width: 640px)').matches;
+      }
+
+      function setMobilePanelView(nextView) {
+        mobilePanelView = nextView === 'globe' ? 'globe' : 'events';
+        const pageEl = root.querySelector('.page');
+        if (!pageEl) return;
+        pageEl.classList.remove('mobile-panel-events', 'mobile-panel-globe');
+
+        const eventsBtn = document.getElementById('mobileEventsViewBtn');
+        const globeBtn = document.getElementById('mobileGlobeViewBtn');
+        const isEventsView = mobilePanelView === 'events';
+        if (eventsBtn) {
+          eventsBtn.classList.toggle('is-active', isEventsView);
+          eventsBtn.setAttribute('aria-selected', isEventsView ? 'true' : 'false');
+        }
+        if (globeBtn) {
+          globeBtn.classList.toggle('is-active', !isEventsView);
+          globeBtn.setAttribute('aria-selected', isEventsView ? 'false' : 'true');
+        }
+
+        if (!isCompactPhoneViewport()) return;
+        pageEl.classList.add(isEventsView ? 'mobile-panel-events' : 'mobile-panel-globe');
+        if (!isEventsView) {
+          resizeGlobeViewport();
+          if (is2DMap) scheduleLeafletInvalidate();
+        }
       }
 
       function stripTrailingSlash(value) {
@@ -540,6 +576,7 @@ export function initLiveEarthquakeMonitor(root) {
       let globeFaultLinePaths = [];
       let globeOverlayDataLoaded = false;
       let globeOverlayDataLoading = null;
+      let mobilePanelView = 'events';
       let lastGlobeViewportWidth = 0;
       let lastGlobeViewportHeight = 0;
       let globeResizeRaf = null;
@@ -2879,6 +2916,8 @@ export function initLiveEarthquakeMonitor(root) {
         const sortFilterSelect = document.getElementById('sortFilterSelect');
         const eventSearchInput = document.getElementById('eventSearchInput');
         const eventDisplayCountSelect = document.getElementById('eventDisplayCountSelect');
+        const mobileEventsViewBtn = document.getElementById('mobileEventsViewBtn');
+        const mobileGlobeViewBtn = document.getElementById('mobileGlobeViewBtn');
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const layerToggleBtn = document.getElementById('layerToggleBtn');
@@ -2974,6 +3013,14 @@ export function initLiveEarthquakeMonitor(root) {
           renderRecentActivityList();
         });
 
+        bind(mobileEventsViewBtn, 'click', () => {
+          setMobilePanelView('events');
+        });
+
+        bind(mobileGlobeViewBtn, 'click', () => {
+          setMobilePanelView('globe');
+        });
+
         const onLayerSettingChange = () => {
           layerSettings = {
             countryBorders: Boolean(layerCountryBorders?.checked),
@@ -3029,6 +3076,11 @@ export function initLiveEarthquakeMonitor(root) {
         };
         document.addEventListener('fullscreenchange', onFullscreenChange);
         addDisposeCallback(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
+        const onViewportResize = () => {
+          setMobilePanelView(mobilePanelView);
+        };
+        window.addEventListener('resize', onViewportResize);
+        addDisposeCallback(() => window.removeEventListener('resize', onViewportResize));
 
         bind(zoomInBtn, 'click', () => {
           if (is2DMap && leafletMap) {
@@ -3080,6 +3132,7 @@ export function initLiveEarthquakeMonitor(root) {
           baseLayerSelect.value = 'night';
         }
         setIs2DMap(false);
+        setMobilePanelView('events');
       }
 
       const globeFactory = typeof window.Globe === 'function' ? window.Globe : null;
