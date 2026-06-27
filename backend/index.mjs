@@ -348,6 +348,11 @@ const GLOBAL_EARTHQUAKE_FEED_URL =
 const GLOBAL_EARTHQUAKE_FEED_URL_BACKUP =
   process.env.GLOBAL_EARTHQUAKE_FEED_URL_BACKUP ??
   'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
+const USGS_FEED_URL =
+  process.env.USGS_FEED_URL ??
+  'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
+const USGS_FEED_TIMEOUT_MS = Math.max(5_000, Number(process.env.USGS_FEED_TIMEOUT_MS ?? 20_000) || 20_000)
+const USGS_FEED_MAX_RETRIES = Math.max(1, Number(process.env.USGS_FEED_MAX_RETRIES ?? 3) || 3)
 const GLOBAL_BUILDING_ATLAS_WFS_URL =
   process.env.GLOBAL_BUILDING_ATLAS_WFS_URL ??
   'https://tubvsig-so2sat-vm1.srv.mwn.de/geoserver/ows?'
@@ -396,6 +401,10 @@ const appStateFile = path.join(appStateDir, 'shared-state.json')
 const liveEarthquakeCacheDir = path.join(repoRootDir, 'storage', 'cache', 'earthquake')
 const liveEarthquakeCacheFile = path.join(liveEarthquakeCacheDir, 'latest.json')
 const LIVE_EARTHQUAKE_CACHE_TTL_MS = 60_000
+const LIVE_EARTHQUAKE_REFRESH_MS = Math.max(
+  LIVE_EARTHQUAKE_CACHE_TTL_MS,
+  Number(process.env.LIVE_EARTHQUAKE_REFRESH_MS ?? 120_000) || 120_000,
+)
 const sharedInfraModelsGitRelativePath = 'backend/data/infra-models/generated-models.json'
 const execFileAsync = promisify(execFile)
 const allowedCommunityIssueStatuses = new Set(['Submitted', 'In Review', 'In Progress', 'Resolved', 'Rejected'])
@@ -2464,25 +2473,91 @@ const writeLiveEarthquakeDiskCache = async (payload) => {
 }
 
 const fetchLiveEarthquakesFromUSGS = async () => {
-  const payload = await fetchRemoteJson(
-    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson',
-    20_000,
-  )
+  let payload = null
+  let lastError = null
+  for (let attempt = 1; attempt <= USGS_FEED_MAX_RETRIES; attempt += 1) {
+    try {
+      payload = await fetchRemoteJson(USGS_FEED_URL, USGS_FEED_TIMEOUT_MS)
+      break
+    } catch (error) {
+      lastError = error
+      if (attempt >= USGS_FEED_MAX_RETRIES) break
+      await sleep(350 * attempt)
+    }
+  }
+  if (!payload) {
+    throw (lastError instanceof Error ? lastError : new Error('Unable to fetch USGS feed'))
+  }
+
   const features = safeArray(payload?.features)
     .map((feature, index) => normalizeLiveEarthquakeFeature(feature, index))
     .filter(Boolean)
     .sort((a, b) => Number(b?.properties?.time ?? 0) - Number(a?.properties?.time ?? 0))
 
+  const sourceTimestamp = (() => {
+    const generatedMs = Number(payload?.metadata?.generated ?? payload?.metadata?.generatedAt ?? payload?.generated)
+    if (Number.isFinite(generatedMs) && generatedMs > 0) {
+      return new Date(generatedMs).toISOString()
+    }
+    return new Date().toISOString()
+  })()
+
+  const latestEvents = features.slice(0, 12).map((feature) => ({
+    id: String(feature?.id ?? ''),
+    magnitude: Number(feature?.properties?.mag ?? 0),
+    place: String(feature?.properties?.place ?? 'Unknown location'),
+    time: Number(feature?.properties?.time ?? Date.now()),
+    source: 'USGS',
+    coordinates: safeArray(feature?.geometry?.coordinates).slice(0, 3),
+  }))
+
+  const statistics = (() => {
+    const total = features.length
+    let significant = 0
+    let last24h = 0
+    let highestMagnitude = 0
+    const since24h = Date.now() - 24 * 60 * 60 * 1000
+    for (const feature of features) {
+      const mag = Number(feature?.properties?.mag ?? 0)
+      const time = Number(feature?.properties?.time ?? 0)
+      if (mag >= 5) significant += 1
+      if (Number.isFinite(time) && time >= since24h) last24h += 1
+      if (Number.isFinite(mag) && mag > highestMagnitude) highestMagnitude = mag
+    }
+    return {
+      total,
+      significant,
+      last24h,
+      highestMagnitude: Number(highestMagnitude.toFixed(1)),
+    }
+  })()
+
   return {
     type: 'FeatureCollection',
+    source: 'USGS',
+    sourceLabel: 'Source: USGS',
+    timestamp: sourceTimestamp,
+    feedUrl: USGS_FEED_URL,
     metadata: {
-      generatedAt: new Date().toISOString(),
-      source: 'USGS Live Feed',
-      feed: 'all_hour',
+      generatedAt: sourceTimestamp,
+      source: 'USGS',
+      feed: USGS_FEED_URL,
       count: features.length,
     },
+    statistics,
+    latestEvents,
     features,
   }
+}
+
+const refreshLiveEarthquakeCache = async () => {
+  const payload = await fetchLiveEarthquakesFromUSGS()
+  liveEarthquakeCacheMemory = {
+    loadedAt: Date.now(),
+    payload,
+  }
+  await writeLiveEarthquakeDiskCache(payload)
+  return payload
 }
 
 /**
@@ -3119,21 +3194,16 @@ app.get('/api/earthquake/live', async (_req, res) => {
     ) {
       res.json({
         ...liveEarthquakeCacheMemory.payload,
-        sourceLabel: 'USGS Live Feed',
+        sourceLabel: 'Source: USGS',
         fromCache: true,
       })
       return
     }
 
-    const livePayload = await fetchLiveEarthquakesFromUSGS()
-    liveEarthquakeCacheMemory = {
-      loadedAt: now,
-      payload: livePayload,
-    }
-    await writeLiveEarthquakeDiskCache(livePayload)
+    const livePayload = await refreshLiveEarthquakeCache()
     res.json({
       ...livePayload,
-      sourceLabel: 'USGS Live Feed',
+      sourceLabel: 'Source: USGS',
       fromCache: false,
     })
   } catch (error) {
@@ -3145,7 +3215,7 @@ app.get('/api/earthquake/live', async (_req, res) => {
       }
       res.json({
         ...fallback,
-        sourceLabel: 'Live feed temporarily unavailable. Displaying cached earthquakes.',
+        sourceLabel: 'Source: USGS (cached)',
         fromCache: true,
         warning: 'USGS unreachable; served cached payload.',
       })
@@ -3156,7 +3226,11 @@ app.get('/api/earthquake/live', async (_req, res) => {
     res.status(503).json({
       ok: false,
       error: message,
-      sourceLabel: 'Source: unavailable',
+      source: 'USGS',
+      sourceLabel: 'Source: USGS',
+      timestamp: new Date().toISOString(),
+      statistics: { total: 0, significant: 0, last24h: 0, highestMagnitude: 0 },
+      latestEvents: [],
       features: [],
     })
   }
@@ -6044,6 +6118,15 @@ async function startServer() {
       process.env.PUBLIC_API_BASE_URL || '(co-host /api on same origin as the web app, or set PUBLIC_API_BASE_URL)',
     )
     console.info('[API] Listening', { port: PORT, entry: 'backend/index.mjs' })
+    refreshLiveEarthquakeCache().catch((error) => {
+      console.warn('[earthquake] initial USGS refresh failed:', error instanceof Error ? error.message : error)
+    })
+    const refreshTimer = setInterval(() => {
+      refreshLiveEarthquakeCache().catch((error) => {
+        console.warn('[earthquake] periodic USGS refresh failed:', error instanceof Error ? error.message : error)
+      })
+    }, LIVE_EARTHQUAKE_REFRESH_MS)
+    if (typeof refreshTimer.unref === 'function') refreshTimer.unref()
   })
 }
 

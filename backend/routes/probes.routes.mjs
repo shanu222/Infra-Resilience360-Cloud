@@ -31,7 +31,18 @@ export function registerInstantProbeRoutes(app) {
       const ok = await streamLocalMediaToResponse(k, res)
       if (ok) return
     }
-    if (!res.headersSent) res.status(404).json({ ok: false, error: 'Geo raster not found locally.' })
+    if (!res.headersSent) {
+      // Canonical production path: Railway -> /storage/content/* -> R2.
+      res.redirect(307, '/storage/content/data/population/pak_cog.tif')
+    }
+  })
+
+  app.get('/api/data/population/pakistan/pak_cog.tif', (_req, res) => {
+    res.redirect(307, '/storage/content/data/population/pak_cog.tif')
+  })
+
+  app.get('/data/population/pakistan/pak_cog.tif', (_req, res) => {
+    res.redirect(307, '/storage/content/data/population/pak_cog.tif')
   })
 
   /** Backend is API-only: root status is served in `backend/index.mjs`. */
