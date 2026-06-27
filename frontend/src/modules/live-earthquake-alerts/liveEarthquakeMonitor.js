@@ -91,6 +91,10 @@ export function initLiveEarthquakeMonitor(root) {
       const LIVE_REFRESH_MS = 60000;
       const LIVE_FETCH_TIMEOUT_MS = 16000;
       const MAX_FETCH_RETRIES = 2;
+      const DEFAULT_GLOBE_ALTITUDE = 1.7;
+      const FOCUS_GLOBE_ALTITUDE = 1.5;
+      const MIN_GLOBE_ALTITUDE = 0.85;
+      const MAX_GLOBE_ALTITUDE = 2.8;
 
       function eqLang() {
         try {
@@ -460,7 +464,7 @@ export function initLiveEarthquakeMonitor(root) {
       let globe = null;
       let quakeRows = [];
       let selectedId = null;
-      let currentAltitude = 1.7;
+      let currentAltitude = DEFAULT_GLOBE_ALTITUDE;
       let eventsData = [];
       let activeGlobeLayer = 'night';
       let globeLayerTransitionTimer = null;
@@ -536,6 +540,10 @@ export function initLiveEarthquakeMonitor(root) {
       let globeFaultLinePaths = [];
       let globeOverlayDataLoaded = false;
       let globeOverlayDataLoading = null;
+      let lastGlobeViewportWidth = 0;
+      let lastGlobeViewportHeight = 0;
+      let globeResizeRaf = null;
+      let globeCameraClampInProgress = false;
 
       const COUNTRY_FILTER_OPTIONS = [
         'Pakistan', 'India', 'China', 'Afghanistan', 'Iran', 'Turkey', 'Indonesia', 'Japan', 'United States',
@@ -998,7 +1006,7 @@ export function initLiveEarthquakeMonitor(root) {
         if (is2DMap) {
           render2DMap();
         } else if (globe) {
-          globe.pointOfView({ ...defaultCenter, altitude: 1.7 }, 600);
+          safePointOfView({ ...defaultCenter, altitude: DEFAULT_GLOBE_ALTITUDE }, 600);
         }
       }
 
@@ -1013,7 +1021,10 @@ export function initLiveEarthquakeMonitor(root) {
 
         refreshPointsAppearance();
         if (selectedEarthquake && !is2DMap && globe) {
-          globe.pointOfView({ lat: selectedEarthquake.lat, lng: selectedEarthquake.lng, altitude: 1.5 }, 1000);
+          safePointOfView(
+            { lat: selectedEarthquake.lat, lng: selectedEarthquake.lng, altitude: FOCUS_GLOBE_ALTITUDE },
+            1000,
+          );
         }
         if (is2DMap) {
           render2DMap();
@@ -1397,6 +1408,69 @@ export function initLiveEarthquakeMonitor(root) {
       }
 
       let resizeGlobeViewportTimer = null;
+      function clampAltitude(value) {
+        const raw = Number(value);
+        if (!Number.isFinite(raw)) return DEFAULT_GLOBE_ALTITUDE;
+        return Math.max(MIN_GLOBE_ALTITUDE, Math.min(MAX_GLOBE_ALTITUDE, raw));
+      }
+
+      function getGlobeRadius() {
+        if (globe && typeof globe.getGlobeRadius === 'function') {
+          const radius = Number(globe.getGlobeRadius());
+          if (Number.isFinite(radius) && radius > 0) return radius;
+        }
+        return 100;
+      }
+
+      function altitudeToDistance(altitude) {
+        return (1 + clampAltitude(altitude)) * getGlobeRadius();
+      }
+
+      function distanceToAltitude(distance) {
+        const radius = getGlobeRadius();
+        if (!Number.isFinite(distance) || !Number.isFinite(radius) || radius <= 0) {
+          return DEFAULT_GLOBE_ALTITUDE;
+        }
+        return clampAltitude(distance / radius - 1);
+      }
+
+      function applyCameraDistanceConstraints(controls) {
+        if (!controls) return;
+        controls.minDistance = altitudeToDistance(MIN_GLOBE_ALTITUDE);
+        controls.maxDistance = altitudeToDistance(MAX_GLOBE_ALTITUDE);
+      }
+
+      function clampGlobeCameraDistance() {
+        if (!globe || !globeControls || !globeControls.object) return;
+        if (globeCameraClampInProgress) return;
+        const camera = globeControls.object;
+        const distance = Number(camera.position?.length?.() || 0);
+        const minDistance = altitudeToDistance(MIN_GLOBE_ALTITUDE);
+        const maxDistance = altitudeToDistance(MAX_GLOBE_ALTITUDE);
+        if (!Number.isFinite(distance) || !Number.isFinite(minDistance) || !Number.isFinite(maxDistance)) return;
+        if (distance >= minDistance && distance <= maxDistance) {
+          currentAltitude = distanceToAltitude(distance);
+          return;
+        }
+        globeCameraClampInProgress = true;
+        const clampedDistance = Math.max(minDistance, Math.min(maxDistance, distance));
+        const scale = clampedDistance / distance;
+        camera.position.multiplyScalar(scale);
+        currentAltitude = distanceToAltitude(clampedDistance);
+        globeControls.update();
+        globeCameraClampInProgress = false;
+      }
+
+      function safePointOfView(view, transitionMs = 0) {
+        if (!globe) return;
+        const next = { ...(view || {}) };
+        if (next.altitude !== undefined) {
+          next.altitude = clampAltitude(next.altitude);
+          currentAltitude = next.altitude;
+        }
+        globe.pointOfView(next, transitionMs);
+      }
+
       function resizeGlobeViewport() {
         if (resizeGlobeViewportTimer) {
           window.clearTimeout(resizeGlobeViewportTimer);
@@ -1410,7 +1484,12 @@ export function initLiveEarthquakeMonitor(root) {
           const width = Math.max(1, Math.floor(bounds.width || host.clientWidth || 0));
           const height = Math.max(1, Math.floor(bounds.height || host.clientHeight || 0));
           if (!width || !height) return;
+          if (width === lastGlobeViewportWidth && height === lastGlobeViewportHeight) return;
+          lastGlobeViewportWidth = width;
+          lastGlobeViewportHeight = height;
           globe.width(width).height(height);
+          applyCameraDistanceConstraints(globeControls);
+          clampGlobeCameraDistance();
           positionImpactPopup();
         }, 120);
       }
@@ -2500,22 +2579,40 @@ export function initLiveEarthquakeMonitor(root) {
         controls.autoRotateSpeed = 0.35;
         controls.enableDamping = true;
         controls.dampingFactor = 0.06;
+        controls.enablePan = false;
+        applyCameraDistanceConstraints(controls);
         if (typeof controls.addEventListener === 'function') {
-          controls.addEventListener('change', positionImpactPopup);
+          const onGlobeControlsChange = () => {
+            clampGlobeCameraDistance();
+            positionImpactPopup();
+          };
+          controls.addEventListener('change', onGlobeControlsChange);
+          addDisposeCallback(() => {
+            if (typeof controls.removeEventListener === 'function') {
+              controls.removeEventListener('change', onGlobeControlsChange);
+            }
+          });
         }
 
         window.addEventListener('resize', resizeGlobeViewport);
         addDisposeCallback(() => window.removeEventListener('resize', resizeGlobeViewport));
         if (typeof window.ResizeObserver === 'function') {
-          globeResizeObserver = new window.ResizeObserver(() => resizeGlobeViewport());
+          globeResizeObserver = new window.ResizeObserver(() => {
+            if (globeResizeRaf) return;
+            globeResizeRaf = window.requestAnimationFrame(() => {
+              globeResizeRaf = null;
+              resizeGlobeViewport();
+            });
+          });
           globeResizeObserver.observe(el);
-          if (el.parentElement) {
-            globeResizeObserver.observe(el.parentElement);
-          }
           addDisposeCallback(() => {
             if (globeResizeObserver) {
               globeResizeObserver.disconnect();
               globeResizeObserver = null;
+            }
+            if (globeResizeRaf) {
+              window.cancelAnimationFrame(globeResizeRaf);
+              globeResizeRaf = null;
             }
           });
         }
@@ -2587,7 +2684,10 @@ export function initLiveEarthquakeMonitor(root) {
         const selected = eventsData.find((item) => item.id === id);
         const target = selected || eventsData[0];
         if (!target) return;
-        globe.pointOfView({ lat: target.lat, lng: target.lng, altitude: selected ? 1.5 : 1.7 }, 1000);
+        safePointOfView(
+          { lat: target.lat, lng: target.lng, altitude: selected ? FOCUS_GLOBE_ALTITUDE : DEFAULT_GLOBE_ALTITUDE },
+          1000,
+        );
       }
 
       function selectEvent(id) {
@@ -2935,9 +3035,9 @@ export function initLiveEarthquakeMonitor(root) {
             leafletMap.zoomIn();
             return;
           }
-          const glb = ensureGlobe();
-          currentAltitude = Math.max(0.85, currentAltitude - 0.18);
-          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
+          ensureGlobe();
+          currentAltitude = clampAltitude(currentAltitude - 0.18);
+          safePointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
         });
 
         bind(zoomOutBtn, 'click', () => {
@@ -2945,9 +3045,9 @@ export function initLiveEarthquakeMonitor(root) {
             leafletMap.zoomOut();
             return;
           }
-          const glb = ensureGlobe();
-          currentAltitude = Math.min(2.8, currentAltitude + 0.18);
-          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
+          ensureGlobe();
+          currentAltitude = clampAltitude(currentAltitude + 0.18);
+          safePointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
         });
 
         bind(mapToggleBtn, 'click', (event) => {
@@ -2962,9 +3062,9 @@ export function initLiveEarthquakeMonitor(root) {
             render2DMap();
             return;
           }
-          const glb = ensureGlobe();
-          currentAltitude = 1.7;
-          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 600);
+          ensureGlobe();
+          currentAltitude = DEFAULT_GLOBE_ALTITUDE;
+          safePointOfView({ ...defaultCenter, altitude: currentAltitude }, 600);
         });
 
         if (impactPopupClose) {

@@ -27,6 +27,7 @@
           radial-gradient(circle at 70% 42%, rgba(34, 95, 210, 0.28), rgba(4, 10, 24, 0.95) 45%),
           linear-gradient(160deg, #0a1327 0%, #040814 100%);
         overflow: hidden;
+        overflow-x: clip;
       }
 
       .header {
@@ -488,6 +489,7 @@
         width: 100%;
         height: auto;
         min-height: clamp(400px, 64vh, 900px);
+        aspect-ratio: 16 / 10;
         position: relative;
         display: flex;
         align-items: stretch;
@@ -988,6 +990,33 @@
       }
 
       @media (max-width: 1200px) {
+        .header {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-areas:
+            'title'
+            'status'
+            'actions';
+          align-items: stretch;
+        }
+
+        .title {
+          grid-area: title;
+          width: 100%;
+        }
+
+        .status {
+          grid-area: status;
+          width: fit-content;
+          max-width: 100%;
+        }
+
+        .actions {
+          grid-area: actions;
+          width: 100%;
+          justify-content: flex-start;
+        }
+
         .page {
           height: auto;
           min-height: 100dvh;
@@ -1005,39 +1034,38 @@
           height: auto;
           min-height: 0;
           align-content: start;
-          overflow: visible;
+          overflow: hidden;
         }
 
         .right {
           min-height: 0;
           max-height: none;
-          overflow: visible;
+          overflow: hidden;
         }
 
         .globe-wrap {
-          min-height: clamp(360px, 58vh, 700px);
+          min-height: clamp(360px, 56vh, 640px);
+          max-height: 72vh;
           height: auto;
         }
 
         .left {
-          max-height: min(38vh, 320px);
+          flex: 0 0 auto;
+          height: clamp(280px, 36vh, 420px);
+          max-height: clamp(280px, 36vh, 420px);
+        }
+
+        .stats {
+          order: 1;
+        }
+
+        .legend {
+          order: 2;
         }
 
         .impact-popup {
           width: min(290px, calc(100% - 16px));
           max-height: min(58vh, 360px);
-        }
-      }
-
-      /* Tablet: keep the original two-column monitor split. */
-      @media (min-width: 768px) and (max-width: 1200px) {
-        .layout,
-        .footer {
-          grid-template-columns: minmax(180px, min(30vw, 260px)) minmax(0, 1fr);
-        }
-
-        .left {
-          max-height: 100%;
         }
       }
 
@@ -1064,13 +1092,13 @@
 
         .btn {
           flex: 1 1 160px;
-          min-height: 40px;
+          min-height: 44px;
         }
 
         .btn.formula {
-          flex: 0 0 40px;
-          width: 40px;
-          height: 40px;
+          flex: 0 0 44px;
+          width: 44px;
+          height: 44px;
         }
 
         .tools {
@@ -1175,7 +1203,8 @@
         }
 
         .left {
-          max-height: min(45vh, 360px);
+          height: clamp(260px, 34vh, 360px);
+          max-height: clamp(260px, 34vh, 360px);
         }
 
         .map2d {
@@ -1187,20 +1216,20 @@
         }
 
         .tools {
-          left: 50%;
-          right: auto;
-          top: auto;
-          bottom: 8px;
-          transform: translateX(-50%);
-          flex-direction: row;
+          right: 8px;
+          left: auto;
+          top: 8px;
+          bottom: auto;
+          transform: none;
+          flex-direction: column;
           flex-wrap: nowrap;
           gap: 6px;
           padding: 6px;
           border-radius: 12px;
           background: rgba(3, 16, 40, 0.74);
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-          max-width: calc(100% - 16px);
-          overflow-x: auto;
+          max-width: min(56px, calc(100% - 16px));
+          overflow: visible;
         }
 
         .layers-panel {
@@ -1214,11 +1243,11 @@
         }
 
         .tool {
-          width: 40px !important;
-          height: 40px !important;
-          min-width: 40px !important;
-          min-height: 40px !important;
-          flex-basis: 40px;
+          width: 44px !important;
+          height: 44px !important;
+          min-width: 44px !important;
+          min-height: 44px !important;
+          flex-basis: 44px;
         }
       }
 
