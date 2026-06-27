@@ -102,6 +102,42 @@ class EarthquakePushNotificationService {
     }
   }
 
+  async showTestNotification(): Promise<boolean> {
+    if (!this.isSupported() || Notification.permission !== 'granted') return false
+    const title = 'Infra Resilience360 Alert Test'
+    const options: NotificationOptions = {
+      body: 'Browser notifications are enabled for live earthquake alerts.',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'r360-eq-test',
+      data: {
+        eventId: 'r360-eq-test',
+        targetUrl: '/view/live-earthquake-map',
+      },
+    }
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration()
+        if (reg?.showNotification) {
+          await reg.showNotification(title, options)
+          return true
+        }
+      }
+      const n = new Notification(title, options)
+      n.onclick = () => {
+        try {
+          window.focus()
+        } catch {
+          /* ignore focus failures */
+        }
+        window.location.assign('/view/live-earthquake-map')
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
   async registerDeviceToken(_token: string): Promise<void> {
     /* no-op on web */
   }

@@ -86,10 +86,8 @@ html {
   padding: 0;
   width: 100%;
   max-width: 100%;
-  height: 100%;
+  height: auto;
   min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   /* Shorthand first — a lone `background: none` after `background-color` clears the color in cascade. */
@@ -100,7 +98,7 @@ html {
   background-repeat: no-repeat;
   background-color: #3a4758;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 * {
@@ -122,17 +120,15 @@ body {
   width: 100%;
   max-width: 100%;
   flex: 1 1 auto;
-  height: 100%;
+  height: auto;
   min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: none;
   background-color: #3a4758;
   color: var(--white);
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible;
   font-size: var(--type-body);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -145,10 +141,8 @@ body {
   width: 100%;
   max-width: 100%;
   flex: 1 1 auto;
-  height: 100%;
+  height: auto;
   min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
   margin: 0;
   padding: 0;
   background-color: transparent;
@@ -199,8 +193,7 @@ body {
   position: relative;
   z-index: 1;
   flex: 1 1 auto;
-  min-height: 100%;
-  min-height: 100dvh;
+  min-height: 0;
   width: 100%;
   max-width: 100%;
   display: flex;
@@ -215,17 +208,13 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 100%;
-  min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: auto;
+  min-height: 0;
 }
 
 .page-wrapper {
   position: relative;
   width: 100%;
-  min-height: 100%;
-  min-height: 100vh;
   min-height: 100dvh;
   flex: 1 1 auto;
   z-index: 0;
@@ -241,7 +230,6 @@ body {
   inset: 0;
   width: 100%;
   min-height: 100%;
-  min-height: 100dvh;
   z-index: 0;
   overflow: clip;
   background: transparent;
@@ -292,8 +280,7 @@ body {
 .content-layer {
   position: relative;
   z-index: 1;
-  min-height: 100%;
-  min-height: 100dvh;
+  min-height: 0;
   flex: 1 1 auto;
   width: 100%;
   display: flex;
@@ -342,7 +329,7 @@ body,
   padding-top: calc(clamp(var(--space-2), 1.6vw, var(--space-4)) + env(safe-area-inset-top, 0px));
   padding-left: calc(clamp(var(--space-2), 1.6vw, var(--space-4)) + env(safe-area-inset-left, 0px));
   padding-right: calc(clamp(var(--space-2), 1.6vw, var(--space-4)) + env(safe-area-inset-right, 0px));
-  min-height: 100%;
+  min-height: 0;
   flex: 1 1 auto;
   background-color: transparent;
   background-image: none;
@@ -7712,14 +7699,14 @@ progress {
 
 /* Section views: let main grow so embedded pages (e.g. Live Earthquake iframe) can fill height */
 .page-wrapper.page-section .content-layer > .app-shell {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .page-wrapper.page-section .app-shell > main {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;

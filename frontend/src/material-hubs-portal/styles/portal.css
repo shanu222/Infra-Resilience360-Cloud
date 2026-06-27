@@ -1010,6 +1010,18 @@
   width: min(980px, calc(100vw - 1.2rem));
   max-height: min(92dvh, 860px);
   display: flex;
+  animation: mh-modal-pop 180ms ease-out;
+}
+
+@keyframes mh-modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 480px) {
@@ -1181,6 +1193,7 @@
   .mh-hub-modal__surface {
     width: 100%;
     max-height: min(90dvh, 760px);
+    animation: mh-sheet-up-soft 220ms ease-out;
   }
 
   .mh-hub-panel--modal {
@@ -1193,6 +1206,17 @@
   .mh-hub-panel--modal .mh-hub-panel__body {
     max-height: min(72dvh, 620px);
     padding-bottom: max(1.15rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@keyframes mh-sheet-up-soft {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

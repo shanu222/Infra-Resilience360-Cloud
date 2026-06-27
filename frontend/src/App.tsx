@@ -1849,7 +1849,7 @@ function App(_props: AppProps = {}) {
     const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
     setEarthquakeNotifyPermission(permission)
     if (permission === 'granted') {
-      setEarthquakeNotifyStatusMsg('Notifications enabled.')
+      setEarthquakeNotifyStatusMsg('Permission granted.')
       setShowEarthquakeNotifyPrompt(false)
       return
     }
@@ -1869,6 +1869,11 @@ function App(_props: AppProps = {}) {
     },
     [],
   )
+
+  const sendEarthquakeNotificationTest = useCallback(async () => {
+    const ok = await earthquakePushNotificationService.showTestNotification()
+    setEarthquakeNotifyStatusMsg(ok ? 'Test alert delivered.' : 'Test alert failed. Grant browser permission first.')
+  }, [])
 
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
   const availableMapDistricts = useMemo(() => listDistrictsByProvince(selectedProvince), [selectedProvince])
@@ -6730,6 +6735,9 @@ function App(_props: AppProps = {}) {
           <div className="settings-card__actions">
             <button type="button" onClick={enableEarthquakeBrowserNotifications}>
               Enable Browser Notifications
+            </button>
+            <button type="button" onClick={sendEarthquakeNotificationTest} disabled={earthquakeNotifyPermission !== 'granted'}>
+              Send Test Alert
             </button>
           </div>
           <p className="settings-card__meta">

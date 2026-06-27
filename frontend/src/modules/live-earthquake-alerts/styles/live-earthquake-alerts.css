@@ -20,13 +20,13 @@
 
       .page {
         min-height: 100dvh;
-        height: 100dvh;
+        height: auto;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         background:
           radial-gradient(circle at 70% 42%, rgba(34, 95, 210, 0.28), rgba(4, 10, 24, 0.95) 45%),
           linear-gradient(160deg, #0a1327 0%, #040814 100%);
-        overflow: hidden;
+        overflow: visible;
         overflow-x: clip;
       }
 
