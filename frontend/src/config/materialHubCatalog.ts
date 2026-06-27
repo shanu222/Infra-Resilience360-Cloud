@@ -115,7 +115,7 @@ export const mockHubs: MaterialHub[] = [
     status: 'ready',
     stockPercentage: 100,
     damagePercentage: 0,
-    imageUrl: s3MaterialHubAssetFolderUrl('gilgit', 'gilgit.jpg'),
+    imageUrl: s3MaterialHubAssetFolderUrl('gilgit', 'gilgit-hub.jpg'),
   },
   {
     id: 'mzg1',
@@ -127,7 +127,7 @@ export const mockHubs: MaterialHub[] = [
     status: 'ready',
     stockPercentage: 100,
     damagePercentage: 0,
-    imageUrl: s3MaterialHubAssetFolderUrl('muzaffargarh', 'muzaffargarh.jpg'),
+    imageUrl: s3MaterialHubAssetFolderUrl('muzaffargarh', 'muzaffargarh-hub.jpg'),
   },
   {
     id: 'sukkur1',
@@ -139,7 +139,7 @@ export const mockHubs: MaterialHub[] = [
     status: 'ready',
     stockPercentage: 100,
     damagePercentage: 0,
-    imageUrl: s3MaterialHubAssetFolderUrl('sukkur', 'sukkur.jpg'),
+    imageUrl: s3MaterialHubAssetFolderUrl('sukkur', 'sukkur-hub.jpg'),
   },
   {
     id: 'jalozai1',

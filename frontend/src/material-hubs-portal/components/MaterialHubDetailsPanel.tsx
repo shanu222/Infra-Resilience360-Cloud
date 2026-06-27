@@ -45,17 +45,15 @@ export function MaterialHubDetailsPanel({
         ) : null}
       </div>
 
-      {hub.imageUrl?.trim() ?
-        <div className="mh-hub-panel__image">
-          <MaterialHubMediaImage
-            src={hub.imageUrl}
-            alt={hub.name}
-            className="w-full h-full object-cover"
-            wrapperClassName="w-full h-44 sm:h-52"
-            loading="eager"
-          />
-        </div>
-      : null}
+      <div className="mh-hub-panel__image">
+        <MaterialHubMediaImage
+          src={hub.imageUrl}
+          alt={hub.name}
+          className="w-full h-full object-cover"
+          wrapperClassName="w-full h-44 sm:h-52"
+          loading="eager"
+        />
+      </div>
 
       <div className="mh-hub-panel__body">
         <p className="mh-hub-panel__desc">{detail.description}</p>

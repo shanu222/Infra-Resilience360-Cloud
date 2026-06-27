@@ -4366,12 +4366,15 @@ h4 {
 }
 
 .infra-model-board-pdf-wrap {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: min(500px, 72vh);
 }
 
 .infra-model-board-pdf {
+  display: block;
   width: 100%;
   max-width: 100%;
   min-height: min(360px, 52vh);
@@ -4379,6 +4382,46 @@ h4 {
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.42);
   background: rgba(15, 23, 42, 0.86);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.infra-model-board-pdf.is-loaded {
+  opacity: 1;
+}
+
+.infra-model-media-skeleton {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  z-index: 2;
+  background: linear-gradient(90deg, rgba(80, 102, 152, 0.14) 0%, rgba(138, 171, 234, 0.25) 52%, rgba(80, 102, 152, 0.14) 100%);
+  background-size: 220% 100%;
+  animation: infra-image-shimmer 1.25s ease-in-out infinite;
+}
+
+.infra-model-pdf-skeleton {
+  min-height: min(360px, 52vh);
+  height: min(500px, 72vh);
+}
+
+.infra-model-media-placeholder {
+  min-height: min(360px, 52vh);
+  height: min(500px, 72vh);
+  width: 100%;
+  border-radius: 12px;
+  border: 1px dashed rgba(148, 163, 184, 0.38);
+  background: rgba(15, 23, 42, 0.56);
+  color: #c2d3e8;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 12px;
+  font-size: 0.93rem;
+}
+
+.infra-model-media-placeholder--pending {
+  color: #9fb6d2;
 }
 
 .infra-model-board-link {

@@ -118,13 +118,10 @@ const loadConstructionGuidanceService = () =>
   (constructionGuidanceServicePromise ??= import('./services/constructionGuidance'))
 const loadAdvisoryService = () => (advisoryServicePromise ??= import('./services/advisory'))
 
-function isLocalInfraMediaPath(url: string): boolean {
-  const value = String(url ?? '').trim().toLowerCase()
-  if (!value) return false
-  return (
-    value.includes('/content/resilience-models/') ||
-    value.includes('/storage/content/resilience-models/')
-  )
+function resolveInfraRuntimeMediaUrl(url: string): string {
+  const value = String(url ?? '').trim()
+  if (!value) return ''
+  return mediaManager.resolveRuntimeMediaUrl(value)
 }
 
 async function loadInfraModelsMetadataOnce(): Promise<Record<string, { image?: string; pdf?: string }> | null> {
@@ -141,11 +138,11 @@ async function loadInfraModelsMetadataOnce(): Promise<Record<string, { image?: s
       for (const row of rows) {
         const id = String(row?.id ?? '').trim()
         if (!id) continue
-        const image = String(row?.image ?? '').trim()
-        const pdf = String(row?.pdf ?? '').trim()
+        const image = resolveInfraRuntimeMediaUrl(String(row?.image ?? '').trim())
+        const pdf = resolveInfraRuntimeMediaUrl(String(row?.pdf ?? '').trim())
         out[id] = {
-          image: isLocalInfraMediaPath(image) ? image : undefined,
-          pdf: isLocalInfraMediaPath(pdf) ? pdf : undefined,
+          image: image || undefined,
+          pdf: pdf || undefined,
         }
       }
       return out
@@ -188,29 +185,80 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   embedKey,
 }: {
   pdfCandidates: string[]
-  /** Remount embed only when model or CMS document version changes — not on unrelated re-renders. */
+  /** Remount PDF viewer only when model or CMS document version changes. */
   embedKey: string
 }) {
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [hasPdfError, setHasPdfError] = useState(false)
+  const [isPdfLoaded, setIsPdfLoaded] = useState(false)
+  const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
   useEffect(() => {
     setHasPdfError(false)
+    setIsPdfLoaded(false)
+    setShouldRenderPdf(false)
   }, [embedKey])
-  if (pdfCandidates.length === 0) return null
-  const src = pdfCandidates[0]
+
+  const src = String(pdfCandidates[0] ?? '').trim()
+  useEffect(() => {
+    if (!src) {
+      console.warn('[infra-models] Missing model board PDF source.')
+      return
+    }
+    if (typeof window === 'undefined') {
+      setShouldRenderPdf(true)
+      return
+    }
+    const frame = wrapperRef.current
+    if (!frame || !('IntersectionObserver' in window)) {
+      setShouldRenderPdf(true)
+      return
+    }
+    const top = frame.getBoundingClientRect().top
+    if (top <= window.innerHeight + 240) {
+      setShouldRenderPdf(true)
+      return
+    }
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        setShouldRenderPdf(true)
+        observer.disconnect()
+      },
+      { rootMargin: '280px 0px 280px 0px' },
+    )
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [src, embedKey])
+
   if (!src || hasPdfError) {
-    return <p className="infra-model-hero-missing">PDF unavailable. Please try again later.</p>
+    if (hasPdfError && src) {
+      console.warn('[infra-models] Model board PDF unavailable.', { src })
+    }
+    return (
+      <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
+        <div className="infra-model-media-placeholder" role="status" aria-live="polite">
+          Model Board not available.
+        </div>
+      </div>
+    )
   }
 
+  const pdfSrc = src.includes('#') ? src : `${src}#view=FitH`
+
   return (
-    <div className="infra-model-board-pdf-wrap">
-      <embed
-        key={`${embedKey}-embed`}
-        src={src}
-        type="application/pdf"
-        width="100%"
-        className="infra-model-board-pdf"
-        onError={() => setHasPdfError(true)}
-      />
+    <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
+      {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />}
+      {shouldRenderPdf ?
+        <iframe
+          key={`${embedKey}-pdf`}
+          src={pdfSrc}
+          title="Resilience Model Board PDF"
+          className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+          loading="eager"
+          onLoad={() => setIsPdfLoaded(true)}
+          onError={() => setHasPdfError(true)}
+        />
+      : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
     </div>
   )
 })
@@ -225,25 +273,39 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
   className?: string
 }) {
   const [imageError, setImageError] = useState(false)
+  const [isImageLoaded, setIsImageLoaded] = useState(false)
   useEffect(() => {
     setImageError(false)
+    setIsImageLoaded(false)
   }, [candidates[0]])
-  if (candidates.length === 0) return null
-  if (imageError) {
-    return <p className="infra-model-hero-missing">Image unavailable. Please try again later.</p>
+  const src = String(candidates[0] ?? '').trim()
+  if (!src || imageError) {
+    if (imageError && src) {
+      console.warn('[infra-models] Model hero image unavailable.', { src })
+    }
+    return (
+      <div className="infra-model-image-wrap">
+        <div className="infra-model-image-frame">
+          <div className="infra-model-media-placeholder" role="status" aria-live="polite">
+            Model image not available.
+          </div>
+        </div>
+      </div>
+    )
   }
-  const src = candidates[0] ?? ''
-  if (!src) return <p className="infra-model-hero-missing">Image unavailable. Please try again later.</p>
   return (
     <div className="infra-model-image-wrap">
-      <div className="infra-model-image-frame">
+      <div className={`infra-model-image-frame ${isImageLoaded ? '' : 'is-loading'}`.trim()}>
+        <div className="infra-model-image-skeleton" aria-hidden="true" />
         <img
           src={src}
           alt={alt}
-          className={`${className ?? ''} is-loaded`.trim()}
+          className={`${className ?? ''} ${isImageLoaded ? 'is-loaded' : ''}`.trim()}
           loading="eager"
-          decoding="auto"
+          decoding="async"
+          fetchPriority="high"
           sizes="(max-width: 700px) 100vw, min(560px, 45vw)"
+          onLoad={() => setIsImageLoaded(true)}
           onError={() => setImageError(true)}
         />
       </div>
@@ -1487,7 +1549,7 @@ function App(_props: AppProps = {}) {
     if (!selectedInfraModel) return undefined
     const fromMetadata = infraMediaByModelId[selectedInfraModel.id]?.pdf
     if (fromMetadata) return fromMetadata
-    return STATIC_INFRA_MODEL_PDF_MAP[selectedInfraModel.id]
+    return resolveInfraRuntimeMediaUrl(STATIC_INFRA_MODEL_PDF_MAP[selectedInfraModel.id] ?? '')
   }, [selectedInfraModel, infraMediaByModelId])
 
   const infraModelPdfCandidates = useMemo(() => {
@@ -1500,7 +1562,7 @@ function App(_props: AppProps = {}) {
     if (!selectedInfraModel) return ''
     const fromMetadata = infraMediaByModelId[selectedInfraModel.id]?.image
     if (fromMetadata) return fromMetadata
-    return selectedInfraModel.imageDataUrl
+    return resolveInfraRuntimeMediaUrl(selectedInfraModel.imageDataUrl ?? '')
   }, [selectedInfraModel, infraMediaByModelId])
 
   const infraModelHeroCandidates = useMemo(() => {
@@ -2024,12 +2086,19 @@ function App(_props: AppProps = {}) {
   useEffect(() => {
     if (activeSection !== 'infraModels' || filteredInfraModels.length === 0) return
     const first = filteredInfraModels[0]
-    const firstImage = infraMediaByModelId[first.id]?.image || first.imageDataUrl
-    const firstPdf = infraMediaByModelId[first.id]?.pdf || STATIC_INFRA_MODEL_PDF_MAP[first.id]
+    const firstImage = infraMediaByModelId[first.id]?.image || resolveInfraRuntimeMediaUrl(first.imageDataUrl ?? '')
+    const firstPdf =
+      infraMediaByModelId[first.id]?.pdf || resolveInfraRuntimeMediaUrl(STATIC_INFRA_MODEL_PDF_MAP[first.id] ?? '')
     if (firstImage) preloadInfraImage(firstImage)
     if (firstPdf) preloadInfraPdf(firstPdf)
     preloadInfraVideo(INFRA_MODELS_OFFICIAL_VIDEO_URL)
   }, [activeSection, filteredInfraModels, infraMediaByModelId])
+
+  useEffect(() => {
+    if (activeSection !== 'infraModels' || !selectedInfraModel) return
+    if (selectedInfraModelHeroImageSrc) preloadInfraImage(selectedInfraModelHeroImageSrc)
+    if (selectedInfraModelPdfSrc) preloadInfraPdf(selectedInfraModelPdfSrc)
+  }, [activeSection, selectedInfraModel, selectedInfraModelHeroImageSrc, selectedInfraModelPdfSrc])
 
   useEffect(() => {
     if (!selectedInfraModelId) return
@@ -5007,24 +5076,16 @@ function App(_props: AppProps = {}) {
                   <div className="infra-model-media-block">
                     <div className="infra-model-side-by-side">
                       <div className="infra-model-left-pane">
-                        {infraModelHeroCandidates.length > 0 ? (
-                          <InfraModelHeroImage
-                            candidates={infraModelHeroCandidates}
-                            alt={`${selectedInfraModel.title} model visual`}
-                            className="retrofit-preview infra-model-preview-image"
-                          />
-                        ) : (
-                          <p>Content not available</p>
-                        )}
+                        <InfraModelHeroImage
+                          candidates={infraModelHeroCandidates}
+                          alt={`${selectedInfraModel.title} model visual`}
+                          className="retrofit-preview infra-model-preview-image"
+                        />
                       </div>
                       <div className="infra-model-board-wrap infra-model-right-pane">
                         <CmsText id="block.modelBoardPdf" className="infra-model-board-label" fallback={t.infraModels.modelBoardPdf} />
                         <CmsText id="block.modelBoardNote" className="infra-model-board-note" fallback={t.infraModels.modelBoardNote} />
-                        {infraModelPdfCandidates.length > 0 ? (
-                          <ModelBoardPdfViewer pdfCandidates={infraModelPdfCandidates} embedKey={infraModelPdfEmbedKey} />
-                        ) : (
-                          <p>Content not available</p>
-                        )}
+                        <ModelBoardPdfViewer pdfCandidates={infraModelPdfCandidates} embedKey={infraModelPdfEmbedKey} />
                       </div>
                     </div>
                   </div>

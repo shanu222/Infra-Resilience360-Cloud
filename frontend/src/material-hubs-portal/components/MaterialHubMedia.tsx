@@ -17,7 +17,7 @@ export function MaterialHubMediaImage({
   className = 'h-full w-full object-cover',
   wrapperClassName = '',
   loading = 'lazy',
-  fallbackSrc = '/assets/branding/ndma-logo.png',
+  fallbackSrc = '',
 }: MaterialHubMediaImageProps) {
   const [activeSrc, setActiveSrc] = useState(() => src?.trim() || '')
   const [failed, setFailed] = useState(false)
@@ -30,11 +30,14 @@ export function MaterialHubMediaImage({
   if (!activeSrc || failed) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 text-gray-500 text-sm text-center px-3 ${wrapperClassName}`}
+        className={`mh-media-placeholder ${wrapperClassName}`.trim()}
         role="img"
-        aria-label={MATERIAL_HUB_MEDIA_UNAVAILABLE}
+        aria-label="Material hub image unavailable"
       >
-        {MATERIAL_HUB_MEDIA_UNAVAILABLE}
+        <span className="mh-media-placeholder__icon" aria-hidden>
+          🏗️
+        </span>
+        <span className="mh-media-placeholder__text">Material hub image unavailable</span>
       </div>
     )
   }
@@ -47,6 +50,7 @@ export function MaterialHubMediaImage({
       loading={loading}
       decoding="async"
       onError={() => {
+        console.warn('[material-hubs] missing media asset', { src: activeSrc })
         if (fallbackSrc && activeSrc !== fallbackSrc) {
           setActiveSrc(fallbackSrc)
           return
