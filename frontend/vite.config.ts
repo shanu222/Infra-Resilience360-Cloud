@@ -6,8 +6,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(__dirname, '..')
-const rootModules = path.join(repoRoot, 'node_modules')
 
 const configuredBase = process.env.VITE_BASE_PATH ?? '/'
 const base = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`
@@ -62,11 +60,6 @@ export default defineConfig(({ mode }) => ({
       '@resilience/retrofit-portal-locale': path.resolve(__dirname, 'src/i18n/retrofitPortalLocale.ts'),
       '@resilience/urdu-pdf-support': path.resolve(__dirname, 'src/utils/urduPdfSupport.ts'),
       '@resilience/urdu-html-to-pdf': path.resolve(__dirname, 'src/utils/urduHtmlToPdf.ts'),
-      react: path.join(rootModules, 'react'),
-      'react-dom': path.join(rootModules, 'react-dom'),
-      motion: path.join(rootModules, 'motion'),
-      'motion/react': path.join(rootModules, 'motion/react'),
-      'framer-motion': path.join(rootModules, 'framer-motion'),
     },
   },
   optimizeDeps: {
