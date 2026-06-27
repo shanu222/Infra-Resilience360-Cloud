@@ -61,33 +61,33 @@ function materialAsset(
 }
 
 export const MATERIAL_HUB_LOCATIONS: MaterialHubAsset[] = [
-  materialAsset('gilgit', 'Gilgit Hub', 'Northern logistics and resilient materials distribution point.', 'gilgit', 'gilgit.jpg'),
+  materialAsset('gilgit', 'Gilgit Hub', 'Northern logistics and resilient materials distribution point.', 'gilgit', 'gilgit-hub.jpg'),
   materialAsset(
     'muzaffargarh',
     'Muzaffargarh Hub',
     'Central flood-response and reconstruction supply hub.',
     'muzaffargarh',
-    'muzaffargarh.jpg',
+    'muzaffargarh-hub.jpg',
   ),
-  materialAsset('sukkur', 'Sukkur Hub', 'Sindh-region emergency stock and dispatch center.', 'sukkur', 'sukkur.jpg'),
+  materialAsset('sukkur', 'Sukkur Hub', 'Sindh-region emergency stock and dispatch center.', 'sukkur', 'sukkur-hub.jpg'),
 ]
 
 export const MATERIAL_HUB_MATERIALS: MaterialHubAsset[] = [
-  materialAsset('bamboo', 'Bamboo', 'Lightweight structural framing material.', 'bamboo', 'bamboo.jpg'),
+  materialAsset('bamboo', 'Bamboo', 'Lightweight structural framing material.', 'bamboo', 'Bamboo.jpg'),
   materialAsset(
     'wooden-stick-chick-mat',
     'Wooden Stick Chick Mat',
     'Traditional paneling and envelope material.',
     'wooden-stick-chick-mat',
-    'wooden-stick-chick-mat.jpg',
+    'Wooden-Stick-Chick-Mat.jpg',
   ),
-  materialAsset('polythene-sheet', 'Polythene Sheet', 'Waterproofing and temporary shelter layer.', 'polythene-sheet', 'polythene-sheet.jpg'),
-  materialAsset('cotton-rope', 'Cotton Rope', 'Lashing and fixing support for rapid assembly.', 'cotton-rope', 'cotton-rope.jpg'),
-  materialAsset('steel-girder', 'Steel Girder', 'Primary structural support member.', 'steel-girder', 'steel-girder.jpg'),
-  materialAsset('cgi-sheet', 'CGI Sheet', 'Corrugated roofing and cladding element.', 'cgi-sheet', 'cgi-sheet.jpg'),
-  materialAsset('wooden-plank', 'Wooden Plank', 'Decking and framing component.', 'wooden-plank', 'wooden-plank.jpg'),
-  materialAsset('eps-panel', 'EPS Panel', 'Insulated lightweight wall/roof panel.', 'eps-panel', 'eps-panel.jpg'),
-  materialAsset('pallet', 'Pallet', 'Base platform for modular and raised layouts.', 'pallet', 'pallet.jpg'),
+  materialAsset('polythene-sheet', 'Polythene Sheet', 'Waterproofing and temporary shelter layer.', 'polythene-sheet', 'Polythene-Sheet.jpg'),
+  materialAsset('cotton-rope', 'Cotton Rope', 'Lashing and fixing support for rapid assembly.', 'cotton-rope', 'Cotton-Rope.jpg'),
+  materialAsset('steel-girder', 'Steel Girder', 'Primary structural support member.', 'steel-girder', 'Steel-Girder.jpg'),
+  materialAsset('cgi-sheet', 'CGI Sheet', 'Corrugated roofing and cladding element.', 'cgi-sheet', 'CGI-Sheet.jpg'),
+  materialAsset('wooden-plank', 'Wooden Plank', 'Decking and framing component.', 'wooden-plank', 'Wooden-Plank.jpg'),
+  materialAsset('eps-panel', 'EPS Panel', 'Insulated lightweight wall/roof panel.', 'eps-panel', 'EPS-Panel.jpg'),
+  materialAsset('pallet', 'Pallet', 'Base platform for modular and raised layouts.', 'pallet', 'Pallet.jpg'),
 ]
 
 function guidanceAsset(

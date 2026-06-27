@@ -1,4 +1,3 @@
-import { EARTHQUAKE_ALERT_SOUND_DATA_URI } from '../assets/audio/earthquakeAlertSound'
 import { fetchApi } from './apiBase'
 
 export type EarthquakeNotificationPayload = {
@@ -18,7 +17,6 @@ class EarthquakePushNotificationService {
   private readonly promptKey = 'r360-earthquake-notify-prompt-state'
   private readonly promptTsKey = 'r360-earthquake-notify-prompt-ts'
   private readonly permissionKey = 'r360-earthquake-notify-permission'
-  private audio: HTMLAudioElement | null = null
 
   async initialize(): Promise<void> {
     if (this.initialized) return
@@ -101,50 +99,6 @@ class EarthquakePushNotificationService {
       return permission
     } catch {
       return Notification.permission
-    }
-  }
-
-  async playTestSound(): Promise<boolean> {
-    try {
-      if (!this.audio) {
-        this.audio = new Audio(EARTHQUAKE_ALERT_SOUND_DATA_URI)
-        this.audio.preload = 'auto'
-      }
-      this.audio.currentTime = 0
-      await this.audio.play()
-      return true
-    } catch {
-      return false
-    }
-  }
-
-  async showTestNotification(): Promise<boolean> {
-    if (!this.isSupported() || Notification.permission !== 'granted') return false
-    const opts: NotificationOptions = {
-      body: 'Magnitude 5.8\nLocation: Demo Region\nDepth: 12 km\nOccurred just now',
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'r360-eq-test',
-    }
-    try {
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration()
-        if (reg) {
-          await reg.showNotification('🌍 Significant Earthquake Detected', {
-            ...opts,
-            data: { eventId: 'r360-eq-test', targetUrl: '/view/live-earthquake-map?eqEventId=r360-eq-test' },
-          })
-          return true
-        }
-      }
-      const n = new Notification('🌍 Significant Earthquake Detected', opts)
-      n.onclick = () => {
-        window.focus()
-        window.location.assign('/view/live-earthquake-map?eqEventId=r360-eq-test')
-      }
-      return true
-    } catch {
-      return false
     }
   }
 

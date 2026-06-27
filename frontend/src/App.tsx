@@ -1870,20 +1870,6 @@ function App(_props: AppProps = {}) {
     [],
   )
 
-  const runEarthquakeNotificationTest = useCallback(async () => {
-    const ok = await earthquakePushNotificationService.showTestNotification()
-    setEarthquakeNotifyStatusMsg(
-      ok ?
-        'Test notification sent.'
-      : 'Test notification failed. Grant permission in browser settings first.',
-    )
-  }, [])
-
-  const runEarthquakeSoundTest = useCallback(async () => {
-    const ok = await earthquakePushNotificationService.playTestSound()
-    setEarthquakeNotifyStatusMsg(ok ? 'Alert sound played.' : 'Sound playback blocked by browser autoplay policy.')
-  }, [])
-
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
   const availableMapDistricts = useMemo(() => listDistrictsByProvince(selectedProvince), [selectedProvince])
   const selectedDistrictProfile = useMemo<DistrictRiskProfile | null>(
@@ -6718,66 +6704,39 @@ function App(_props: AppProps = {}) {
       <div className="panel section-panel section-settings">
         <CmsSectionHeading fallback={t.sections.settings} />
         <CmsText id="sectionIntro" fallback={t.homeCards.settings.subtitle} className="section-lead" />
-        <label className="switch-row">
-          {t.settings.homeLayoutCarouselToggle}
-          <input
-            type="checkbox"
-            checked={homeLayoutMode === 'carousel'}
-            onChange={(event) => {
-              const next = event.target.checked ? 'carousel' : 'grid'
-              setHomeLayoutMode(next)
-              try {
-                localStorage.setItem(HOME_LAYOUT_LS_KEY, next)
-              } catch {
-                /* ignore */
-              }
-            }}
-          />
-        </label>
-        <p className="section-lead" style={{ marginTop: 8, opacity: 0.88, fontSize: '0.95rem' }}>
-          {t.settings.homeLayoutCarouselHelp}
-        </p>
-        <div className="context-left-panel" style={{ marginTop: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Earthquake Notifications</h3>
-          <p className="section-lead" style={{ marginTop: 0, fontSize: '0.95rem' }}>
-            Stay informed with real-time earthquake alerts (Magnitude ≥ 5.0).
+        <div className="settings-card">
+          <h3 className="settings-card__title">Earthquake Notifications</h3>
+          <p className="settings-card__subtitle">
+            Browser notifications are triggered only from real live earthquake events that pass your threshold.
           </p>
-          <label className="switch-row">
-            Enable earthquake alerts
-            <input
-              type="checkbox"
-              checked={earthquakeNotifySettings.enabled}
-              onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
-            />
-          </label>
-          <label className="switch-row">
-            Enable notification sound
-            <input
-              type="checkbox"
-              checked={earthquakeNotifySettings.soundEnabled}
-              onChange={(event) => updateEarthquakeNotifySettings({ soundEnabled: event.target.checked })}
-            />
-          </label>
-          <div className="inline-controls" style={{ marginTop: 10 }}>
+          <div className="settings-card__group" role="group" aria-label="Earthquake notification preferences">
+            <label className="switch-row">
+              Enable earthquake alerts
+              <input
+                type="checkbox"
+                checked={earthquakeNotifySettings.enabled}
+                onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
+              />
+            </label>
+            <label className="switch-row">
+              Enable notification sound
+              <input
+                type="checkbox"
+                checked={earthquakeNotifySettings.soundEnabled}
+                onChange={(event) => updateEarthquakeNotifySettings({ soundEnabled: event.target.checked })}
+              />
+            </label>
+          </div>
+          <div className="settings-card__actions">
             <button type="button" onClick={enableEarthquakeBrowserNotifications}>
               Enable Browser Notifications
             </button>
-            <button type="button" onClick={runEarthquakeNotificationTest}>
-              Test Notification
-            </button>
-            <button type="button" onClick={runEarthquakeSoundTest}>
-              Test Sound
-            </button>
           </div>
-          <p className="section-lead" style={{ marginTop: 8, fontSize: '0.9rem' }}>
+          <p className="settings-card__meta">
             Permission: <strong>{earthquakeNotifyPermission}</strong> · Support:{' '}
             <strong>{earthquakePushNotificationService.isSupported() ? 'available' : 'unsupported'}</strong>
           </p>
-          {earthquakeNotifyStatusMsg ?
-            <p className="section-lead" style={{ marginTop: 4, fontSize: '0.9rem' }}>
-              {earthquakeNotifyStatusMsg}
-            </p>
-          : null}
+          {earthquakeNotifyStatusMsg ? <p className="settings-card__status">{earthquakeNotifyStatusMsg}</p> : null}
         </div>
       </div>
     )

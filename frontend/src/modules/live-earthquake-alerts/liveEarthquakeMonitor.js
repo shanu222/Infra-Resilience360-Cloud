@@ -586,6 +586,8 @@ export function initLiveEarthquakeMonitor(root) {
       let lastGlobeViewportHeight = 0;
       let globeResizeRaf = null;
       let globeCameraClampInProgress = false;
+      let globeDeferredInitRaf = null;
+      let globeDeferredInitRetries = 0;
 
       const COUNTRY_FILTER_OPTIONS = [
         'Pakistan', 'India', 'China', 'Afghanistan', 'Iran', 'Turkey', 'Indonesia', 'Japan', 'United States',
@@ -1530,10 +1532,45 @@ export function initLiveEarthquakeMonitor(root) {
           lastGlobeViewportWidth = width;
           lastGlobeViewportHeight = height;
           globe.width(width).height(height);
+          try {
+            const renderer = typeof globe.renderer === 'function' ? globe.renderer() : null;
+            if (renderer && typeof renderer.setSize === 'function') {
+              renderer.setSize(width, height, false);
+            }
+          } catch {
+            /* renderer resize is optional */
+          }
           applyCameraDistanceConstraints(globeControls);
           clampGlobeCameraDistance();
+          try {
+            if (leafletMap && typeof leafletMap.invalidateSize === 'function') {
+              leafletMap.invalidateSize(true);
+            }
+          } catch {
+            /* ignore map invalidate failures during resize churn */
+          }
           positionImpactPopup();
         }, 120);
+      }
+
+      function deferGlobeInitialization() {
+        if (globe || globeDeferredInitRaf) return;
+        const host = document.getElementById('globeViz');
+        if (!host) return;
+        globeDeferredInitRaf = window.requestAnimationFrame(() => {
+          globeDeferredInitRaf = null;
+          const bounds = host.getBoundingClientRect();
+          const width = Math.floor(bounds.width || host.clientWidth || 0);
+          const height = Math.floor(bounds.height || host.clientHeight || 0);
+          if (width > 24 && height > 24) {
+            ensureGlobe();
+            return;
+          }
+          globeDeferredInitRetries += 1;
+          if (globeDeferredInitRetries < 18) {
+            window.setTimeout(deferGlobeInitialization, 70);
+          }
+        });
       }
 
       function tierClass(m) {
@@ -2602,6 +2639,15 @@ export function initLiveEarthquakeMonitor(root) {
       function ensureGlobe() {
         if (globe) return globe;
         const el = document.getElementById('globeViz');
+        if (!el) return null;
+        const bootBounds = el.getBoundingClientRect();
+        const bootWidth = Math.floor(bootBounds.width || el.clientWidth || 0);
+        const bootHeight = Math.floor(bootBounds.height || el.clientHeight || 0);
+        if (bootWidth <= 24 || bootHeight <= 24) {
+          deferGlobeInitialization();
+          return null;
+        }
+        globeDeferredInitRetries = 0;
         globe = Globe()(el)
           .width(Math.max(1, Math.floor(el.getBoundingClientRect().width || el.clientWidth || 0)))
           .height(Math.max(1, Math.floor(el.getBoundingClientRect().height || el.clientHeight || 0)))
@@ -2712,6 +2758,7 @@ export function initLiveEarthquakeMonitor(root) {
       function setAutoRotation(enabled) {
         isAutoRotateEnabled = Boolean(enabled);
         const glb = ensureGlobe();
+        if (!glb) return;
         const controls = glb.controls();
         controls.autoRotate = isAutoRotateEnabled;
 
@@ -2752,7 +2799,7 @@ export function initLiveEarthquakeMonitor(root) {
         const updatedAt = document.getElementById('updatedAt');
         const sourceMeta = document.getElementById('sourceMeta');
         if (!eventsEl || !statsGrid || !updatedAt) return;
-        const glb = ensureGlobe();
+        ensureGlobe();
 
         eventsData = data.map((e) => {
           const mag = Number(e.properties.mag || 0);

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export const MATERIAL_HUB_MEDIA_UNAVAILABLE = 'Media unavailable'
 
@@ -8,6 +8,7 @@ type MaterialHubMediaImageProps = {
   className?: string
   wrapperClassName?: string
   loading?: 'lazy' | 'eager'
+  fallbackSrc?: string
 }
 
 export function MaterialHubMediaImage({
@@ -16,10 +17,17 @@ export function MaterialHubMediaImage({
   className = 'h-full w-full object-cover',
   wrapperClassName = '',
   loading = 'lazy',
+  fallbackSrc = '/assets/branding/ndma-logo.png',
 }: MaterialHubMediaImageProps) {
+  const [activeSrc, setActiveSrc] = useState(() => src?.trim() || '')
   const [failed, setFailed] = useState(false)
 
-  if (!src?.trim() || failed) {
+  useEffect(() => {
+    setActiveSrc(src?.trim() || '')
+    setFailed(false)
+  }, [src])
+
+  if (!activeSrc || failed) {
     return (
       <div
         className={`flex items-center justify-center bg-gray-100 text-gray-500 text-sm text-center px-3 ${wrapperClassName}`}
@@ -33,12 +41,18 @@ export function MaterialHubMediaImage({
 
   return (
     <img
-      src={src}
+      src={activeSrc}
       alt={alt}
       className={`max-w-full ${className}`}
       loading={loading}
       decoding="async"
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (fallbackSrc && activeSrc !== fallbackSrc) {
+          setActiveSrc(fallbackSrc)
+          return
+        }
+        setFailed(true)
+      }}
     />
   )
 }
