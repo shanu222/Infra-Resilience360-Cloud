@@ -6,6 +6,7 @@ import { execFile } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
+import { Readable } from 'node:stream'
 import multer from 'multer'
 import path from 'node:path'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -97,6 +98,9 @@ const normalizeEnvValue = (rawValue, fallback = '') =>
   String(rawValue ?? fallback)
     .trim()
     .replace(/^['\"]|['\"]$/g, '')
+
+const MEDIA_BASE_URL = normalizeEnvValue(process.env.MEDIA_BASE_URL, '').replace(/\/+$/, '')
+const isRemoteMediaMode = Boolean(MEDIA_BASE_URL)
 
 const envFlag = (rawValue, fallback = 'false') =>
   normalizeEnvValue(rawValue, fallback).toLowerCase() === 'true'
@@ -411,6 +415,56 @@ app.use('/storage', (req, res, next) => {
     return
   }
   next()
+})
+app.use('/storage/content', async (req, res, next) => {
+  if (!isRemoteMediaMode) return next()
+  const method = String(req.method ?? '').toUpperCase()
+  if (method !== 'GET' && method !== 'HEAD') {
+    return res.status(405).json({ error: 'method_not_allowed' })
+  }
+
+  const original = String(req.originalUrl ?? req.url ?? '')
+  const suffix = original.replace(/^\/storage\/content\/?/, '')
+  const remoteUrl = `${MEDIA_BASE_URL}${suffix ? `/${suffix}` : ''}`
+
+  try {
+    const upstream = await fetch(remoteUrl, {
+      method,
+      headers: {
+        ...(req.headers.range ? { range: String(req.headers.range) } : {}),
+        ...(req.headers['if-none-match'] ? { 'if-none-match': String(req.headers['if-none-match']) } : {}),
+        ...(req.headers['if-modified-since'] ? { 'if-modified-since': String(req.headers['if-modified-since']) } : {}),
+      },
+    })
+
+    res.status(upstream.status)
+    const passHeaders = [
+      'content-type',
+      'content-length',
+      'cache-control',
+      'etag',
+      'last-modified',
+      'accept-ranges',
+      'content-range',
+      'access-control-allow-origin',
+      'access-control-allow-methods',
+      'access-control-allow-headers',
+      'cross-origin-resource-policy',
+      'cross-origin-embedder-policy',
+    ]
+    for (const h of passHeaders) {
+      const value = upstream.headers.get(h)
+      if (value) res.setHeader(h, value)
+    }
+    if (method === 'HEAD' || !upstream.body) {
+      res.end()
+      return
+    }
+    Readable.fromWeb(upstream.body).pipe(res)
+  } catch (error) {
+    console.error('[media] remote proxy failed', error instanceof Error ? error.message : error)
+    res.status(502).json({ error: 'remote_media_unavailable' })
+  }
 })
 app.use('/storage', express.static(STORAGE_DIR, { maxAge: '1h', fallthrough: true }))
 app.use('/storage/content', (_req, res) => {
