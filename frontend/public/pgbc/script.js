@@ -95,16 +95,14 @@ function portalNavigate(path) {
 (function enforceHomeFirstEntry() {
     const path = (window.location.pathname || '').toLowerCase();
     const pageName = path.split('/').pop() || 'index.html';
-    const hasVisitedHome = sessionStorage.getItem('homeVisited') === '1';
 
     if (pageName === 'index.html' || pageName === '') {
         sessionStorage.setItem('homeVisited', '1');
         return;
     }
-
-    if (!hasVisitedHome) {
-        window.location.href = portalNavigate('index.html');
-    }
+    // Preserve normal browser history flow inside the module instead of forcing
+    // first-page redirects that break back/forward navigation on mobile.
+    sessionStorage.setItem('homeVisited', '1');
 })();
 
 // Search codes library from home page

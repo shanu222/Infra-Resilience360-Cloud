@@ -1283,7 +1283,7 @@ function App(_props: AppProps = {}) {
   const effectiveDistrictCenters = districtCenters
 
   useEffect(() => {
-  const applyFromHistory = (state: unknown) => {
+    const applyFromHistory = (state: unknown) => {
       const next = readActiveSectionFromHistoryState(state, window.location.href)
       setActiveSection(next)
       if (next) {
@@ -1303,15 +1303,33 @@ function App(_props: AppProps = {}) {
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  /** Stamp history state on first paint so Back from the first in-app navigation restores home reliably. */
+  /** Bootstrap deep links so first Back returns to in-app Home (instead of exiting immediately). */
   useEffect(() => {
     try {
-      const merged = historyStateWithAppSection(history.state, activeSection)
-      history.replaceState(merged, '', window.location.href)
+      const currentState = history.state
+      const hasAppState =
+        currentState !== null &&
+        typeof currentState === 'object' &&
+        'r360AppSection' in (currentState as Record<string, unknown>)
+
+      if (hasAppState) return
+
+      const deepLinkedSection = readPublicViewSectionFromUrl(window.location.href)
+      if (!deepLinkedSection) {
+        history.replaceState(historyStateWithAppSection(currentState, null), '', window.location.href)
+        return
+      }
+
+      const initialHref = window.location.href
+      const homeHref = buildHrefWithAppSection(initialHref, null)
+      const deepHref = buildHrefWithAppSection(initialHref, deepLinkedSection)
+
+      history.replaceState(historyStateWithAppSection(currentState, null), '', homeHref)
+      history.pushState(historyStateWithAppSection(history.state, deepLinkedSection), '', deepHref)
     } catch {
       /* ignore */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; initial activeSection matches URL
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, [])
 
   // Infra Models are fully static from `src/config/infraModels.ts`.

@@ -19,7 +19,12 @@ export function usePortalHashRoute(portal: PortalSlug) {
 
     if (portal === 'retrofit-calculator' && SMART_CONSTRUCTION_SUBPATHS.has(normalized)) {
       const target = `/view/smart-construction/${subpath}${window.location.search}`
-      window.location.replace(target)
+      try {
+        window.history.pushState(window.history.state, '', target)
+        window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }))
+      } catch {
+        window.location.assign(target)
+      }
       return
     }
 
@@ -27,6 +32,10 @@ export function usePortalHashRoute(portal: PortalSlug) {
     const desiredHash = `#${routePath}`
     if (window.location.hash === desiredHash) return
 
-    window.location.replace(`${window.location.pathname}${window.location.search}${desiredHash}`)
+    try {
+      window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${desiredHash}`)
+    } catch {
+      window.location.hash = desiredHash
+    }
   }, [portal])
 }
