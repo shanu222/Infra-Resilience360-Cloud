@@ -6530,7 +6530,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'retrofitCalculator') {
       return (
-        <div className="panel section-panel section-pgbc">
+        <div className="panel section-panel section-pgbc section-retrofit-calculator">
           <CmsSectionHeading fallback={t.sections.retrofitCalculator} />
           <CmsText id="sectionIntro" fallback={t.homeCards.retrofitCalculator.subtitle} className="section-lead" />
           <Suspense fallback={null}>

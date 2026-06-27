@@ -12,7 +12,7 @@ export function BuildingCodesPage({
 }) {
   const isUrdu = language === 'ur'
   const iframeSrc = `/pgbc/library.html?lang=${isUrdu ? 'ur' : 'en'}`
-  const iframeRef = useIframeAutoHeight(900)
+  const iframeRef = useIframeAutoHeight(0)
 
   return (
     <div

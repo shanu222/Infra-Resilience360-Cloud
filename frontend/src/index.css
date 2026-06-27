@@ -3636,6 +3636,22 @@ h4 {
   overflow: visible;
 }
 
+.section-panel.section-retrofit-calculator {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+.section-panel.section-retrofit-calculator > .section-lead,
+.section-panel.section-retrofit-calculator > h2 {
+  position: relative;
+  z-index: 2;
+}
+
 .section-panel.section-smart-construction > .section-lead,
 .section-panel.section-smart-construction > h2 {
   position: relative;
@@ -3702,7 +3718,23 @@ h4 {
   background: transparent;
 }
 
+.portal-page-retrofit-calculator .retrofit-calculator-portal-frame,
+.portal-page-pgbc .pgbc-portal-frame {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: max(560px, calc(100dvh - 12rem));
+  height: auto;
+  max-height: none;
+  background: transparent;
+}
+
 @media (max-width: 1023px) {
+  .section-panel.section-retrofit-calculator {
+    min-height: auto;
+  }
+
   .section-panel.section-smart-construction {
     min-height: auto;
   }
@@ -3714,6 +3746,12 @@ h4 {
   }
 
   .portal-page-smart-construction .smart-construction-portal-frame {
+    min-height: 100dvh;
+    border-radius: 10px;
+  }
+
+  .portal-page-retrofit-calculator .retrofit-calculator-portal-frame,
+  .portal-page-pgbc .pgbc-portal-frame {
     min-height: 100dvh;
     border-radius: 10px;
   }
@@ -9674,7 +9712,8 @@ body,
 .global-bg-root,
 .global-bg-video,
 .global-bg-overlay {
-  position: absolute !important;
+  position: fixed !important;
+  inset: 0 !important;
 }
 
 /* -------------------------------------------------------------------------- */

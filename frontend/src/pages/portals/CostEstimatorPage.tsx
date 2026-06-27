@@ -14,7 +14,7 @@ export function CostEstimatorPage({
   isAdminMode?: boolean
   isEditMode?: boolean
 }) {
-  const iframeRef = useIframeAutoHeight(820)
+  const iframeRef = useIframeAutoHeight(0)
 
   useEffect(() => {
     persistLanguage(language)
