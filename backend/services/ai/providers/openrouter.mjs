@@ -2,12 +2,17 @@ import {
   AI_TIMEOUT_MS,
   OPENROUTER_API_KEY,
   OPENROUTER_BASE_URL,
-  OPENROUTER_MODEL_CANDIDATES,
+  OPENROUTER_CODING_MODELS,
+  OPENROUTER_MODELS,
   OPENROUTER_SITE_NAME,
   OPENROUTER_SITE_URL,
+  OPENROUTER_VISION_MODELS,
+  TASK_TYPE,
 } from '../config.mjs'
 import { executeWithRetries, logAttemptFailure, logAttemptSuccess, withTimeout } from '../retry.mjs'
 import { extractUsageTokens } from '../messages.mjs'
+import { classifyAiError } from '../errors.mjs'
+import { recordRetry } from '../metrics.mjs'
 
 export const name = 'OpenRouter'
 
@@ -69,19 +74,28 @@ export async function healthCheck() {
   if (!isConfigured()) {
     return { ok: false, provider: name, reason: 'OPENROUTER_API_KEY missing' }
   }
-  return { ok: true, provider: name, models: OPENROUTER_MODEL_CANDIDATES }
+  return { ok: true, provider: name, models: OPENROUTER_MODELS }
 }
 
-export async function generateText({ messages, temperature = 0.2, models = OPENROUTER_MODEL_CANDIDATES }) {
+function getModelChain(taskType, overrideModels) {
+  if (Array.isArray(overrideModels) && overrideModels.length > 0) return overrideModels
+  if (taskType === TASK_TYPE.CODING) {
+    return OPENROUTER_CODING_MODELS.length ? OPENROUTER_CODING_MODELS : OPENROUTER_MODELS
+  }
+  return OPENROUTER_MODELS
+}
+
+export async function generateText({ messages, temperature = 0.2, models, taskType = TASK_TYPE.CHAT }) {
   if (!isConfigured()) {
     throw new Error('OPENROUTER_API_KEY missing')
   }
 
+  const modelChain = getModelChain(taskType, models)
   const failures = []
-  for (const model of models) {
+  for (const model of modelChain) {
     const startedAt = Date.now()
     try {
-      const { text, usage } = await executeWithRetries(
+      const { value, retries } = await executeWithRetries(
         async () => {
           try {
             return await callOpenRouterModel({ model, messages, temperature, jsonMode: true })
@@ -89,8 +103,9 @@ export async function generateText({ messages, temperature = 0.2, models = OPENR
             return await callOpenRouterModel({ model, messages, temperature, jsonMode: false })
           }
         },
-        { label: `OpenRouter ${model}` },
+        { label: `OpenRouter ${model}`, onRetry: () => recordRetry() },
       )
+      const { text, usage } = value
       const tokens = usage?.total ?? null
       logAttemptSuccess({
         provider: name,
@@ -98,8 +113,9 @@ export async function generateText({ messages, temperature = 0.2, models = OPENR
         latencyMs: Date.now() - startedAt,
         tokens,
         operation: 'generateText',
+        retries,
       })
-      return { content: text, provider: name, model, latencyMs: Date.now() - startedAt, usage }
+      return { content: text, provider: name, model, latencyMs: Date.now() - startedAt, usage, retries }
     } catch (error) {
       logAttemptFailure({
         provider: name,
@@ -108,23 +124,35 @@ export async function generateText({ messages, temperature = 0.2, models = OPENR
         latencyMs: Date.now() - startedAt,
         operation: 'generateText',
       })
+      const classification = classifyAiError(error)
       failures.push({ model, error })
+      if (!classification.fallback) throw error
     }
   }
 
   throw failures[failures.length - 1]?.error ?? new Error('OpenRouter text generation failed for all models')
 }
 
-export async function analyzeImage({ messages, temperature = 0.1, models = OPENROUTER_MODEL_CANDIDATES, requestId = null }) {
+export async function analyzeImage({
+  messages,
+  temperature = 0.1,
+  models,
+  requestId = null,
+}) {
   if (!isConfigured()) {
     throw new Error('OPENROUTER_API_KEY missing')
   }
 
+  const modelChain = Array.isArray(models) && models.length > 0 ? models : OPENROUTER_VISION_MODELS
+  if (modelChain.length === 0) {
+    throw new Error('No OpenRouter vision-capable models configured')
+  }
+
   const failures = []
-  for (const model of models) {
+  for (const model of modelChain) {
     const startedAt = Date.now()
     try {
-      const { text, usage } = await executeWithRetries(
+      const { value, retries } = await executeWithRetries(
         async () => {
           try {
             return await callOpenRouterModel({ model, messages, temperature, jsonMode: true })
@@ -132,16 +160,18 @@ export async function analyzeImage({ messages, temperature = 0.1, models = OPENR
             return await callOpenRouterModel({ model, messages, temperature, jsonMode: false })
           }
         },
-        { label: `OpenRouter vision ${model}` },
+        { label: `OpenRouter vision ${model}`, onRetry: () => recordRetry() },
       )
+      const { text, usage } = value
       logAttemptSuccess({
         provider: name,
         model,
         latencyMs: Date.now() - startedAt,
         tokens: usage?.total ?? null,
         operation: 'analyzeImage',
+        retries,
       })
-      return { content: text, provider: name, model, latencyMs: Date.now() - startedAt, requestId, usage }
+      return { content: text, provider: name, model, latencyMs: Date.now() - startedAt, requestId, usage, retries }
     } catch (error) {
       logAttemptFailure({
         provider: name,
@@ -150,7 +180,9 @@ export async function analyzeImage({ messages, temperature = 0.1, models = OPENR
         latencyMs: Date.now() - startedAt,
         operation: 'analyzeImage',
       })
+      const classification = classifyAiError(error)
       failures.push({ model, error })
+      if (!classification.fallback) throw error
     }
   }
 

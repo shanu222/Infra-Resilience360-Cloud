@@ -58,7 +58,7 @@
         if (window.location.port === '5173') {
           return `${window.location.protocol}//${window.location.hostname}:10000`;
         }
-        return `${window.location.protocol}//${window.location.host}`;
+        return 'https://infra-resilience360-cloud-production.up.railway.app';
       }
 
       function mediaUrl(relativePath) {
@@ -318,16 +318,9 @@
       }
 
       function buildApiTargets(path) {
-        const targets = new Set([path]);
         const apiBase = resolveApiBaseUrl();
-        if (apiBase) {
-          targets.add(`${apiBase}${path}`);
-        }
-
-        return Array.from(targets).map((item) => {
-          if (/^https?:\/\//i.test(item)) return item;
-          return stripTrailingSlash(item);
-        });
+        if (!apiBase) return [];
+        return [`${apiBase}${path}`];
       }
 
       async function requestJsonWithFallback(path, options = {}) {

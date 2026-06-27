@@ -1,28 +1,38 @@
+import { AI_LOG_LEVEL, AI_MAX_RETRIES } from './config.mjs'
 import { classifyAiError, formatFailureReason, sanitizeForLog } from './errors.mjs'
 
+const shouldLogInfo = () => AI_LOG_LEVEL !== 'error'
+const shouldLogWarn = () => AI_LOG_LEVEL !== 'silent'
+
 export function logAttemptStart({ provider, model, operation }) {
-  console.info(`[ai] Trying ${provider}${model ? ` (${model})` : ''} for ${operation}...`)
+  if (!shouldLogInfo()) return
+  console.info(`[ai] Provider=${provider} Model=${model ?? 'default'} Operation=${operation} Status=Started`)
 }
 
-export function logAttemptSuccess({ provider, model, latencyMs, tokens, operation }) {
+export function logAttemptSuccess({ provider, model, latencyMs, tokens, operation, retries = 0 }) {
+  if (!shouldLogInfo()) return
   console.info(
-    `[ai] ${provider}${model ? ` ${model}` : ''} succeeded (${operation}) latency=${latencyMs}ms${
-      tokens ? ` tokens=${tokens}` : ''
-    }`,
+    `[ai] Provider=${provider} Model=${model ?? 'default'} Operation=${operation} Status=Success Latency=${Math.round(
+      latencyMs ?? 0,
+    )}ms Retries=${retries} Tokens=${tokens ?? 'n/a'}`,
   )
 }
 
-export function logAttemptFailure({ provider, model, error, latencyMs, operation }) {
+export function logAttemptFailure({ provider, model, error, latencyMs, operation, retries = 0 }) {
+  if (!shouldLogWarn()) return
   const reason = formatFailureReason(error)
   const detail = sanitizeForLog(error instanceof Error ? error.message : String(error))
   console.warn(
-    `[ai] ${provider}${model ? ` ${model}` : ''} failed (${operation}) reason=${reason} latency=${latencyMs ?? 'n/a'}ms detail=${detail}`,
+    `[ai] Provider=${provider} Model=${model ?? 'default'} Operation=${operation} Status=Failed Reason=${reason} Latency=${Math.round(
+      latencyMs ?? 0,
+    )}ms Retries=${retries} Detail=${detail}`,
   )
 }
 
 export function logFallback({ fromProvider, toProvider, toModel }) {
-  const target = toModel ? `${toProvider} ${toModel}` : toProvider
-  console.info(`[ai] ${fromProvider} failed — trying ${target}...`)
+  if (!shouldLogInfo()) return
+  const target = toModel ? `${toProvider} (${toModel})` : toProvider
+  console.info(`[ai] ${fromProvider} failed. Trying ${target}...`)
 }
 
 export async function sleep(ms) {
@@ -35,7 +45,10 @@ export async function withTimeout(promise, timeoutMs, label) {
     return await Promise.race([
       promise,
       new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`)), timeoutMs)
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`)),
+          timeoutMs,
+        )
       }),
     ])
   } finally {
@@ -43,40 +56,40 @@ export async function withTimeout(promise, timeoutMs, label) {
   }
 }
 
-/**
- * Retry once on timeout/503/504/ECONNRESET; twice on 429 (1s then 3s backoff).
- */
-export async function executeWithRetries(fn, { label = 'request' } = {}) {
-  let lastError = null
-  let rateLimitAttempts = 0
+const retryDelays = [1_000, 3_000, 6_000]
 
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
+const addJitter = (baseMs) => {
+  const jitter = Math.floor(Math.random() * 300)
+  return baseMs + jitter
+}
+
+/**
+ * Attempt flow:
+ * - Attempt 1: immediate
+ * - Attempt 2: +1s (+ jitter)
+ * - Attempt 3: +3s (+ jitter)
+ * - Attempt 4: +6s (+ jitter)
+ */
+export async function executeWithRetries(fn, { label = 'request', onRetry } = {}) {
+  let lastError = null
+  const maxAttempts = Math.max(1, AI_MAX_RETRIES + 1)
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await fn(attempt)
+      const value = await fn(attempt)
+      return { value, attemptsUsed: attempt, retries: Math.max(0, attempt - 1) }
     } catch (error) {
       lastError = error
       const classification = classifyAiError(error)
-
-      if (classification.is429) {
-        rateLimitAttempts += 1
-        if (rateLimitAttempts <= 2) {
-          const backoffMs = rateLimitAttempts === 1 ? 1_000 : 3_000
-          await sleep(backoffMs)
-          continue
-        }
+      if (!classification.retryable || attempt >= maxAttempts) {
         throw error
       }
-
-      if (
-        classification.retryable &&
-        classification.category === 'transient' &&
-        attempt < 2
-      ) {
-        await sleep(500)
-        continue
+      const delayBase = retryDelays[Math.min(attempt - 1, retryDelays.length - 1)]
+      const backoffMs = addJitter(delayBase)
+      if (typeof onRetry === 'function') {
+        onRetry({ attempt, nextAttempt: attempt + 1, backoffMs, classification, label })
       }
-
-      throw error
+      await sleep(backoffMs)
     }
   }
 

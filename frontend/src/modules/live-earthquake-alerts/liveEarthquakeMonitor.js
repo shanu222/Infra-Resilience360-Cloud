@@ -304,16 +304,9 @@ export function initLiveEarthquakeMonitor(root) {
       }
 
       function buildApiTargets(path) {
-        const targets = new Set([path]);
         const apiBase = resolveApiBaseUrl();
-        if (apiBase) {
-          targets.add(`${apiBase}${path}`);
-        }
-
-        return Array.from(targets).map((item) => {
-          if (/^https?:\/\//i.test(item)) return item;
-          return stripTrailingSlash(item);
-        });
+        if (!apiBase) return [];
+        return [`${apiBase}${path}`];
       }
 
       async function requestJsonWithFallback(path, options = {}) {

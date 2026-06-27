@@ -3608,6 +3608,11 @@ app.get('/api/health/ai', async (req, res) => {
 
   const statusCode = orchestration.ok || isOpenAiConfigured() ? 200 : 503
   res.status(statusCode).json({
+    status: orchestration.status ?? (statusCode === 200 ? 'healthy' : 'degraded'),
+    activeProvider: orchestration.activeProvider ?? null,
+    fallbackEnabled: Boolean(orchestration.fallbackEnabled),
+    availableProviders: Number(orchestration.availableProviders ?? 0),
+    providers: orchestration.providers ?? {},
     ok: orchestration.ok || isOpenAiConfigured(),
     provider: selectedAiProvider,
     orchestration,

@@ -28,6 +28,12 @@ export function classifyAiError(error) {
     return { category: 'model_unavailable', status: status ?? 404, retryable: false, fallback: true }
   }
   if (
+    status === 400 ||
+    /invalid request|malformed|bad request|unsupported image|invalid image|invalid format/.test(message)
+  ) {
+    return { category: 'invalid_request', status: status ?? 400, retryable: false, fallback: false }
+  }
+  if (
     status === 429 ||
     code === 'insufficient_quota' ||
     /rate limit|too many requests|quota exceeded|quota|billing/.test(message)
@@ -53,6 +59,7 @@ export function formatFailureReason(error) {
   const classification = classifyAiError(error)
   if (classification.category === 'rate_limited') return '429'
   if (classification.category === 'transient' && /timeout|timed out/i.test(getErrorMessage(error))) return 'Timeout'
+  if (classification.category === 'invalid_request') return 'InvalidRequest'
   if (classification.status) return String(classification.status)
   return classification.category
 }
