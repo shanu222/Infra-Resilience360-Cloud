@@ -759,6 +759,31 @@
         padding-bottom: 4px;
       }
 
+      .eq-alert-toast {
+        position: absolute;
+        left: 12px;
+        bottom: 14px;
+        z-index: 18;
+        max-width: min(92vw, 340px);
+        border: 1px solid rgba(110, 173, 255, 0.38);
+        background: rgba(3, 16, 38, 0.92);
+        color: #e8f2ff;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 220ms ease, transform 220ms ease;
+        pointer-events: none;
+      }
+
+      .eq-alert-toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
       .impact-popup {
         position: absolute;
         left: 0;

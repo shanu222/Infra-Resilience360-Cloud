@@ -94,6 +94,7 @@ import {
 } from './routing/appSectionRouter'
 import { preloadAppMedia } from './utils/preloadAppMedia'
 import { preloadSectionModules } from './utils/preloadSectionModules'
+import { earthquakePushNotificationService } from './services/earthquakePushNotifications'
 import './styles/r360-section-panes.css'
 
 const UserLocationMiniMap = lazy(() => import('./components/UserLocationMiniMap'))
@@ -1098,6 +1099,14 @@ function App(_props: AppProps = {}) {
   const appStateSyncHydratedRef = useRef(false)
   const appStateSyncTimerRef = useRef<number | null>(null)
   const [isQaRoute, setIsQaRoute] = useState<boolean>(() => window.location.hash === '#qa-responsive')
+  const [showEarthquakeNotifyPrompt, setShowEarthquakeNotifyPrompt] = useState(false)
+  const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<NotificationPermission | 'unsupported'>(
+    () => earthquakePushNotificationService.getPermissionState(),
+  )
+  const [earthquakeNotifySettings, setEarthquakeNotifySettings] = useState(() =>
+    earthquakePushNotificationService.getSettings(),
+  )
+  const [earthquakeNotifyStatusMsg, setEarthquakeNotifyStatusMsg] = useState<string | null>(null)
   const { language, setLanguage, t, isUrdu } = useLanguage()
   const [activeSection, setActiveSection] = useState<SectionKey | null>(() => readInitialSectionFromUrl())
   const [visitedSections, setVisitedSections] = useState<Set<SectionKey>>(() => {
@@ -1722,25 +1731,65 @@ function App(_props: AppProps = {}) {
 
   // Initialize push notifications for earthquake alerts
   useEffect(() => {
-    const initPushNotifications = async () => {
+    try {
+      void earthquakePushNotificationService.initialize()
+      setEarthquakeNotifyPermission(earthquakePushNotificationService.getPermissionState())
+      setEarthquakeNotifySettings(earthquakePushNotificationService.getSettings())
+    } catch {
+      /* keep app shell stable if push init fails */
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
       try {
-        const { earthquakePushNotificationService } = await import('./services/earthquakePushNotifications')
-        await earthquakePushNotificationService.initialize()
-
-        // Subscribe to app-level earthquake alert events
-        const handleEarthquakeAlert = (_event: CustomEvent) => {}
-
-        window.addEventListener('earthquake-alert', handleEarthquakeAlert as EventListener)
-
-        return () => {
-          window.removeEventListener('earthquake-alert', handleEarthquakeAlert as EventListener)
+        if (earthquakePushNotificationService.shouldShowPrompt()) {
+          setShowEarthquakeNotifyPrompt(true)
         }
       } catch {
-        /* keep app shell stable if push init fails */
+        /* ignore prompt-check failures */
       }
-    }
+    }, 1600)
+    return () => window.clearTimeout(timer)
+  }, [])
 
-    initPushNotifications()
+  const enableEarthquakeBrowserNotifications = useCallback(async () => {
+    const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
+    setEarthquakeNotifyPermission(permission)
+    if (permission === 'granted') {
+      setEarthquakeNotifyStatusMsg('Notifications enabled.')
+      setShowEarthquakeNotifyPrompt(false)
+      return
+    }
+    setEarthquakeNotifyStatusMsg('Notifications were not enabled by the browser.')
+    setShowEarthquakeNotifyPrompt(false)
+  }, [])
+
+  const maybeLaterEarthquakeNotifications = useCallback(() => {
+    earthquakePushNotificationService.markPromptLater()
+    setShowEarthquakeNotifyPrompt(false)
+  }, [])
+
+  const updateEarthquakeNotifySettings = useCallback(
+    (patch: Partial<{ enabled: boolean; soundEnabled: boolean; threshold: number }>) => {
+      const next = earthquakePushNotificationService.updateSettings(patch)
+      setEarthquakeNotifySettings(next)
+    },
+    [],
+  )
+
+  const runEarthquakeNotificationTest = useCallback(async () => {
+    const ok = await earthquakePushNotificationService.showTestNotification()
+    setEarthquakeNotifyStatusMsg(
+      ok ?
+        'Test notification sent.'
+      : 'Test notification failed. Grant permission in browser settings first.',
+    )
+  }, [])
+
+  const runEarthquakeSoundTest = useCallback(async () => {
+    const ok = await earthquakePushNotificationService.playTestSound()
+    setEarthquakeNotifyStatusMsg(ok ? 'Alert sound played.' : 'Sound playback blocked by browser autoplay policy.')
   }, [])
 
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
@@ -6592,6 +6641,48 @@ function App(_props: AppProps = {}) {
         <p className="section-lead" style={{ marginTop: 8, opacity: 0.88, fontSize: '0.95rem' }}>
           {t.settings.homeLayoutCarouselHelp}
         </p>
+        <div className="context-left-panel" style={{ marginTop: 16 }}>
+          <h3 style={{ marginTop: 0 }}>Earthquake Notifications</h3>
+          <p className="section-lead" style={{ marginTop: 0, fontSize: '0.95rem' }}>
+            Stay informed with real-time earthquake alerts (Magnitude ≥ 5.0).
+          </p>
+          <label className="switch-row">
+            Enable earthquake alerts
+            <input
+              type="checkbox"
+              checked={earthquakeNotifySettings.enabled}
+              onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
+            />
+          </label>
+          <label className="switch-row">
+            Enable notification sound
+            <input
+              type="checkbox"
+              checked={earthquakeNotifySettings.soundEnabled}
+              onChange={(event) => updateEarthquakeNotifySettings({ soundEnabled: event.target.checked })}
+            />
+          </label>
+          <div className="inline-controls" style={{ marginTop: 10 }}>
+            <button type="button" onClick={enableEarthquakeBrowserNotifications}>
+              Enable Browser Notifications
+            </button>
+            <button type="button" onClick={runEarthquakeNotificationTest}>
+              Test Notification
+            </button>
+            <button type="button" onClick={runEarthquakeSoundTest}>
+              Test Sound
+            </button>
+          </div>
+          <p className="section-lead" style={{ marginTop: 8, fontSize: '0.9rem' }}>
+            Permission: <strong>{earthquakeNotifyPermission}</strong> · Support:{' '}
+            <strong>{earthquakePushNotificationService.isSupported() ? 'available' : 'unsupported'}</strong>
+          </p>
+          {earthquakeNotifyStatusMsg ?
+            <p className="section-lead" style={{ marginTop: 4, fontSize: '0.9rem' }}>
+              {earthquakeNotifyStatusMsg}
+            </p>
+          : null}
+        </div>
       </div>
     )
   }
@@ -6650,7 +6741,7 @@ function App(_props: AppProps = {}) {
       language={language}
       setLanguage={setLanguage}
       showLanguageToggle={true}
-      showSettingsToggle={isCapacitorNativeRuntime()}
+      showSettingsToggle={true}
       selectedRole={selectedRole}
       setSelectedRole={setSelectedRole}
       interfaceToggleLabel={interfaceToggleLabel}
@@ -6675,6 +6766,37 @@ function App(_props: AppProps = {}) {
   return (
     <PageConfigElementsProvider value={pageConfigContextValue}>
     <>
+    {showEarthquakeNotifyPrompt ?
+      createPortal(
+        <div className="learn-video-modal-overlay" role="dialog" aria-modal="true" aria-label="Enable notifications">
+          <div className="learn-video-modal-dialog" style={{ maxWidth: 520 }}>
+            <div className="learn-video-modal-header">
+              <h3 style={{ margin: 0 }}>Stay informed with real-time earthquake alerts.</h3>
+              <button
+                type="button"
+                className="learn-video-modal-close"
+                onClick={maybeLaterEarthquakeNotifications}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="section-lead" style={{ marginTop: 6 }}>
+              Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).
+            </p>
+            <div className="inline-controls" style={{ marginTop: 12 }}>
+              <button type="button" onClick={enableEarthquakeBrowserNotifications}>
+                Enable Notifications
+              </button>
+              <button type="button" onClick={maybeLaterEarthquakeNotifications}>
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null}
     <GlobalBackgroundVideo />
     <div className="r360-app-stack">
     <div

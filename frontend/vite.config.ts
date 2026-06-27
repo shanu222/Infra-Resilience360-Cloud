@@ -87,6 +87,7 @@ export default defineConfig(({ mode }) => ({
       registerType: 'autoUpdate',
       workbox: {
         cleanupOutdatedCaches: true,
+        importScripts: ['sw-notifications.js'],
         // Keep precache lean: portal trees ship huge PNG/PDF copies under public/. Those paths are
         // excluded here so SW install/update stays fast; portals still load from network and can use
         // runtime caching below on repeat visits.

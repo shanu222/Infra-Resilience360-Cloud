@@ -2,7 +2,7 @@ import {
   getBothPopulations as getLocalPopulationEstimate,
   loadPopulationData as loadLocalPopulationData,
 } from '../live-earthquake/services/populationService'
-import { getModuleMediaUrl } from '../../utils/mediaUrl'
+import { EARTHQUAKE_ALERT_SOUND_DATA_URI } from '../../assets/audio/earthquakeAlertSound'
 
 /**
  * Extracted from public/live-earthquake-alerts.html and adapted for native React mounting.
@@ -55,10 +55,12 @@ export function initLiveEarthquakeMonitor(root) {
         '/storage/cache/earthquake/latest.json',
         '/data/earthquake/latest.json',
       ];
-      const ALERT_SOUND_URL = getModuleMediaUrl('live-earthquake-alerts', 'audio', 'earthquake-alert.mp3');
+      const ALERT_SOUND_URL = EARTHQUAKE_ALERT_SOUND_DATA_URI;
       const ALERT_SETTINGS_KEY = 'r360-earthquake-alert-settings';
       const NOTIFIED_EVENT_IDS_KEY = 'r360-earthquake-notified-ids';
       const NOTIFICATION_PERMISSION_KEY = 'r360-earthquake-notify-permission';
+      const PENDING_FOCUS_EVENT_KEY = 'r360-earthquake-focus-event';
+      const NOTIFIED_EVENT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
       async function fetchLocalJson(path) {
         const response = await fetch(path, { cache: 'no-store' });
@@ -518,7 +520,7 @@ export function initLiveEarthquakeMonitor(root) {
       const disposeCallbacks = [];
       let alertAudio = null;
       let notificationPermissionRequested = false;
-      const notifiedEventIds = new Set();
+      const notifiedEventIds = new Map();
       let layerSettings = {
         countryBorders: true,
         plateBoundaries: true,
@@ -544,10 +546,19 @@ export function initLiveEarthquakeMonitor(root) {
         try {
           const raw = localStorage.getItem(NOTIFIED_EVENT_IDS_KEY);
           const parsed = raw ? JSON.parse(raw) : [];
+          const now = Date.now();
           if (!Array.isArray(parsed)) return;
-          parsed.slice(-600).forEach((id) => {
-            const key = String(id || '').trim();
-            if (key) notifiedEventIds.add(key);
+          parsed.slice(-800).forEach((entry) => {
+            if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+              const key = String(entry.id || '').trim();
+              const ts = Number(entry.ts || 0);
+              if (key && Number.isFinite(ts) && now - ts <= NOTIFIED_EVENT_MAX_AGE_MS) {
+                notifiedEventIds.set(key, ts);
+              }
+              return;
+            }
+            const key = String(entry || '').trim();
+            if (key) notifiedEventIds.set(key, now);
           });
         } catch {
           // Ignore malformed local storage payload.
@@ -556,7 +567,12 @@ export function initLiveEarthquakeMonitor(root) {
 
       function persistNotifiedEventIds() {
         try {
-          localStorage.setItem(NOTIFIED_EVENT_IDS_KEY, JSON.stringify(Array.from(notifiedEventIds).slice(-600)));
+          const now = Date.now();
+          const rows = Array.from(notifiedEventIds.entries())
+            .filter(([, ts]) => Number.isFinite(ts) && now - ts <= NOTIFIED_EVENT_MAX_AGE_MS)
+            .slice(-800)
+            .map(([id, ts]) => ({ id, ts }));
+          localStorage.setItem(NOTIFIED_EVENT_IDS_KEY, JSON.stringify(rows));
         } catch {
           // Ignore storage quota issues.
         }
@@ -630,16 +646,108 @@ export function initLiveEarthquakeMonitor(root) {
         }
       }
 
+      function showInAppToast(message) {
+        const host = root.querySelector('.page');
+        if (!host) return;
+        const existing = root.querySelector('.eq-alert-toast');
+        if (existing) existing.remove();
+        const toast = document.createElement('div');
+        toast.className = 'eq-alert-toast';
+        toast.textContent = message;
+        host.appendChild(toast);
+        window.setTimeout(() => toast.classList.add('is-visible'), 10);
+        window.setTimeout(() => {
+          toast.classList.remove('is-visible');
+          window.setTimeout(() => toast.remove(), 260);
+        }, 3200);
+      }
+
+      function buildLiveEarthquakeUrl(eventId) {
+        try {
+          const current = new URL(window.location.href);
+          const basePath = current.pathname.replace(/\/view\/[a-z0-9-]+(?:\/.*)?$/i, '').replace(/\/+$/, '') || '/';
+          const next = new URL(current.origin + (basePath === '/' ? '' : basePath) + '/view/live-earthquake-map');
+          next.searchParams.set('eqEventId', String(eventId || '').trim());
+          return `${next.pathname}${next.search}`;
+        } catch {
+          return `/view/live-earthquake-map?eqEventId=${encodeURIComponent(String(eventId || '').trim())}`;
+        }
+      }
+
+      function persistPendingFocusEvent(eventItem) {
+        if (!eventItem?.id) return;
+        try {
+          localStorage.setItem(
+            PENDING_FOCUS_EVENT_KEY,
+            JSON.stringify({
+              id: String(eventItem.id),
+              ts: Date.now(),
+              lat: Number(eventItem.lat),
+              lng: Number(eventItem.lng),
+            }),
+          );
+        } catch {
+          /* ignore storage write errors */
+        }
+      }
+
+      async function notifyEarthquakeEvent(eventItem) {
+        const title = '🌍 Significant Earthquake Detected';
+        const minutesAgo = Number.isFinite(eventItem.time) ? Math.max(0, Math.floor((Date.now() - eventItem.time) / 60000)) : 0;
+        const timeText = minutesAgo <= 1 ? eqT('justNow') : `${minutesAgo}m ago`;
+        const depthText = Number.isFinite(eventItem.depthKm) ? `${eventItem.depthKm.toFixed(1)} km` : '-- km';
+        const targetUrl = buildLiveEarthquakeUrl(eventItem.id);
+        const body = `Magnitude ${eventItem.mag.toFixed(1)}\nLocation: ${eventItem.place}\nDepth: ${depthText}\nOccurred ${timeText}`;
+        const options = {
+          body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: String(eventItem.id),
+          requireInteraction: Number(eventItem.mag) >= 6.5,
+          data: {
+            eventId: String(eventItem.id),
+            targetUrl,
+          },
+        };
+        try {
+          if ('serviceWorker' in navigator && document.hidden) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration?.showNotification) {
+              await registration.showNotification(title, options);
+              return;
+            }
+          }
+          const n = new Notification(title, options);
+          n.onclick = () => {
+            persistPendingFocusEvent(eventItem);
+            try {
+              window.focus();
+            } catch {
+              /* ignore focus errors */
+            }
+            window.location.assign(targetUrl);
+          };
+        } catch {
+          /* ignore notification delivery failures */
+        }
+      }
+
       function maybeNotifyForNewEvents(features) {
         if (!alertSettings.enabled) return;
         if (!Array.isArray(features) || features.length === 0) return;
         const now = Date.now();
+        const notifyThreshold = Math.max(5, Number(alertSettings.threshold || 5));
+        for (const [id, ts] of Array.from(notifiedEventIds.entries())) {
+          if (!Number.isFinite(ts) || now - ts > NOTIFIED_EVENT_MAX_AGE_MS) {
+            notifiedEventIds.delete(id);
+          }
+        }
         const candidates = features
           .map((item) => {
             const id = String(item?.id ?? '').trim();
             const mag = Number(item?.properties?.mag ?? 0);
             const time = Number(item?.properties?.time ?? 0);
-            if (!id || !Number.isFinite(mag) || mag < Number(alertSettings.threshold || 5)) return null;
+            if (!id || !Number.isFinite(mag) || mag < notifyThreshold) return null;
             if (notifiedEventIds.has(id)) return null;
             if (!Number.isFinite(time) || now - time > 24 * 60 * 60 * 1000) return null;
             return {
@@ -657,22 +765,52 @@ export function initLiveEarthquakeMonitor(root) {
         if (candidates.length === 0) return;
 
         candidates.forEach((eventItem) => {
-          notifiedEventIds.add(eventItem.id);
+          notifiedEventIds.set(eventItem.id, now);
+          persistPendingFocusEvent(eventItem);
+          showInAppToast(`M${eventItem.mag.toFixed(1)} · ${eventItem.country}`);
           const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
           if (permission === 'granted') {
-            const eventDate = new Date(eventItem.time);
-            const minutesAgo = Number.isFinite(eventItem.time) ? Math.max(0, Math.floor((Date.now() - eventItem.time) / 60000)) : 0;
-            const timeText = minutesAgo <= 1 ? eqT('justNow') : `${minutesAgo}m ago`;
-            const depthText = Number.isFinite(eventItem.depthKm) ? `${eventItem.depthKm.toFixed(1)} km` : '-- km';
-             
-            new Notification(`M${eventItem.mag.toFixed(1)} Earthquake — ${eventItem.country}`, {
-              body: `Location: ${eventItem.place}\nDepth: ${depthText}\n${timeText}`,
-              icon: '/favicon.ico',
-              tag: `eq-${eventItem.id}`,
-            });
+            void notifyEarthquakeEvent(eventItem);
             playAlertSound();
           }
         });
+      function readPendingFocusEventId() {
+        try {
+          const fromQuery = new URL(window.location.href).searchParams.get('eqEventId');
+          if (fromQuery) return String(fromQuery).trim();
+        } catch {
+          /* ignore URL parsing errors */
+        }
+        try {
+          const raw = localStorage.getItem(PENDING_FOCUS_EVENT_KEY);
+          if (!raw) return '';
+          const parsed = JSON.parse(raw);
+          const id = String(parsed?.id || '').trim();
+          const ts = Number(parsed?.ts || 0);
+          if (!id || !Number.isFinite(ts) || Date.now() - ts > NOTIFIED_EVENT_MAX_AGE_MS) return '';
+          return id;
+        } catch {
+          return '';
+        }
+      }
+
+      function clearPendingFocusEvent() {
+        try {
+          localStorage.removeItem(PENDING_FOCUS_EVENT_KEY);
+        } catch {
+          /* ignore storage errors */
+        }
+      }
+
+      function applyPendingFocus(features) {
+        const wantedId = readPendingFocusEventId();
+        if (!wantedId) return;
+        const matched = features.find((item) => String(item?.id || '') === wantedId);
+        if (!matched) return;
+        selectEvent(wantedId);
+        clearPendingFocusEvent();
+      }
+
 
         persistNotifiedEventIds();
       }
@@ -2592,6 +2730,7 @@ export function initLiveEarthquakeMonitor(root) {
             lastGoodFeatures = safeFeatures;
           }
           maybeNotifyForNewEvents(safeFeatures);
+          applyPendingFocus(safeFeatures);
           consecutiveLoadFailures = 0;
           await triggerAlertDispatch();
         } catch (error) {
@@ -2863,9 +3002,10 @@ export function initLiveEarthquakeMonitor(root) {
         window.__r360EarthquakeAlertSettings = {
           get: () => ({ ...alertSettings }),
           set: (patch) => updateAlertSettings(patch),
+          requestPermission: () => ensureNotificationPermission(),
+          testSound: () => playAlertSound(),
         };
         loadNotifiedEventIds();
-        void ensureNotificationPermission();
         bindControls();
         window.addEventListener('pagehide', disposeEarthquakePage, { once: true });
         void loadPopulationRaster();
