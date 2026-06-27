@@ -4,7 +4,7 @@ import { DATA_DIR } from '../config/localPaths.mjs'
 import {
   PAKISTAN_COG_STORAGE_PATH,
 } from '../config/populationRaster.mjs'
-import { streamLocalMediaToResponse } from '../services/localMediaResolver.mjs'
+import { resolveLocalMediaPath } from '../services/localMediaResolver.mjs'
 
 /**
  * Instant probes before CORS / JSON / admin middleware so load balancers always get a response.
@@ -41,8 +41,12 @@ async function serveLocalPakCogOrRedirect(res) {
   }
 
   for (const key of LOCAL_COG_KEYS) {
-    const ok = await streamLocalMediaToResponse(key, res)
-    if (ok) return true
+    const filePath = resolveLocalMediaPath(key)
+    if (!filePath) continue
+    res.setHeader('Content-Type', 'image/tiff')
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    createReadStream(filePath).pipe(res)
+    return true
   }
 
   if (!res.headersSent) {
