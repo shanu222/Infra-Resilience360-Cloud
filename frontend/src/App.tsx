@@ -18,6 +18,7 @@ import ResponsiveQa from './components/ResponsiveQa'
 import { fetchLiveAlerts, type LiveAlert } from './services/alerts'
 import { buildApiTargets } from './services/apiBase'
 import { getModuleMediaUrl } from './utils/mediaUrl'
+import { mediaManager } from './services/mediaManager'
 import { formatApiErrorMessage } from './utils/apiErrorMessage'
 import { loadSharedAppState, saveSharedAppState } from './services/appStateSync'
 import type { VisionAnalysisResult } from './services/vision'
@@ -117,6 +118,16 @@ const MaterialHubsPage = lazy(() =>
 const SmartConstructionPage = lazy(() =>
   import('./pages/portals/SmartConstructionPage').then((m) => ({ default: m.SmartConstructionPage })),
 )
+
+function SectionShellFallback({ label = 'Loading module...' }: { label?: string }) {
+  return (
+    <div className="section-shell-fallback" role="status" aria-live="polite">
+      <div className="section-shell-fallback__bar" />
+      <div className="section-shell-fallback__bar is-short" />
+      <p>{label}</p>
+    </div>
+  )
+}
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
 let constructionGuidanceServicePromise: Promise<typeof import('./services/constructionGuidance')> | null = null
@@ -535,28 +546,27 @@ type LearnTrainingVideo = {
 }
 
 const LEARN_VIDEO_UNAVAILABLE_MESSAGE = 'Video unavailable. Please try again later.'
-const LEARN_ALLOWED_VIDEO_URLS = new Set(LEARN_TRAIN_VIDEOS.map((video) => learnTrainVideoUrl(video.fileName).toLowerCase()))
 
-/** Learn playback: allow only canonical local static paths from config. */
+/** Learn playback: prefer metadata URL, fallback to canonical static mapping. */
 function resolveLearnVideoUrl(
   video: Pick<LearnTrainingVideo, 'id' | 'url' | 'fileName'>,
 ): string {
   const fileName = String(video?.fileName ?? '').trim()
   const canonicalUrl = fileName ? learnTrainVideoUrl(fileName) : ''
   const suppliedUrl = String(video?.url ?? '').trim()
-  if (!canonicalUrl) {
-    throw new Error(`[VIDEO ERROR] Missing local Learn video URL: ${video?.id ?? 'unknown'}`)
-  }
   if (suppliedUrl && isAwsPresignedUrl(suppliedUrl)) {
     throw new Error(`[VIDEO ERROR] Expiring S3 URL for "${video?.id ?? 'unknown'}" is not allowed.`)
+  }
+  if (suppliedUrl) {
+    return mediaManager.resolveRuntimeMediaUrl(suppliedUrl)
+  }
+  if (!canonicalUrl) {
+    throw new Error(`[VIDEO ERROR] Missing Learn video URL: ${video?.id ?? 'unknown'}`)
   }
   if (!canonicalUrl.toLowerCase().startsWith(LEARN_VIDEO_BASE.toLowerCase())) {
     throw new Error(`[VIDEO ERROR] Learn URL must start with ${LEARN_VIDEO_BASE} (${video?.id ?? 'unknown'})`)
   }
-  if (!LEARN_ALLOWED_VIDEO_URLS.has(canonicalUrl.toLowerCase())) {
-    throw new Error(`[VIDEO ERROR] Learn URL is not in canonical mapping: ${video?.id ?? 'unknown'}`)
-  }
-  return canonicalUrl
+  return mediaManager.resolveRuntimeMediaUrl(canonicalUrl)
 }
 
 const provinceRisk: Record<string, { earthquake: string; flood: string; infraRisk: string; landslide: string }> = {
@@ -1255,8 +1265,10 @@ function App(_props: AppProps = {}) {
   const [infraLayoutPlaybackSrc, setInfraLayoutPlaybackSrc] = useState('')
   const [infraLayoutVideoSourceIndex, setInfraLayoutVideoSourceIndex] = useState(0)
   const [learnVideoError, setLearnVideoError] = useState<string | null>(null)
+  const [isLearnVideoMetadataReady, setIsLearnVideoMetadataReady] = useState(false)
   const [infraLayoutVideoError, setInfraLayoutVideoError] = useState<string | null>(null)
   const learnVideoRef = useRef<HTMLVideoElement | null>(null)
+  const homeMetadataPrefetchDoneRef = useRef(false)
   const retrofitSectionRef = useRef<HTMLDivElement | null>(null)
 
   const retrofitLocaleBase = t.retrofit
@@ -1280,7 +1292,7 @@ function App(_props: AppProps = {}) {
       )
       .map((v) => ({
         ...v,
-        url: learnTrainVideoUrl(v.fileName),
+        url: String(v.url ?? '').trim() || learnTrainVideoUrl(v.fileName),
       }))
   }, [])
   const effectiveLearnVideoIconById: Record<string, string> = LEARN_TRAIN_ICON_MAP
@@ -1533,13 +1545,12 @@ function App(_props: AppProps = {}) {
         setLearnVideoError(LEARN_VIDEO_UNAVAILABLE_MESSAGE)
         return
       }
-
-      const selectedUrl = learnTrainVideoUrl(selected.fileName)
-      if (!selectedUrl) {
-        setLearnVideoError(LEARN_VIDEO_UNAVAILABLE_MESSAGE)
-        return
+      const selectedUrl = String(selected.url ?? '').trim() || learnTrainVideoUrl(selected.fileName)
+      if (selectedUrl) {
+        void mediaManager.preloadVideoMetadata(selectedUrl)
       }
 
+      setIsLearnVideoMetadataReady(false)
       setActiveLearnVideoId(videoId)
       setIsLearnVideoVisible(true)
     },
@@ -1550,6 +1561,7 @@ function App(_props: AppProps = {}) {
     setIsLearnVideoVisible(false)
     setActiveLearnVideoId(null)
     setLearnVideoError(null)
+    setIsLearnVideoMetadataReady(false)
   }, [])
 
   useEffect(() => {
@@ -1597,6 +1609,18 @@ function App(_props: AppProps = {}) {
   }, [])
   const handleLearnVideoLoadError = useCallback((event: SyntheticEvent<HTMLVideoElement>) => {
     const el = event.currentTarget
+    if (el.dataset.r360RetryPending !== '1') {
+      el.dataset.r360RetryPending = '1'
+      window.setTimeout(() => {
+        try {
+          el.load()
+        } catch {
+          /* no-op */
+        }
+      }, 220)
+      return
+    }
+    el.dataset.r360RetryPending = '0'
     const message = LEARN_VIDEO_UNAVAILABLE_MESSAGE
     setLearnVideoError(message)
     void el
@@ -1634,6 +1658,7 @@ function App(_props: AppProps = {}) {
     if (activeSection !== 'learn' || !isLearnVideoVisible || !learnPlayerPlayback.videoSrc) return
     const el = learnVideoRef.current
     if (el) {
+      setIsLearnVideoMetadataReady(false)
       el.load()
     }
   }, [learnPlayerPlayback.videoSrc, activeSection, isLearnVideoVisible])
@@ -1692,6 +1717,49 @@ function App(_props: AppProps = {}) {
     preloadSectionModules()
     preloadAppMedia([DEFAULT_SHELL_LOGO_URL, APP_BRAND_ICON_URL, ...APP_BRAND_ICON_URL_CANDIDATES])
   }, [])
+
+  useEffect(() => {
+    if (activeSection !== null) return
+    if (homeMetadataPrefetchDoneRef.current) return
+    homeMetadataPrefetchDoneRef.current = true
+
+    const targets = [
+      '/api/content/learn-train',
+      '/api/content/best-practices',
+      '/api/content/material-hubs',
+      '/api/content/disaster-dashboard',
+      '/api/content/smart-construction',
+    ]
+
+    const runPrefetch = async () => {
+      await Promise.allSettled(
+        targets.flatMap((path) =>
+          buildApiTargets(path).map((url) =>
+            fetch(url, { cache: 'force-cache' }).catch(() => {
+              /* prefetch best-effort */
+            }),
+          ),
+        ),
+      )
+    }
+
+    const win = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    if (typeof window !== 'undefined' && typeof win.requestIdleCallback === 'function') {
+      const idleId = win.requestIdleCallback(() => {
+        void runPrefetch()
+      }, { timeout: 3500 })
+      return () => win.cancelIdleCallback?.(idleId)
+    }
+
+    const timer = window.setTimeout(() => {
+      void runPrefetch()
+    }, 900)
+    return () => window.clearTimeout(timer)
+  }, [activeSection])
 
   useEffect(() => {
     try {
@@ -3950,7 +4018,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'liveEarthquakeMap') {
       return (
-        <Suspense fallback={null}>
+        <Suspense fallback={<SectionShellFallback label="Loading live earthquake map..." />}>
           <EmbeddedEarthquakePage title={t.riskMap.liveEarthquakeAlerts} language={language} />
         </Suspense>
       )
@@ -4052,7 +4120,7 @@ function App(_props: AppProps = {}) {
               {t.riskMap.fullscreenMap}
             </button>
           </div>
-          <Suspense fallback={null}>
+          <Suspense fallback={<SectionShellFallback label="Loading risk map..." />}>
           <RiskMap
             layer={mapLayer}
             selectedProvince={selectedProvince}
@@ -4724,7 +4792,6 @@ function App(_props: AppProps = {}) {
                   controls
                   autoPlay
                   playsInline
-                  crossOrigin="anonymous"
                   controlsList="nodownload"
                   preload="metadata"
                   onLoadStart={() => setInfraLayoutVideoError(null)}
@@ -4936,7 +5003,7 @@ function App(_props: AppProps = {}) {
                       {t.applyRegion.autoFilledFrom} <strong>{applyCity}, {applyProvince}</strong> | {t.applyRegion.hazardFocus}{' '}
                       <strong>{applyHazard}</strong>
                     </p>
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<SectionShellFallback label="Loading map preview..." />}>
                       <UserLocationMiniMap location={detectedUserLocation} popupTitle={t.riskMap.liveLocationMapPopup} />
                     </Suspense>
                   </>
@@ -6547,13 +6614,13 @@ function App(_props: AppProps = {}) {
                       controls
                       autoPlay
                       playsInline
-                      crossOrigin="anonymous"
                       controlsList="nodownload"
                       disablePictureInPicture
                       onContextMenu={(event) => event.preventDefault()}
                       poster={learnTrainPosterUrl(activeLearnVideo.fileName)}
                       preload="metadata"
                       onLoadStart={() => setLearnVideoError(null)}
+                      onLoadedMetadata={() => setIsLearnVideoMetadataReady(true)}
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                       onError={(e) => {
                         handleLearnVideoLoadError(e)
@@ -6567,6 +6634,11 @@ function App(_props: AppProps = {}) {
                   : !resolveError ?
                     null
                   : null}
+                  {!resolveError && videoSrc && !isLearnVideoMetadataReady ? (
+                    <p className="learn-video-modal-status" role="status" aria-live="polite">
+                      Loading video...
+                    </p>
+                  ) : null}
                   {learnVideoError && <p role="alert">{learnVideoError}</p>}
                   <div className="learn-video-player-actions">
                     <button type="button" onClick={closeLearnVideoModal}>
@@ -6587,7 +6659,7 @@ function App(_props: AppProps = {}) {
     if (section === 'pgbc') {
       return (
         <div className="panel section-panel section-pgbc section-building-codes">
-          <Suspense fallback={null}>
+          <Suspense fallback={<SectionShellFallback label="Loading building codes..." />}>
             <BuildingCodesPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
           </Suspense>
         </div>
@@ -6596,7 +6668,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'materialHubs') {
       return (
-        <Suspense fallback={null}>
+        <Suspense fallback={<SectionShellFallback label="Loading material hubs..." />}>
           <MaterialHubsPage
             language={language}
             isAdminMode={isAdminMode}
@@ -6611,7 +6683,7 @@ function App(_props: AppProps = {}) {
         <div className="panel section-panel section-pgbc section-retrofit-calculator">
           <CmsSectionHeading fallback={t.sections.retrofitCalculator} />
           <CmsText id="sectionIntro" fallback={t.homeCards.retrofitCalculator.subtitle} className="section-lead" />
-          <Suspense fallback={null}>
+          <Suspense fallback={<SectionShellFallback label="Loading retrofit calculator..." />}>
           <CostEstimatorPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
           </Suspense>
         </div>
@@ -6623,7 +6695,7 @@ function App(_props: AppProps = {}) {
         <div className="panel section-panel section-pgbc section-smart-construction">
           <CmsSectionHeading fallback={t.sections.smartConstruction} />
           <CmsText id="sectionIntro" fallback={t.homeCards.smartConstruction.subtitle} className="section-lead" />
-          <Suspense fallback={null}>
+          <Suspense fallback={<SectionShellFallback label="Loading smart construction..." />}>
           <SmartConstructionPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
           </Suspense>
         </div>
@@ -6632,7 +6704,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'disasterDashboard') {
       return (
-        <Suspense fallback={null}>
+        <Suspense fallback={<SectionShellFallback label="Loading disaster dashboard..." />}>
           <DisasterDashboardPage
             language={language}
             isAdminMode={isAdminMode}

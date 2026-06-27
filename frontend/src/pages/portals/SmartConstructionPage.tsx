@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
@@ -16,6 +16,7 @@ export function SmartConstructionPage({
   isEditMode?: boolean
 }) {
   const iframeRef = useIframeAutoHeight(0)
+  const [isFrameReady, setIsFrameReady] = useState(false)
 
   useEffect(() => {
     persistLanguage(language)
@@ -34,14 +35,17 @@ export function SmartConstructionPage({
         } as CSSProperties
       }
     >
+      {!isFrameReady ? <div className="section-shell-fallback"><div className="section-shell-fallback__bar" /><div className="section-shell-fallback__bar is-short" /><p>Loading smart construction...</p></div> : null}
       <iframe
         ref={iframeRef}
         className="r360-embedded-portal-frame smart-construction-portal-frame"
         src="/smart-construction/index.html"
         title="Smart Construction Portal"
-        loading="eager"
+        loading="lazy"
         referrerPolicy="no-referrer"
         scrolling="no"
+        onLoad={() => setIsFrameReady(true)}
+        style={{ opacity: isFrameReady ? 1 : 0.01, transition: 'opacity 180ms ease' }}
       />
     </div>
   )

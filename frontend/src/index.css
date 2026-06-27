@@ -3626,6 +3626,45 @@ h4 {
   box-sizing: border-box;
 }
 
+.section-shell-fallback {
+  width: 100%;
+  border: 1px solid rgba(125, 168, 236, 0.28);
+  border-radius: 12px;
+  background: rgba(8, 21, 48, 0.72);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.section-shell-fallback__bar {
+  width: 100%;
+  height: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.45), rgba(148, 163, 184, 0.2));
+  background-size: 220% 100%;
+  animation: section-shell-fallback-pulse 1.2s ease-in-out infinite;
+}
+
+.section-shell-fallback__bar.is-short {
+  width: 62%;
+}
+
+.section-shell-fallback p {
+  margin: 2px 0 0;
+  color: #d7e4fb;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+@keyframes section-shell-fallback-pulse {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
 .section-panel.section-smart-construction {
   position: relative;
   display: flex;

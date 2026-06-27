@@ -3,12 +3,10 @@ import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
+import { mediaManager } from './services/mediaManager'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
-const DEFAULT_R2_MEDIA_BASE_URL = 'https://pub-e38210c9c2ff4bf3a45338616cd43df2.r2.dev'
-const MEDIA_BASE_URL = String(import.meta.env.VITE_MEDIA_BASE_URL ?? import.meta.env.VITE_PUBLIC_MEDIA_BASE_URL ?? '')
-  .trim()
-  .replace(/\/+$/, '') || DEFAULT_R2_MEDIA_BASE_URL
+const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
 
 if (typeof window !== 'undefined') {
   ;(window as Window & { __R360_API_BASE_URL?: string; __R360_MEDIA_BASE_URL?: string }).__R360_API_BASE_URL = API_BASE_URL
