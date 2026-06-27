@@ -13,7 +13,7 @@ export async function openaiChatCompletionText({
   messages,
   model = String(process.env.OPENAI_MODEL ?? 'gpt-4.1').trim(),
   temperature = 0.2,
-  timeoutMs = 12000,
+  timeoutMs = 45_000,
   responseFormatJsonObject = false,
   onRotatedKey,
 }) {

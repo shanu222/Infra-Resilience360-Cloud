@@ -45,6 +45,8 @@ import {
   getLiveEarthquakeResponse,
   startEarthquakeRefreshLoop,
 } from './services/earthquake/aggregator.mjs'
+import * as aiOrchestrator from './services/ai/manager.mjs'
+import { isAnyAiProviderConfigured, AI_UNAVAILABLE_MESSAGE } from './services/ai/config.mjs'
 import { assertAdminApiKey } from './adminApiKey.mjs'
 import { readOnlyModeMiddleware } from './middleware/readOnlyMode.mjs'
 import {
@@ -330,8 +332,8 @@ console.info(`OpenAI Configured: ${isOpenAiConfigured() ? 'YES' : 'NO'}`)
 console.info('[boot] AI provider:', selectedAiProvider, '| vision ready:', hasKey ? 'YES' : 'NO')
 const AI_CHAT_TIMEOUT_MS = Math.max(15_000, Number(process.env.AI_CHAT_TIMEOUT_MS ?? 45_000) || 45_000)
 const AI_PROVIDER_REQUEST_TIMEOUT_MS = Math.max(
-  30_000,
-  Number(process.env.AI_PROVIDER_REQUEST_TIMEOUT_MS ?? 120_000) || 120_000,
+  5_000,
+  Number(process.env.AI_PROVIDER_REQUEST_TIMEOUT_MS ?? process.env.AI_TIMEOUT_MS ?? 45_000) || 45_000,
 )
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY ?? '').trim()
 const GEMINI_MODEL = 'gemini-1.5-flash'
@@ -1163,224 +1165,10 @@ const callOpenAI = async ({
   })
 }
 
-/** Vision analysis uses OpenAI only (image_url payloads are not sent to alternate providers). */
+/** Vision + text orchestration via multi-provider manager (OpenAI → Gemini → OpenRouter). */
 const callOpenAIVisionWithRetry = async ({ messages, requestId, openaiModel = OPENAI_VISION_MODEL }) => {
-  const endpoint = '/v1/chat/completions'
-  const modelCandidates = [openaiModel, ...OPENAI_VISION_FALLBACK_MODELS].filter(Boolean)
-  let lastError = null
-
-  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
-    const modelName = modelCandidates[modelIndex]
-    const maxAttempts = 3
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const startedAt = Date.now()
-      try {
-        console.info('[vision/analyze] OpenAI request started', {
-          requestId,
-          endpoint,
-          model: modelName,
-          attempt,
-          fallbackModelIndex: modelIndex,
-        })
-        const content = await callOpenAI({
-          messages,
-          temperature: 0.1,
-          openaiModel: modelName,
-          responseFormatJsonObject: true,
-          timeoutMs: AI_PROVIDER_REQUEST_TIMEOUT_MS,
-        })
-        console.info('[vision/analyze] OpenAI response received', {
-          requestId,
-          endpoint,
-          model: modelName,
-          attempt,
-          durationMs: Date.now() - startedAt,
-        })
-        return { content, modelUsed: modelName }
-      } catch (error) {
-        lastError = error
-        const classification = classifyOpenAiError(error)
-        const details = getOpenAiErrorDetails(error)
-        console.error('[vision/analyze] OpenAI request failed', {
-          requestId,
-          endpoint,
-          model: modelName,
-          attempt,
-          durationMs: Date.now() - startedAt,
-          status: details.status ?? null,
-          code: details.code || null,
-          type: details.type || null,
-          category: classification.category,
-          detail: normalizeAiErrorForLog(error, 'OpenAI vision request failed'),
-        })
-
-        if (classification.category === 'model_unavailable' && modelIndex < modelCandidates.length - 1) {
-          break
-        }
-
-        if (classification.retryable && attempt < maxAttempts) {
-          const backoffMs = 1000 * Math.pow(2, attempt - 1)
-          await sleep(backoffMs)
-          continue
-        }
-
-        throw error
-      }
-    }
-  }
-
-  throw lastError ?? new Error('OpenAI vision request failed')
-}
-
-const callHuggingFace = async ({ messages, temperature, huggingFaceModel }) => {
-  if (!huggingFaceRouterClient) {
-    throw new Error('Hugging Face key missing. Set HUGGINGFACE_API_KEY in environment variables.')
-  }
-
-  const runWithClient = async (client, modelName, allowJsonResponseFormat) => {
-    const payload = {
-      model: modelName,
-      temperature,
-      messages,
-      ...(allowJsonResponseFormat ? { response_format: { type: 'json_object' } } : {}),
-    }
-
-    return await withPromiseTimeout(
-      client.chat.completions.create(payload),
-      AI_PROVIDER_REQUEST_TIMEOUT_MS,
-      'Hugging Face text generation',
-    )
-  }
-
-  try {
-    const completion = await runWithClient(huggingFaceRouterClient, huggingFaceModel, true)
-    const text = completion.choices[0]?.message?.content ?? ''
-    if (!String(text).trim()) {
-      throw new Error('Hugging Face returned an empty response')
-    }
-    return text
-  } catch (firstError) {
-    try {
-      const completion = await runWithClient(huggingFaceRouterClient, huggingFaceModel, false)
-      const text = completion.choices[0]?.message?.content ?? ''
-      if (!String(text).trim()) {
-        throw new Error('Hugging Face returned an empty response')
-      }
-      return text
-    } catch (secondError) {
-      throw secondError
-    }
-  }
-}
-
-const callGemini = async ({ messages, temperature }) => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key missing. Set GEMINI_API_KEY in environment variables.')
-  }
-
-  const { systemInstruction, contents } = messagesToGeminiParams(messages)
-  if (!contents.length) {
-    throw new Error('No Gemini contents to generate')
-  }
-
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY)
-  const model = genAI.getGenerativeModel({
-    model: GEMINI_MODEL,
-    ...(systemInstruction ? { systemInstruction } : {}),
-    generationConfig: {
-      temperature,
-      responseMimeType: 'application/json',
-    },
-  })
-
-  try {
-    const result = await withPromiseTimeout(
-      model.generateContent({ contents }),
-      AI_PROVIDER_REQUEST_TIMEOUT_MS,
-      'Gemini text generation',
-    )
-    const text = result.response.text()
-    if (!text || !String(text).trim()) {
-      throw new Error('Gemini returned an empty response')
-    }
-    return text
-  } catch (error) {
-    try {
-      const modelPlain = genAI.getGenerativeModel({
-        model: GEMINI_MODEL,
-        ...(systemInstruction ? { systemInstruction } : {}),
-        generationConfig: { temperature },
-      })
-      const result = await withPromiseTimeout(
-        modelPlain.generateContent({ contents }),
-        AI_PROVIDER_REQUEST_TIMEOUT_MS,
-        'Gemini text generation (plain)',
-      )
-      const text = result.response.text()
-      if (!text || !String(text).trim()) {
-        throw new Error('Gemini returned an empty response')
-      }
-      return text
-    } catch (fallbackError) {
-      throw fallbackError
-    }
-  }
-}
-
-const callLlama = async ({ messages, temperature }) => {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OpenRouter API key missing. Set OPENROUTER_API_KEY in environment variables.')
-  }
-
-  const headers = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-  }
-  if (OPENROUTER_SITE_URL) {
-    headers['HTTP-Referer'] = OPENROUTER_SITE_URL
-  }
-  if (OPENROUTER_SITE_NAME) {
-    headers['X-Title'] = OPENROUTER_SITE_NAME
-  }
-
-  const run = async (useJsonFormat) => {
-    const body = {
-      model: OPENROUTER_LLAMA_MODEL,
-      messages,
-      temperature,
-      ...(useJsonFormat ? { response_format: { type: 'json_object' } } : {}),
-    }
-    const response = await withPromiseTimeout(
-      fetch(OPENROUTER_LLAMA_CHAT_COMPLETIONS_URL, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      }),
-      AI_PROVIDER_REQUEST_TIMEOUT_MS,
-      'OpenRouter Llama text generation',
-    )
-    const raw = await response.text()
-    if (!response.ok) {
-      throw new Error(raw || `OpenRouter HTTP ${response.status}`)
-    }
-    let json
-    try {
-      json = raw ? JSON.parse(raw) : null
-    } catch {
-      throw new Error('OpenRouter returned invalid JSON')
-    }
-    const text = json?.choices?.[0]?.message?.content ?? ''
-    if (!String(text).trim()) {
-      throw new Error('OpenRouter returned an empty response')
-    }
-    return text
-  }
-
-  try {
-    return await run(true)
-  } catch (firstError) {
-    return await run(false)
-  }
+  const result = await aiOrchestrator.analyzeImage({ messages, requestId, model: openaiModel })
+  return { content: result.content, modelUsed: result.model }
 }
 
 const generateAIResponse = async (prompt, options = {}) => {
@@ -1390,37 +1178,14 @@ const generateAIResponse = async (prompt, options = {}) => {
     throw new Error('generateAIResponse requires a non-empty messages array or a prompt string')
   }
 
-  const { temperature = 0.2, openaiModel = OPENAI_MODEL, huggingFaceModel = HUGGINGFACE_CHAT_MODEL } = options
-
-  const attempts = [
-    { label: 'OpenAI', run: () => callOpenAI({ messages, temperature, openaiModel }) },
-    { label: 'HuggingFace', run: () => callHuggingFace({ messages, temperature, huggingFaceModel }) },
-    { label: 'Gemini', run: () => callGemini({ messages, temperature }) },
-    { label: 'Llama (OpenRouter)', run: () => callLlama({ messages, temperature }) },
-  ]
-
-  const failures = []
-  for (const { label, run } of attempts) {
-    try {
-      const text = await run()
-      if (!String(text ?? '').trim()) {
-        throw new Error('empty response')
-      }
-      console.log(`[AI] Response succeeded using provider: ${label}`)
-      return text
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      console.warn(`[AI] Provider ${label} failed: ${message}`)
-      failures.push(`${label}: ${message}`)
-    }
-  }
-
-  throw new Error(`All AI providers failed. ${failures.join(' | ')}`)
+  const result = await aiOrchestrator.generateText(messages, options)
+  console.log(`[AI] Response succeeded using provider: ${result.provider} model=${result.model}`)
+  return result.content
 }
 
 const createChatCompletion = async ({ messages, temperature = 0.2, openaiModel = OPENAI_MODEL, huggingFaceModel = HUGGINGFACE_CHAT_MODEL }) => {
-  const content = await generateAIResponse(messages, { temperature, openaiModel, huggingFaceModel })
-  return { choices: [{ message: { content } }] }
+  const result = await aiOrchestrator.generateText(messages, { temperature, openaiModel, huggingFaceModel })
+  return { choices: [{ message: { content: result.content } }] }
 }
 
 const parseImageSize = (size) => {
@@ -3619,19 +3384,10 @@ const handleVisionAnalyze = async (req, res) => {
     }
   }
 
-  if (selectedAiProvider === 'openai' && !isOpenAiConfigured()) {
-    console.warn('[vision/analyze] OpenAI not configured', { requestId })
-    res.setHeader('Cache-Control', 'no-store, max-age=0')
-    const payload = toSanitizedVisionErrorPayload(null, USER_AI_MESSAGES.serviceUnavailable)
-    res.status(503).json({ ...payload, requestId })
-    return
-  }
-
-  if (!hasKey) {
+  if (!isAnyAiProviderConfigured()) {
     console.warn('[vision/analyze] AI credentials not configured', { requestId, feature: 'vision analyze' })
     res.setHeader('Cache-Control', 'no-store, max-age=0')
-    const payload = toSanitizedVisionErrorPayload(null, USER_AI_MESSAGES.serviceUnavailable)
-    res.status(503).json({ ...payload, requestId })
+    res.status(503).json(aiOrchestrator.getUnavailableResponse({ requestId }))
     return
   }
 
@@ -3794,16 +3550,20 @@ const handleVisionAnalyze = async (req, res) => {
     res.setHeader('Cache-Control', 'no-store, max-age=0')
     res.json(responsePayload)
   } catch (error) {
-    console.error('[vision/analyze] OpenAI failure summary', {
+    console.error('[vision/analyze] orchestration failure summary', {
       requestId,
-      summary: getOpenAiLogSummary(error),
+      summary: error?.name === 'AiServiceUnavailableError' ? error.failures : getOpenAiLogSummary(error),
     })
     console.error('[vision/analyze]', {
       requestId,
       detail: normalizeAiErrorForLog(error, 'Vision analysis failed.'),
     })
     res.setHeader('Cache-Control', 'no-store, max-age=0')
-    const payload = toSanitizedVisionErrorPayload(error, USER_AI_MESSAGES.unavailable)
+    if (error?.name === 'AiServiceUnavailableError') {
+      res.status(503).json(aiOrchestrator.getUnavailableResponse({ requestId, temporary: true }))
+      return
+    }
+    const payload = toSanitizedVisionErrorPayload(error, AI_UNAVAILABLE_MESSAGE)
     res.status(503).json({ ...payload, requestId })
   }
 }
@@ -3813,18 +3573,15 @@ app.post('/api/analyze-retrofit', upload.single('image'), handleVisionAnalyze)
 
 /** Backend diagnostics for AI readiness (no secrets returned). */
 app.get('/api/health/ai', async (req, res) => {
-  const envLoaded = Boolean(process.env.OPENAI_API_KEY)
-  const openAiConfigured = isOpenAiConfigured()
-  const openAiClientInitialized = Boolean(openai)
-  const configuredVisionModel = OPENAI_VISION_MODEL
-  const fallbackVisionModels = OPENAI_VISION_FALLBACK_MODELS
+  const orchestration = await aiOrchestrator.healthCheck()
   const shouldProbe = ['1', 'true', 'yes'].includes(String(req.query.probe ?? '').toLowerCase())
   const diagnostics = {
-    envLoaded,
-    openAiConfigured,
-    openAiClientInitialized,
-    configuredVisionModel,
-    fallbackVisionModels,
+    envLoaded: isAnyAiProviderConfigured(),
+    openAiConfigured: isOpenAiConfigured(),
+    openAiClientInitialized: Boolean(openai),
+    configuredVisionModel: OPENAI_VISION_MODEL,
+    fallbackVisionModels: OPENAI_VISION_FALLBACK_MODELS,
+    orchestration,
     probeExecuted: false,
     visionEndpointReachable: null,
     probeError: null,
@@ -3832,13 +3589,13 @@ app.get('/api/health/ai', async (req, res) => {
 
   if (shouldProbe) {
     diagnostics.probeExecuted = true
-    if (!openAiConfigured || !openai) {
+    if (!isOpenAiConfigured() || !openai) {
       diagnostics.visionEndpointReachable = false
       diagnostics.probeError = 'OpenAI client is not configured.'
     } else {
       const startedAt = Date.now()
       try {
-        await withPromiseTimeout(openai.models.retrieve(configuredVisionModel), 8000, 'OpenAI model probe')
+        await withPromiseTimeout(openai.models.retrieve(OPENAI_VISION_MODEL), 8000, 'OpenAI model probe')
         diagnostics.visionEndpointReachable = true
         diagnostics.probeDurationMs = Date.now() - startedAt
       } catch (error) {
@@ -3849,10 +3606,11 @@ app.get('/api/health/ai', async (req, res) => {
     }
   }
 
-  const statusCode = openAiConfigured ? 200 : 503
+  const statusCode = orchestration.ok || isOpenAiConfigured() ? 200 : 503
   res.status(statusCode).json({
-    ok: openAiConfigured,
+    ok: orchestration.ok || isOpenAiConfigured(),
     provider: selectedAiProvider,
+    orchestration,
     diagnostics,
   })
 })
