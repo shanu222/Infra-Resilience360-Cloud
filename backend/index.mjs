@@ -9,6 +9,7 @@ import fs from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import multer from 'multer'
 import path from 'node:path'
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { fileURLToPath } from 'node:url'
@@ -56,6 +57,7 @@ import {
   normalizeMediaObjectKey,
   uploadBufferLocalDisabled,
 } from './s3LocalCompat.mjs'
+import { mediaKeyCandidates } from './services/localMediaResolver.mjs'
 import { emitUiUpdated, initRealtimeHub } from './realtimeHub.mjs'
 import { canonicalRealtimePayload } from './realtimeMeta.mjs'
 
@@ -101,6 +103,126 @@ const normalizeEnvValue = (rawValue, fallback = '') =>
 
 const MEDIA_BASE_URL = normalizeEnvValue(process.env.MEDIA_BASE_URL, '').replace(/\/+$/, '')
 const isRemoteMediaMode = Boolean(MEDIA_BASE_URL)
+const R2_ACCOUNT_ID = normalizeEnvValue(process.env.R2_ACCOUNT_ID, '')
+const R2_BUCKET = normalizeEnvValue(process.env.R2_BUCKET, '')
+const R2_ACCESS_KEY_ID = normalizeEnvValue(process.env.R2_ACCESS_KEY_ID, '')
+const R2_SECRET_ACCESS_KEY = normalizeEnvValue(process.env.R2_SECRET_ACCESS_KEY, '')
+const R2_ENDPOINT = normalizeEnvValue(process.env.R2_ENDPOINT, '')
+
+const r2EndpointResolved =
+  R2_ENDPOINT ||
+  (R2_ACCOUNT_ID ? `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : '')
+
+const isR2CredentialProxyEnabled = Boolean(
+  r2EndpointResolved && R2_BUCKET && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY,
+)
+
+const r2Client = isR2CredentialProxyEnabled ?
+    new S3Client({
+      region: 'auto',
+      endpoint: r2EndpointResolved,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+    })
+  : null
+
+const MEDIA_BASE_STORAGE_SUFFIX = '/storage/content'
+
+function normalizeMediaSuffixFromRequest(req) {
+  const original = String(req.originalUrl ?? req.url ?? '')
+  return original.replace(/^\/storage\/content\/?/, '')
+}
+
+function buildRemoteMediaUrlCandidates(suffix) {
+  const cleanSuffix = String(suffix ?? '').trim().replace(/^\/+/, '')
+  const rawBase = String(MEDIA_BASE_URL ?? '').trim().replace(/\/+$/, '')
+  if (!rawBase) return []
+
+  const out = []
+  const seen = new Set()
+  const add = (candidate) => {
+    const value = String(candidate ?? '').trim()
+    if (!value || seen.has(value)) return
+    seen.add(value)
+    out.push(value)
+  }
+
+  const base = rawBase
+  const pathLower = (() => {
+    try {
+      return new URL(base).pathname.toLowerCase()
+    } catch {
+      return ''
+    }
+  })()
+  const hasStorageSuffix = pathLower.endsWith(MEDIA_BASE_STORAGE_SUFFIX)
+
+  const asPath = (key) => String(key ?? '').trim().replace(/^\/+/, '')
+  const keyCandidates = mediaKeyCandidates(cleanSuffix)
+
+  for (const key of keyCandidates) {
+    const normalizedKey = asPath(key)
+    if (!normalizedKey) continue
+    add(`${base}/${normalizedKey}`)
+    if (hasStorageSuffix) {
+      add(`${base.slice(0, -MEDIA_BASE_STORAGE_SUFFIX.length)}/${normalizedKey}`)
+    } else {
+      add(`${base}${MEDIA_BASE_STORAGE_SUFFIX}/${normalizedKey}`)
+    }
+  }
+
+  return out
+}
+
+async function tryStreamMediaFromR2({ method, keyCandidates, req, res }) {
+  if (!r2Client) return false
+  const keys = Array.isArray(keyCandidates) ? keyCandidates : []
+  for (const key of keys) {
+    const normalizedKey = String(key ?? '').trim().replace(/^\/+/, '')
+    if (!normalizedKey) continue
+    try {
+      const command = new GetObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: normalizedKey,
+        ...(req.headers.range ? { Range: String(req.headers.range) } : {}),
+        ...(req.headers['if-none-match'] ? { IfNoneMatch: String(req.headers['if-none-match']) } : {}),
+        ...(req.headers['if-modified-since'] ? { IfModifiedSince: new Date(String(req.headers['if-modified-since'])) } : {}),
+      })
+      const object = await r2Client.send(command)
+      res.status(Number(object.$metadata?.httpStatusCode || 200))
+      if (object.ContentType) res.setHeader('Content-Type', object.ContentType)
+      if (object.ContentLength != null) res.setHeader('Content-Length', String(object.ContentLength))
+      if (object.ETag) res.setHeader('ETag', object.ETag)
+      if (object.LastModified) res.setHeader('Last-Modified', new Date(object.LastModified).toUTCString())
+      if (object.AcceptRanges) res.setHeader('Accept-Ranges', object.AcceptRanges)
+      if (object.ContentRange) res.setHeader('Content-Range', object.ContentRange)
+      res.setHeader('Cache-Control', 'public, max-age=86400')
+      if (method === 'HEAD' || !object.Body) {
+        res.end()
+        return true
+      }
+      if (typeof object.Body.pipe === 'function') {
+        object.Body.pipe(res)
+      } else if (typeof object.Body.transformToWebStream === 'function') {
+        Readable.fromWeb(object.Body.transformToWebStream()).pipe(res)
+      } else {
+        const bytes = await object.Body.transformToByteArray()
+        res.end(Buffer.from(bytes))
+      }
+      return true
+    } catch (error) {
+      const code = String(error?.name ?? '')
+      if (code === 'NoSuchKey' || code === 'NotFound') {
+        continue
+      }
+      throw error
+    }
+  }
+  return false
+}
 
 const envFlag = (rawValue, fallback = 'false') =>
   normalizeEnvValue(rawValue, fallback).toLowerCase() === 'true'
@@ -402,6 +524,9 @@ registerLocalPlatformRoutes(app)
 registerLocalApiRoutes(app)
 app.use('/storage', (req, res, next) => {
   applyApiCorsHeaders(req, res)
+  if (!res.getHeader('Access-Control-Allow-Origin')) {
+    res.setHeader('Access-Control-Allow-Origin', '*')
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range')
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
@@ -424,19 +549,40 @@ app.use('/storage/content', async (req, res, next) => {
     return res.status(405).json({ error: 'method_not_allowed' })
   }
 
-  const original = String(req.originalUrl ?? req.url ?? '')
-  const suffix = original.replace(/^\/storage\/content\/?/, '')
-  const remoteUrl = `${MEDIA_BASE_URL}${suffix ? `/${suffix}` : ''}`
+  const suffix = normalizeMediaSuffixFromRequest(req)
+  const remoteUrlCandidates = buildRemoteMediaUrlCandidates(suffix)
+  if (remoteUrlCandidates.length === 0) {
+    return res.status(503).json({ error: 'media_base_url_not_configured' })
+  }
 
   try {
-    const upstream = await fetch(remoteUrl, {
-      method,
-      headers: {
-        ...(req.headers.range ? { range: String(req.headers.range) } : {}),
-        ...(req.headers['if-none-match'] ? { 'if-none-match': String(req.headers['if-none-match']) } : {}),
-        ...(req.headers['if-modified-since'] ? { 'if-modified-since': String(req.headers['if-modified-since']) } : {}),
-      },
-    })
+    let upstream = null
+    for (const candidate of remoteUrlCandidates) {
+      const attempt = await fetch(candidate, {
+        method,
+        headers: {
+          ...(req.headers.range ? { range: String(req.headers.range) } : {}),
+          ...(req.headers['if-none-match'] ? { 'if-none-match': String(req.headers['if-none-match']) } : {}),
+          ...(req.headers['if-modified-since'] ? { 'if-modified-since': String(req.headers['if-modified-since']) } : {}),
+        },
+      })
+      upstream = attempt
+      if (attempt.ok || attempt.status === 206 || attempt.status === 304) break
+      if (attempt.status !== 404 && attempt.status !== 403) break
+    }
+
+    const keyCandidates = mediaKeyCandidates(suffix)
+
+    if (!upstream) {
+      const servedByR2 = await tryStreamMediaFromR2({ method, keyCandidates, req, res })
+      if (servedByR2) return
+      return res.status(502).json({ error: 'remote_media_unavailable' })
+    }
+
+    if (upstream.status === 404 || upstream.status === 403) {
+      const servedByR2 = await tryStreamMediaFromR2({ method, keyCandidates, req, res })
+      if (servedByR2) return
+    }
 
     res.status(upstream.status)
     const passHeaders = [

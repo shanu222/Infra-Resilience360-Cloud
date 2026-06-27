@@ -25,7 +25,7 @@ Set in CI or shell before `npm run build`:
 
 | Variable | When to set | Purpose |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | Separate API host | Absolute API origin (e.g. `https://api.infraresilience.org`) |
+| `VITE_API_BASE_URL` | Separate API host | Absolute API origin (e.g. `https://infra-resilience360-cloud-production.up.railway.app`) |
 | `VITE_SITE_URL` | PWA / metadata | Public site URL |
 | `VITE_CAPACITOR=1` | Mobile only | Set by `build:capacitor` script |
 | `VITE_PORTAL_BASE_URL` | Mobile / portals | Shell URL for embedded portals |
@@ -44,7 +44,7 @@ See `.env.example` for the full list.
 5. **Install command**: `npm ci`  
 6. Environment variables (Production):
 
-   - `VITE_API_BASE_URL=https://api.infraresilience.org`
+   - `VITE_API_BASE_URL=https://infra-resilience360-cloud-production.up.railway.app`
    - `VITE_SITE_URL=https://www.infraresilience.org`
    - Any `VITE_NDMA_*` / `VITE_PMD_*` overrides if needed
 
@@ -69,7 +69,7 @@ Production uses **custom domain hosting** (Vercel/nginx), not this workflow, for
 Example samples in `deploy/`:
 
 - `deploy/nginx-net360.sample.conf` — static `dist/` + proxy `/api`
-- `deploy/nginx-api.infraresilience.org.conf.example` — API vhost
+- `deploy/nginx-api.conf.example` — API vhost
 
 Typical pattern:
 
@@ -79,7 +79,7 @@ Typical pattern:
 ## Post-deploy checks
 
 - [ ] `https://www.infraresilience.org` loads shell
-- [ ] API calls reach `https://api.infraresilience.org` (network tab)
+- [ ] API calls reach `https://infra-resilience360-cloud-production.up.railway.app` (network tab)
 - [ ] S3 disaster media loads (no CORS errors)
 - [ ] Service worker updates (`vite-plugin-pwa`)
 

@@ -73,7 +73,7 @@ Web Browser
     ├→ Primary: env var VITE_SITE_URL
     ├→ Secondary: relative /api/
     ├→ Fallback: localhost:10000
-    └→ Production: https://api.infraresilience.org
+    └→ Production: https://infra-resilience360-cloud-production.up.railway.app
 ```
 
 ### API Endpoints

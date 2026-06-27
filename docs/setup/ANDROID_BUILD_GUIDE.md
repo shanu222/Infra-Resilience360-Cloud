@@ -267,7 +267,7 @@ Users **DO NOT** need to reinstall APK when you:
 - ❌ Update Capacitor plugins
 
 ### Verify Dynamic Updates
-1. Deploy API change to backend (https://api.infraresilience.org)
+1. Deploy API change to backend (https://infra-resilience360-cloud-production.up.railway.app)
 2. Wait 5 minutes for propagation
 3. Restart app or clear cache
 4. Changes appear automatically

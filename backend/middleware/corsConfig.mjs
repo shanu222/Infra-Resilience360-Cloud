@@ -6,7 +6,7 @@ const stripTrailingSlash = (value) => String(value ?? '').trim().replace(/\/+$/,
 export const corsOriginAllowlist = [
   'https://www.infraresilience.org',
   'https://infraresilience.org',
-  'https://api.infraresilience.org',
+  'https://infra-resilience360-cloud-production.up.railway.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   ...String(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')

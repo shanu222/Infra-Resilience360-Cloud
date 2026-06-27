@@ -3,7 +3,7 @@
  *
  * Usage:
  *   node scripts/media-health-check.mjs
- *   API_BASE=https://api.infraresilience.org node scripts/media-health-check.mjs
+ *   API_BASE=https://infra-resilience360-cloud-production.up.railway.app node scripts/media-health-check.mjs
  *
  * Output: docs/MEDIA_HEALTH_REPORT.md
  */

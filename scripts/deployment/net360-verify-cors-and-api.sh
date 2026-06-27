@@ -2,7 +2,7 @@
 # Run on your laptop or EC2 (no secrets). Verifies API DNS, CORS preflight (no redirect), and a sample POST.
 set -euo pipefail
 
-API="${1:-https://api.infraresilience.org}"
+API="${1:-https://infra-resilience360-cloud-production.up.railway.app}"
 ORIGIN="${2:-https://www.infraresilience.org}"
 
 echo "=== DNS A/AAAA for API host ==="

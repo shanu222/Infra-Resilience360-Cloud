@@ -1,4 +1,4 @@
-# Example site config for api.infraresilience.org → Node on 127.0.0.1:10000
+# Example site config for infra-resilience360-cloud-production.up.railway.app → Node on 127.0.0.1:10000
 # Copy to the server (e.g. /etc/nginx/sites-available/) and enable with a symlink under sites-enabled.
 # Then: sudo nginx -t && sudo systemctl reload nginx
 
@@ -8,7 +8,7 @@
 
 server {
     listen 80;
-    server_name api.infraresilience.org;
+    server_name infra-resilience360-cloud-production.up.railway.app;
 
     location / {
         proxy_pass http://127.0.0.1:10000;

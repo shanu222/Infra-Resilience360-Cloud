@@ -3,7 +3,7 @@
  *
  * Usage:
  *   node scripts/media-full-audit.mjs
- *   API_BASE=https://api.infraresilience.org node scripts/media-full-audit.mjs
+ *   API_BASE=https://infra-resilience360-cloud-production.up.railway.app node scripts/media-full-audit.mjs
  */
 import fs from 'node:fs'
 import path from 'node:path'

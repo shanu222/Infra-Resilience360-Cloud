@@ -38,7 +38,7 @@ Created production-grade SSL/TLS setup:
 Already configured in codebase:
 - Automatic Capacitor platform detection
 - Native mobile uses absolute URLs only
-- Production API: https://api.infraresilience.org
+- Production API: https://infra-resilience360-cloud-production.up.railway.app
 - Graceful error handling with retry logic
 
 **File:** `src/services/apiBase.ts`

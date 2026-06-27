@@ -58,9 +58,9 @@ Optional: Hugging Face fallback, Gemini, email recovery (`RESEND_API_KEY`), eart
 2. `npm ci --omit=dev` (or `npm install` for dev parity).
 3. Set environment variables (Parameter Store / `.env` — **never commit** `.env`).
 4. Start: `npm run server`
-5. Put HTTPS reverse proxy in front (nginx example: `deploy/nginx-api.infraresilience.org.conf.example`).
+5. Put HTTPS reverse proxy in front (nginx example: `deploy/nginx-api.conf.example`).
 
-Production API URL in this project: **`https://api.infraresilience.org`**
+Production API URL in this project: **`https://infra-resilience360-cloud-production.up.railway.app`**
 
 ## PM2 deployment (example)
 
@@ -110,12 +110,12 @@ On each push to `main`:
 ## Verify production
 
 ```bash
-curl https://api.infraresilience.org/health
+curl https://infra-resilience360-cloud-production.up.railway.app/health
 ```
 
 Wire frontend:
 
-- `VITE_API_BASE_URL=https://api.infraresilience.org` (build-time), or
+- `VITE_API_BASE_URL=https://infra-resilience360-cloud-production.up.railway.app` (build-time), or
 - Same-origin `/api` if Node serves the SPA behind one domain
 
 ## Related docs

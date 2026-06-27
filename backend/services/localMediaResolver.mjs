@@ -121,5 +121,37 @@ export function mediaKeyCandidates(rawKey) {
     add(`learn-and-train/${slug}.mp4`)
   }
 
+  if (/^home\/videos\/home\.mp4$/i.test(key)) {
+    add('resilience360/background/home.mp4')
+  }
+  if (/^home\/images\/home\.(png|jpg|jpeg|webp)$/i.test(key)) {
+    add('resilience360/background/home.jpg')
+    add('resilience360/background/home.png')
+  }
+
+  if (key.startsWith('learn-train/')) {
+    add(key.replace(/^learn-train\//, 'learn-and-train/'))
+  }
+  if (key.startsWith('learn-and-train/')) {
+    add(key.replace(/^learn-and-train\//, 'learn-train/'))
+  }
+
+  if (key.startsWith('retrofit-guide/')) {
+    add(key.replace(/^retrofit-guide\//, 'resilience360/retrofit-guide/'))
+    add(key.replace(/^retrofit-guide\//, 'resilience360-static/retrofit-guide/'))
+  }
+  if (key.startsWith('smart-construction/')) {
+    add(key.replace(/^smart-construction\//, 'resilience360/smart-construction/'))
+    add(key.replace(/^smart-construction\//, 'resilience360-static/smart-construction/'))
+  }
+  if (key.startsWith('best-practices/')) {
+    add(key.replace(/^best-practices\//, 'resilience360/best-practices/'))
+    add(key.replace(/^best-practices\//, 'resilience360-static/best-practices/'))
+  }
+  if (key.startsWith('resilience-models/')) {
+    add(key.replace(/^resilience-models\//, 'resilience360/resilience-models/'))
+    add(key.replace(/^resilience-models\//, 'resilient-infra-models/'))
+  }
+
   return out
 }

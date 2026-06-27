@@ -30,7 +30,9 @@ dotenv.config({ path: path.join(repoRoot, '.env') })
 const BUCKET = process.env.S3_BUCKET || process.env.S3_MEDIA_BUCKET || 'pak-population-data'
 const REGION = process.env.S3_REGION || process.env.AWS_REGION || 'eu-north-1'
 const API_BASE = String(
-  process.env.API_BASE || process.env.VITE_SITE_URL || 'https://api.infraresilience.org',
+  process.env.API_BASE ||
+    process.env.VITE_SITE_URL ||
+    'https://infra-resilience360-cloud-production.up.railway.app',
 )
   .trim()
   .replace(/\/+$/, '')
