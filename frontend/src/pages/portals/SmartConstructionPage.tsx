@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
-import SmartConstructionApp from '../../bridges/smartConstructionPortalApp.js'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 
 export function SmartConstructionPage({
@@ -25,7 +24,13 @@ export function SmartConstructionPage({
       data-admin-mode={isAdminMode ? 'true' : 'false'}
       data-edit-mode={isEditMode ? 'true' : 'false'}
     >
-      <SmartConstructionApp />
+      <iframe
+        className="r360-embedded-portal-frame smart-construction-portal-frame"
+        src="/smart-construction/index.html"
+        title="Smart Construction Portal"
+        loading="eager"
+        referrerPolicy="no-referrer"
+      />
     </div>
   )
 }

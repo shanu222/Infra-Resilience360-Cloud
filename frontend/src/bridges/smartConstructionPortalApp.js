@@ -1,4 +1,7 @@
-import SmartConstructionApp from '../../../modules/Smart construction/src/app/App.tsx'
-import '../../../modules/Smart construction/src/styles/index.css'
+import { createElement } from 'react'
 
-export default SmartConstructionApp
+function SmartConstructionPortalBridgeFallback() {
+  return createElement('div')
+}
+
+export default SmartConstructionPortalBridgeFallback

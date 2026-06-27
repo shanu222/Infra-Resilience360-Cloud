@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
-import RetrofitCalculatorApp from '../../bridges/retrofitPortalApp.js'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 
 /** Retrofit calculator portal — static bundle at `/retrofit-calculator/index.html`. */
@@ -26,7 +25,13 @@ export function CostEstimatorPage({
       data-admin-mode={isAdminMode ? 'true' : 'false'}
       data-edit-mode={isEditMode ? 'true' : 'false'}
     >
-      <RetrofitCalculatorApp />
+      <iframe
+        className="r360-embedded-portal-frame retrofit-calculator-portal-frame"
+        src="/retrofit-calculator/index.html"
+        title="Retrofit Calculator Portal"
+        loading="eager"
+        referrerPolicy="no-referrer"
+      />
     </div>
   )
 }

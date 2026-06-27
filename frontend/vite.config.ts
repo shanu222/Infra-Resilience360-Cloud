@@ -236,5 +236,10 @@ export default defineConfig(({ mode }) => ({
     host: 'localhost',
     port: 5173,
     strictPort: true,
+    fs: {
+      strict: true,
+      allow: [__dirname],
+      deny: ['../modules/**', '../backend/**', '../storage/**', '../scripts/**', '../docs/**', '../data/**'],
+    },
   },
 }))

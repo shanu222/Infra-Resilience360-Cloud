@@ -1,4 +1,7 @@
-import RetrofitCalculatorApp from '../../../modules/Retrofit Calculator/src/app/App.tsx'
-import '../../../modules/Retrofit Calculator/src/styles/index.css'
+import { createElement } from 'react'
 
-export default RetrofitCalculatorApp
+function RetrofitPortalBridgeFallback() {
+  return createElement('div')
+}
+
+export default RetrofitPortalBridgeFallback
