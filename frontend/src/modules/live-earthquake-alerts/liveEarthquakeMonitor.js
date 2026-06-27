@@ -114,6 +114,7 @@ export function initLiveEarthquakeMonitor(root) {
           motionStart: 'Start Motion',
           fullscreen: 'Fullscreen',
           refresh: 'Refresh',
+          refreshLoading: 'Refreshing...',
           formulaTitle: 'Open Formula Table',
           recentActivity: 'Recent Activity',
           locationsTab: 'Locations',
@@ -172,6 +173,7 @@ export function initLiveEarthquakeMonitor(root) {
           motionStart: 'حرکت شروع کریں',
           fullscreen: 'پوری سکرین',
           refresh: 'تازہ کریں',
+          refreshLoading: 'تازہ ہو رہا ہے...',
           formulaTitle: 'فارمولہ کی جدول کھولیں',
           recentActivity: 'حالیہ سرگرمی',
           locationsTab: 'مقامات',
@@ -256,7 +258,7 @@ export function initLiveEarthquakeMonitor(root) {
         setTxt('backBtn', eqT('back'));
         setTxt('autoRotateBtn', eqT('motionStop'));
         setTxt('fullscreenBtn', eqT('fullscreen'));
-        setTxt('refreshBtn', eqT('refresh'));
+        setRefreshButtonState(false);
         const formulaBtn = document.getElementById('formulaBtn');
         if (formulaBtn) {
           formulaBtn.setAttribute('title', eqT('formulaTitle'));
@@ -300,6 +302,15 @@ export function initLiveEarthquakeMonitor(root) {
         if (fp) fp.textContent = eqT('formulaPopNote');
         const fds = document.getElementById('formulaDensitySource');
         if (fds) fds.textContent = eqT('formulaWaitOsm');
+      }
+
+      function setRefreshButtonState(isLoading) {
+        const refreshBtn = document.getElementById('refreshBtn');
+        if (!refreshBtn) return;
+        refreshBtn.textContent = isLoading ? eqT('refreshLoading') : eqT('refresh');
+        refreshBtn.disabled = Boolean(isLoading);
+        refreshBtn.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        refreshBtn.classList.toggle('is-loading', Boolean(isLoading));
       }
 
       function stripTrailingSlash(value) {
@@ -2557,8 +2568,7 @@ export function initLiveEarthquakeMonitor(root) {
 
         refreshInFlight = true;
         activeLoadController = new AbortController();
-        const refreshBtn = document.getElementById('refreshBtn');
-        refreshBtn?.classList.add('refresh-spin');
+        setRefreshButtonState(true);
         try {
           let payload = null;
           for (let attempt = 0; attempt < MAX_FETCH_RETRIES; attempt += 1) {
@@ -2607,7 +2617,7 @@ export function initLiveEarthquakeMonitor(root) {
         } finally {
           activeLoadController = null;
           refreshInFlight = false;
-          refreshBtn?.classList.remove('refresh-spin');
+          setRefreshButtonState(false);
           nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
           updateRefreshCountdownLabel();
           if (pendingRefreshReason) {

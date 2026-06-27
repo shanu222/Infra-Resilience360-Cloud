@@ -3706,6 +3706,7 @@ function App(_props: AppProps = {}) {
     }
 
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
       void loadGlobalEarthquakes()
     }, 180000)
 

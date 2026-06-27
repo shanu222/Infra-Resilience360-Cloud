@@ -25,20 +25,27 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
     let interval: number | null = null
     let resizeObserver: ResizeObserver | null = null
     let mutationObserver: MutationObserver | null = null
+    let unchangedTicks = 0
 
-    const applyHeight = () => {
+    const applyHeight = (): boolean => {
       const node = iframeRef.current
-      if (!node) return
+      if (!node) return false
       try {
         const doc = node.contentDocument
-        if (!doc) return
+        if (!doc) return false
         const measured = measureDocumentHeight(doc)
         const next = Math.max(minHeight, measured)
         const prev = Number.parseInt(node.style.height || '0', 10) || 0
-        if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 4) return
+        if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 4) {
+          unchangedTicks += 1
+          return false
+        }
         node.style.height = `${next}px`
+        unchangedTicks = 0
+        return true
       } catch {
         // Cross-origin or transient loading; keep fallback min-height.
+        return false
       }
     }
 
@@ -69,13 +76,22 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
           characterData: true,
         })
 
-        interval = window.setInterval(scheduleMeasure, 1200)
+        if (interval !== null) window.clearInterval(interval)
+        interval = window.setInterval(() => {
+          if (document.visibilityState === 'hidden') return
+          scheduleMeasure()
+          if (unchangedTicks >= 8 && interval !== null) {
+            window.clearInterval(interval)
+            interval = null
+          }
+        }, 5000)
       } catch {
         // Cross-origin; best-effort fallback only.
       }
     }
 
     const onLoad = () => {
+      unchangedTicks = 0
       scheduleMeasure()
       attachObservers()
       window.setTimeout(scheduleMeasure, 160)
