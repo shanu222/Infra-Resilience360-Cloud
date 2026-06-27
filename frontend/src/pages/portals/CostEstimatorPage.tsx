@@ -29,7 +29,7 @@ export function CostEstimatorPage({
       data-admin-mode={isAdminMode ? 'true' : 'false'}
       data-edit-mode={isEditMode ? 'true' : 'false'}
     >
-      {!isFrameReady ? <div className="section-shell-fallback"><div className="section-shell-fallback__bar" /><div className="section-shell-fallback__bar is-short" /><p>Loading retrofit calculator...</p></div> : null}
+      {!isFrameReady ? <div className="section-shell-fallback"><div className="section-shell-fallback__bar" /><div className="section-shell-fallback__bar is-short" /></div> : null}
       <iframe
         ref={iframeRef}
         className="r360-embedded-portal-frame retrofit-calculator-portal-frame"

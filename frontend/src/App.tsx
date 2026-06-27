@@ -1,8 +1,6 @@
 import {
   Fragment,
-  lazy,
   memo,
-  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -49,6 +47,15 @@ import { NdmaHeaderLogo } from './components/home/NdmaHeaderLogo'
 import { TopBarQuickControls } from './components/nav/TopBarQuickControls'
 import { CmsSectionHeading } from './components/cms/CmsSectionHeading'
 import { CmsText } from './components/cms/CmsText'
+import UserLocationMiniMap from './components/UserLocationMiniMap'
+import FireSafetyCalculator from './components/fire-safety/FireSafetyCalculator'
+import EmbeddedEarthquakePage from './pages/EmbeddedEarthquakePage'
+import RiskMap from './components/RiskMap'
+import { BuildingCodesPage } from './pages/portals/BuildingCodesPage'
+import { CostEstimatorPage } from './pages/portals/CostEstimatorPage'
+import { DisasterDashboardPage } from './pages/portals/DisasterDashboardPage'
+import { MaterialHubsPage } from './pages/portals/MaterialHubsPage'
+import { SmartConstructionPage } from './pages/portals/SmartConstructionPage'
 import { PageConfigElementsProvider } from './context/PageConfigElementsContext'
 import { sectionKeyToPageSlug } from './utils/sectionPageSlug'
 import { SHELL_PAGE_BACKGROUND_ID } from './constants/cmsShell'
@@ -97,37 +104,6 @@ import { preloadAppMedia } from './utils/preloadAppMedia'
 import { preloadSectionModules } from './utils/preloadSectionModules'
 import { earthquakePushNotificationService } from './services/earthquakePushNotifications'
 import './styles/r360-section-panes.css'
-
-const UserLocationMiniMap = lazy(() => import('./components/UserLocationMiniMap'))
-const FireSafetyCalculator = lazy(() => import('./components/fire-safety/FireSafetyCalculator'))
-const EmbeddedEarthquakePage = lazy(() => import('./pages/EmbeddedEarthquakePage'))
-
-const RiskMap = lazy(() => import('./components/RiskMap'))
-const BuildingCodesPage = lazy(() =>
-  import('./pages/portals/BuildingCodesPage').then((m) => ({ default: m.BuildingCodesPage })),
-)
-const CostEstimatorPage = lazy(() =>
-  import('./pages/portals/CostEstimatorPage').then((m) => ({ default: m.CostEstimatorPage })),
-)
-const DisasterDashboardPage = lazy(() =>
-  import('./pages/portals/DisasterDashboardPage').then((m) => ({ default: m.DisasterDashboardPage })),
-)
-const MaterialHubsPage = lazy(() =>
-  import('./pages/portals/MaterialHubsPage').then((m) => ({ default: m.MaterialHubsPage })),
-)
-const SmartConstructionPage = lazy(() =>
-  import('./pages/portals/SmartConstructionPage').then((m) => ({ default: m.SmartConstructionPage })),
-)
-
-function SectionShellFallback({ label = 'Loading module...' }: { label?: string }) {
-  return (
-    <div className="section-shell-fallback" role="status" aria-live="polite">
-      <div className="section-shell-fallback__bar" />
-      <div className="section-shell-fallback__bar is-short" />
-      <p>{label}</p>
-    </div>
-  )
-}
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
 let constructionGuidanceServicePromise: Promise<typeof import('./services/constructionGuidance')> | null = null
@@ -4009,9 +3985,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'liveEarthquakeMap') {
       return (
-        <Suspense fallback={<SectionShellFallback label="Loading live earthquake map..." />}>
-          <EmbeddedEarthquakePage title={t.riskMap.liveEarthquakeAlerts} language={language} />
-        </Suspense>
+        <EmbeddedEarthquakePage title={t.riskMap.liveEarthquakeAlerts} language={language} />
       )
     }
 
@@ -4111,7 +4085,6 @@ function App(_props: AppProps = {}) {
               {t.riskMap.fullscreenMap}
             </button>
           </div>
-          <Suspense fallback={<SectionShellFallback label="Loading risk map..." />}>
           <RiskMap
             layer={mapLayer}
             selectedProvince={selectedProvince}
@@ -4129,7 +4102,6 @@ function App(_props: AppProps = {}) {
             onSelectDistrict={setSelectedDistrict}
             uiLabels={riskMapUiLabels}
           />
-          </Suspense>
           <div className="risk-source-strip">
             <p>
               {t.riskMap.boundaryStrip} {selectedProvince}
@@ -4994,9 +4966,7 @@ function App(_props: AppProps = {}) {
                       {t.applyRegion.autoFilledFrom} <strong>{applyCity}, {applyProvince}</strong> | {t.applyRegion.hazardFocus}{' '}
                       <strong>{applyHazard}</strong>
                     </p>
-                    <Suspense fallback={<SectionShellFallback label="Loading map preview..." />}>
-                      <UserLocationMiniMap location={detectedUserLocation} popupTitle={t.riskMap.liveLocationMapPopup} />
-                    </Suspense>
+                    <UserLocationMiniMap location={detectedUserLocation} popupTitle={t.riskMap.liveLocationMapPopup} />
                   </>
                 )}
                 <p className="apply-region-inspection-note">
@@ -5333,11 +5303,7 @@ function App(_props: AppProps = {}) {
 
                 <div className={`readiness-collapsible-body ${expandedPanels.fireSafetyCalculator ? 'open' : ''}`}>
                   <div className="readiness-collapsible-inner">
-                    {expandedPanels.fireSafetyCalculator && (
-                      <Suspense fallback={<p>{t.readiness.loadingFire}</p>}>
-                        <FireSafetyCalculator labels={t.fireSafety} />
-                      </Suspense>
-                    )}
+                    {expandedPanels.fireSafetyCalculator && <FireSafetyCalculator labels={t.fireSafety} />}
                   </div>
                 </div>
               </section>
@@ -6650,22 +6616,18 @@ function App(_props: AppProps = {}) {
     if (section === 'pgbc') {
       return (
         <div className="panel section-panel section-pgbc section-building-codes">
-          <Suspense fallback={<SectionShellFallback label="Loading building codes..." />}>
-            <BuildingCodesPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
-          </Suspense>
+          <BuildingCodesPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
         </div>
       )
     }
 
     if (section === 'materialHubs') {
       return (
-        <Suspense fallback={<SectionShellFallback label="Loading material hubs..." />}>
-          <MaterialHubsPage
-            language={language}
-            isAdminMode={isAdminMode}
-            isEditMode={isEditMode}
-          />
-        </Suspense>
+        <MaterialHubsPage
+          language={language}
+          isAdminMode={isAdminMode}
+          isEditMode={isEditMode}
+        />
       )
     }
 
@@ -6674,9 +6636,7 @@ function App(_props: AppProps = {}) {
         <div className="panel section-panel section-pgbc section-retrofit-calculator">
           <CmsSectionHeading fallback={t.sections.retrofitCalculator} />
           <CmsText id="sectionIntro" fallback={t.homeCards.retrofitCalculator.subtitle} className="section-lead" />
-          <Suspense fallback={<SectionShellFallback label="Loading retrofit calculator..." />}>
           <CostEstimatorPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
-          </Suspense>
         </div>
       )
     }
@@ -6686,22 +6646,18 @@ function App(_props: AppProps = {}) {
         <div className="panel section-panel section-pgbc section-smart-construction">
           <CmsSectionHeading fallback={t.sections.smartConstruction} />
           <CmsText id="sectionIntro" fallback={t.homeCards.smartConstruction.subtitle} className="section-lead" />
-          <Suspense fallback={<SectionShellFallback label="Loading smart construction..." />}>
           <SmartConstructionPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
-          </Suspense>
         </div>
       )
     }
 
     if (section === 'disasterDashboard') {
       return (
-        <Suspense fallback={<SectionShellFallback label="Loading disaster dashboard..." />}>
-          <DisasterDashboardPage
-            language={language}
-            isAdminMode={isAdminMode}
-            isEditMode={isEditMode}
-          />
-        </Suspense>
+        <DisasterDashboardPage
+          language={language}
+          isAdminMode={isAdminMode}
+          isEditMode={isEditMode}
+        />
       )
     }
 

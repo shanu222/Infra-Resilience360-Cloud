@@ -23,7 +23,7 @@ export function BuildingCodesPage({
       data-edit-mode={isEditMode ? 'true' : 'false'}
       dir={isUrdu ? 'rtl' : 'ltr'}
     >
-      {!isFrameReady ? <div className="section-shell-fallback"><div className="section-shell-fallback__bar" /><div className="section-shell-fallback__bar is-short" /><p>Loading building codes...</p></div> : null}
+      {!isFrameReady ? <div className="section-shell-fallback"><div className="section-shell-fallback__bar" /><div className="section-shell-fallback__bar is-short" /></div> : null}
       <iframe
         ref={iframeRef}
         className="r360-embedded-portal-frame pgbc-portal-frame"
