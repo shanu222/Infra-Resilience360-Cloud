@@ -88,7 +88,7 @@ export function initLiveEarthquakeMonitor(root) {
       const MAX_IMPACT_QUERY_RADIUS_METERS = 180000;
       const LIVE_REFRESH_MS = 60000;
       const LIVE_FETCH_TIMEOUT_MS = 16000;
-      const MAX_FETCH_RETRIES = 1;
+      const MAX_FETCH_RETRIES = 2;
 
       function eqLang() {
         try {
@@ -337,6 +337,7 @@ export function initLiveEarthquakeMonitor(root) {
             }
             return payload;
           } catch (error) {
+            if (error?.name === 'AbortError') throw error;
             lastError = error;
           }
         }
@@ -496,6 +497,7 @@ export function initLiveEarthquakeMonitor(root) {
       let refreshTimer = null;
       let refreshRetryTimer = null;
       let refreshInFlight = false;
+      let activeLoadController = null;
       let pendingRefreshReason = '';
       let consecutiveLoadFailures = 0;
       let lastGoodFeatures = [];
@@ -670,6 +672,14 @@ export function initLiveEarthquakeMonitor(root) {
       }
 
       function clearLiveTimers() {
+        if (activeLoadController) {
+          try {
+            activeLoadController.abort();
+          } catch {
+            /* ignore abort errors */
+          }
+          activeLoadController = null;
+        }
         if (refreshTimer) {
           window.clearInterval(refreshTimer);
           refreshTimer = null;
@@ -779,6 +789,13 @@ export function initLiveEarthquakeMonitor(root) {
       }
 
       const allCountries = getAllCountries();
+      const knownCountriesByLower = new Map(
+        allCountries
+          .filter((name) => typeof name === 'string' && String(name).trim())
+          .map((name) => [String(name).toLowerCase(), String(name)])
+      );
+      const knownCountryLowerSet = new Set(knownCountriesByLower.keys());
+      const countryAliasValues = new Set(Object.values(countryAlias).map((value) => String(value).toLowerCase()));
 
       function selectedQuakeRings(selected) {
         if (!selected) return [];
@@ -1268,7 +1285,17 @@ export function initLiveEarthquakeMonitor(root) {
           if (display && display !== raw) return display;
         }
 
+        if (knownCountryLowerSet.has(lowered)) {
+          return knownCountriesByLower.get(lowered) || raw;
+        }
+
         return raw;
+      }
+
+      function isRecognizedCountryName(value) {
+        const lowered = String(value || '').trim().toLowerCase();
+        if (!lowered) return false;
+        return knownCountryLowerSet.has(lowered) || countryAliasValues.has(lowered);
       }
 
       function parseGeoFromPlace(place) {
@@ -1432,11 +1459,111 @@ export function initLiveEarthquakeMonitor(root) {
 
       function countryFromEvent(event) {
         const fromPlace = getCountry(event?.properties?.place || event?.place);
-        if (fromPlace && fromPlace !== eqT('unknown')) return fromPlace;
+        if (fromPlace && fromPlace !== eqT('unknown') && isRecognizedCountryName(fromPlace)) return fromPlace;
         const lat = Number(event?.geometry?.coordinates?.[1] ?? event?.lat);
         const lng = Number(event?.geometry?.coordinates?.[0] ?? event?.lng);
         const fromCoords = inferCountryFromCoordinates(lat, lng);
         return fromCoords || fromPlace;
+      }
+
+      function buildFeatureIdentityKey(feature) {
+        const rawId = String(feature?.id ?? feature?.properties?.id ?? '').trim();
+        if (rawId) return `id:${rawId}`;
+        return null;
+      }
+
+      function featureQualityScore(feature) {
+        const props = feature?.properties || {};
+        let score = 0;
+        if (String(feature?.id ?? '').trim()) score += 6;
+        if (String(props?.source || props?.provider || '').trim()) score += 4;
+        if (String(props?.sourceLabel || '').trim()) score += 3;
+        if (String(props?.url || props?.detail || '').trim()) score += 2;
+        if (Number.isFinite(Number(props?.sig))) score += 1;
+        if (Number.isFinite(Number(props?.updated))) score += 1;
+        return score;
+      }
+
+      function shouldMergeFeatures(left, right) {
+        const leftCoords = left?.geometry?.coordinates || [];
+        const rightCoords = right?.geometry?.coordinates || [];
+        const leftLat = Number(leftCoords[1]);
+        const leftLng = Number(leftCoords[0]);
+        const rightLat = Number(rightCoords[1]);
+        const rightLng = Number(rightCoords[0]);
+        if (![leftLat, leftLng, rightLat, rightLng].every(Number.isFinite)) return false;
+
+        const leftTime = Number(left?.properties?.time || 0);
+        const rightTime = Number(right?.properties?.time || 0);
+        if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return false;
+
+        const leftMag = Number(left?.properties?.mag || 0);
+        const rightMag = Number(right?.properties?.mag || 0);
+        const latDelta = Math.abs(leftLat - rightLat);
+        const lngDelta = Math.abs(leftLng - rightLng);
+        const timeDeltaMs = Math.abs(leftTime - rightTime);
+        const magDelta = Math.abs(leftMag - rightMag);
+
+        return latDelta <= 0.25 && lngDelta <= 0.25 && timeDeltaMs <= 90_000 && magDelta <= 0.35;
+      }
+
+      function mergeFeatureMetadata(primary, secondary) {
+        const merged = {
+          ...secondary,
+          ...primary,
+          properties: {
+            ...(secondary?.properties || {}),
+            ...(primary?.properties || {}),
+          },
+        };
+        if (!merged?.properties?.source && secondary?.properties?.source) {
+          merged.properties.source = secondary.properties.source;
+        }
+        if (!merged?.properties?.sourceLabel && secondary?.properties?.sourceLabel) {
+          merged.properties.sourceLabel = secondary.properties.sourceLabel;
+        }
+        if (!merged?.properties?.provider && secondary?.properties?.provider) {
+          merged.properties.provider = secondary.properties.provider;
+        }
+        return merged;
+      }
+
+      function dedupeEarthquakeFeatures(features) {
+        const list = Array.isArray(features) ? features.filter(Boolean) : [];
+        if (list.length <= 1) return list;
+
+        const byId = new Map();
+        const deduped = [];
+        for (const feature of list) {
+          const identity = buildFeatureIdentityKey(feature);
+          if (identity) {
+            const existing = byId.get(identity);
+            if (!existing) {
+              byId.set(identity, feature);
+              deduped.push(feature);
+              continue;
+            }
+            const winner = featureQualityScore(feature) >= featureQualityScore(existing)
+              ? mergeFeatureMetadata(feature, existing)
+              : mergeFeatureMetadata(existing, feature);
+            byId.set(identity, winner);
+            const index = deduped.indexOf(existing);
+            if (index >= 0) deduped[index] = winner;
+            continue;
+          }
+
+          const duplicate = deduped.find((candidate) => shouldMergeFeatures(candidate, feature));
+          if (!duplicate) {
+            deduped.push(feature);
+            continue;
+          }
+          const winner = featureQualityScore(feature) >= featureQualityScore(duplicate)
+            ? mergeFeatureMetadata(feature, duplicate)
+            : mergeFeatureMetadata(duplicate, feature);
+          const duplicateIndex = deduped.indexOf(duplicate);
+          if (duplicateIndex >= 0) deduped[duplicateIndex] = winner;
+        }
+        return deduped;
       }
 
       function regionFromPlace(place) {
@@ -1654,16 +1781,18 @@ export function initLiveEarthquakeMonitor(root) {
       }
 
       async function fetchEarthquakes() {
+        const requestSignal = activeLoadController?.signal;
         try {
-          const payload = await requestJsonWithFallback(EARTHQUAKE_LIVE_ENDPOINT, { cache: 'no-store' });
+          const payload = await requestJsonWithFallback(EARTHQUAKE_LIVE_ENDPOINT, { cache: 'no-store', signal: requestSignal });
           const features = Array.isArray(payload?.features) ? payload.features : [];
+          const dedupedFeatures = dedupeEarthquakeFeatures(features);
           const sourceLabel =
             String(payload?.sourceLabel || '').trim() ||
             (payload?.source ? `Source: ${payload.source}` : eqT('sourceLive'));
 
-          if (features.length > 0 || payload?.source || payload?.sourceLabel) {
+          if (dedupedFeatures.length > 0 || payload?.source || payload?.sourceLabel) {
             return {
-              features,
+              features: dedupedFeatures,
               sourceLabel,
               fromCache: Boolean(payload?.fromCache),
               warning: payload?.warning || null,
@@ -1685,8 +1814,9 @@ export function initLiveEarthquakeMonitor(root) {
             const fallback = await fetchLocalJson(fallbackPath);
             const cachedFeatures = Array.isArray(fallback?.features) ? fallback.features : [];
             if (cachedFeatures.length > 0) {
+              const dedupedCached = dedupeEarthquakeFeatures(cachedFeatures);
               return {
-                features: cachedFeatures,
+                features: dedupedCached,
                 sourceLabel: 'Live feed temporarily unavailable. Displaying cached earthquakes.',
                 fromCache: true,
               };
@@ -2426,6 +2556,7 @@ export function initLiveEarthquakeMonitor(root) {
         }
 
         refreshInFlight = true;
+        activeLoadController = new AbortController();
         const refreshBtn = document.getElementById('refreshBtn');
         refreshBtn?.classList.add('refresh-spin');
         try {
@@ -2454,6 +2585,9 @@ export function initLiveEarthquakeMonitor(root) {
           consecutiveLoadFailures = 0;
           await triggerAlertDispatch();
         } catch (error) {
+          if (error?.name === 'AbortError') {
+            return;
+          }
           void error;
           consecutiveLoadFailures += 1;
           sourceLabelText = eqT('sourceUnavailable');
@@ -2471,6 +2605,7 @@ export function initLiveEarthquakeMonitor(root) {
             }, retryDelay);
           }
         } finally {
+          activeLoadController = null;
           refreshInFlight = false;
           refreshBtn?.classList.remove('refresh-spin');
           nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
