@@ -15,7 +15,6 @@ import { buildUrduAdvisoryAnswerElement, buildUrduRetrofitEstimateElement } from
 import ResponsiveQa from './components/ResponsiveQa'
 import { fetchLiveAlerts, type LiveAlert } from './services/alerts'
 import { buildApiTargets } from './services/apiBase'
-import { getModuleMediaUrl } from './utils/mediaUrl'
 import { mediaManager } from './services/mediaManager'
 import { formatApiErrorMessage } from './utils/apiErrorMessage'
 import { loadSharedAppState, saveSharedAppState } from './services/appStateSync'
@@ -127,25 +126,54 @@ function resolveInfraRuntimeMediaUrl(url: string): string {
 async function loadInfraModelsMetadataOnce(): Promise<Record<string, { image?: string; pdf?: string }> | null> {
   if (infraModelsMetadataPromise) return infraModelsMetadataPromise
   infraModelsMetadataPromise = (async () => {
+    const parseRows = (payload: unknown): Array<{ id?: string; image?: string; pdf?: string }> => {
+      const source = payload as {
+        module?: { seeds?: { models?: Array<Record<string, unknown>> }; models?: Array<Record<string, unknown>> }
+        seeds?: { models?: Array<Record<string, unknown>> }
+        models?: Array<Record<string, unknown>>
+      }
+      const candidates = [
+        source?.module?.seeds?.models,
+        source?.seeds?.models,
+        source?.module?.models,
+        source?.models,
+      ]
+      for (const rows of candidates) {
+        if (!Array.isArray(rows) || rows.length === 0) continue
+        return rows.map((row) => {
+          const media = (row?.media ?? {}) as { image?: unknown; pdf?: unknown }
+          return {
+            id: String(row?.id ?? ''),
+            image: String(row?.image ?? media.image ?? ''),
+            pdf: String(row?.pdf ?? media.pdf ?? ''),
+          }
+        })
+      }
+      return []
+    }
+
     try {
-      const response = await fetch(getModuleMediaUrl('resilience-models', 'metadata.json'), { cache: 'force-cache' })
-      if (!response.ok) return null
-      const payload = (await response.json()) as {
-        models?: Array<{ id?: string; image?: string; pdf?: string }>
-      }
-      const rows = Array.isArray(payload?.models) ? payload.models : []
-      const out: Record<string, { image?: string; pdf?: string }> = {}
-      for (const row of rows) {
-        const id = String(row?.id ?? '').trim()
-        if (!id) continue
-        const image = resolveInfraRuntimeMediaUrl(String(row?.image ?? '').trim())
-        const pdf = resolveInfraRuntimeMediaUrl(String(row?.pdf ?? '').trim())
-        out[id] = {
-          image: image || undefined,
-          pdf: pdf || undefined,
+      const targets = buildApiTargets('/api/content/resilience-models')
+      for (const target of targets) {
+        const response = await fetch(target, { cache: 'force-cache' })
+        if (!response.ok) continue
+        const payload = await response.json().catch(() => null)
+        const rows = parseRows(payload)
+        if (!rows.length) continue
+        const out: Record<string, { image?: string; pdf?: string }> = {}
+        for (const row of rows) {
+          const id = String(row?.id ?? '').trim()
+          if (!id) continue
+          const image = resolveInfraRuntimeMediaUrl(String(row?.image ?? '').trim())
+          const pdf = resolveInfraRuntimeMediaUrl(String(row?.pdf ?? '').trim())
+          out[id] = {
+            image: image || undefined,
+            pdf: pdf || undefined,
+          }
         }
+        return out
       }
-      return out
+      return null
     } catch {
       return null
     }

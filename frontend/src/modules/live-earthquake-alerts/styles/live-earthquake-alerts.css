@@ -15,14 +15,14 @@
 
       .live-earthquake-native {
         height: auto;
-        min-height: 100%;
+        min-height: fit-content;
       }
 
       .page {
-        min-height: 100dvh;
+        min-height: 0;
         height: auto;
         display: grid;
-        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-rows: auto auto auto;
         background:
           radial-gradient(circle at 70% 42%, rgba(34, 95, 210, 0.28), rgba(4, 10, 24, 0.95) 45%),
           linear-gradient(160deg, #0a1327 0%, #040814 100%);
@@ -258,10 +258,10 @@
         grid-template-columns: minmax(132px, min(20vw, 210px)) minmax(0, 1fr);
         gap: 10px;
         padding: 10px;
-        height: 100%;
-        min-height: 0;
-        align-items: stretch;
-        overflow: hidden;
+        height: auto;
+        min-height: fit-content;
+        align-items: start;
+        overflow: visible;
       }
 
       .card {
@@ -274,11 +274,11 @@
         padding: 8px 10px;
         display: flex;
         flex-direction: column;
-        height: 100%;
+        height: auto;
         min-height: 0;
-        max-height: 100%;
+        max-height: none;
         max-width: 100%;
-        overflow: hidden;
+        overflow: visible;
       }
 
       .left-filters {
@@ -376,7 +376,7 @@
       .events {
         flex: 1;
         min-height: 0;
-        max-height: 100%;
+        max-height: min(46vh, 420px);
         overflow-x: hidden;
         overflow-y: auto;
         padding-right: 2px;
@@ -497,8 +497,8 @@
 
       .right {
         position: relative;
-        height: 100%;
-        max-height: 100%;
+        height: auto;
+        max-height: none;
         min-height: 0;
         overflow: visible;
         display: flex;
@@ -506,11 +506,12 @@
       }
 
       .globe-wrap {
-        flex: 1 1 auto;
+        flex: 0 0 auto;
         width: 100%;
-        height: clamp(320px, 58vh, 900px);
-        min-height: clamp(320px, 58vh, 900px);
-        aspect-ratio: 16 / 10;
+        height: auto;
+        min-height: 0;
+        max-height: min(78vh, 860px);
+        aspect-ratio: 1 / 1;
         position: relative;
         display: flex;
         align-items: stretch;
@@ -1318,6 +1319,15 @@
         .left.is-collapsed .left-body {
           display: none;
         }
+
+        .events {
+          max-height: min(42vh, 360px);
+        }
+
+        .globe-wrap {
+          max-height: min(65vh, 560px);
+          aspect-ratio: 1 / 1;
+        }
       }
 
       @media (max-width: 390px) {
@@ -1351,4 +1361,43 @@
 
       .live-earthquake-native.eq-embed #backBtn {
         display: none !important;
+      }
+
+      /* Final mobile/tablet hardening: keep list visible, globe responsive, and avoid artificial page growth. */
+      @media (max-width: 1024px) {
+        .page {
+          min-height: 0 !important;
+          height: auto !important;
+          grid-template-rows: auto auto auto !important;
+        }
+
+        .layout {
+          grid-template-columns: minmax(0, 1fr) !important;
+          height: auto !important;
+          min-height: fit-content !important;
+          overflow: visible !important;
+          align-items: start !important;
+        }
+
+        .left {
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+        }
+
+        .events {
+          max-height: min(42vh, 360px) !important;
+        }
+
+        .right {
+          height: auto !important;
+          max-height: none !important;
+        }
+
+        .globe-wrap {
+          height: auto !important;
+          min-height: 0 !important;
+          max-height: min(65vh, 560px) !important;
+          aspect-ratio: 1 / 1 !important;
+        }
       }

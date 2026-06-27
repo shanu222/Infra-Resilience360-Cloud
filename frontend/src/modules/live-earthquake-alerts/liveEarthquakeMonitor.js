@@ -2799,7 +2799,8 @@ export function initLiveEarthquakeMonitor(root) {
         const updatedAt = document.getElementById('updatedAt');
         const sourceMeta = document.getElementById('sourceMeta');
         if (!eventsEl || !statsGrid || !updatedAt) return;
-        ensureGlobe();
+        const glb = ensureGlobe();
+        if (!glb) return;
 
         eventsData = data.map((e) => {
           const mag = Number(e.properties.mag || 0);
@@ -3149,8 +3150,8 @@ export function initLiveEarthquakeMonitor(root) {
           setMobilePanelView(mobilePanelView);
         };
         const aside = root.querySelector('.left.card');
-        if (aside && window.innerWidth <= 1024) {
-          aside.classList.add('is-collapsed');
+        if (aside) {
+          aside.classList.remove('is-collapsed');
           updateRecentActivityToggle();
         }
         window.addEventListener('resize', onViewportResize);
