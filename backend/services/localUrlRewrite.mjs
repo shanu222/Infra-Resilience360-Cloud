@@ -8,6 +8,7 @@ const R2_PUBLIC_BASE_URL = normalizeEnvValue(process.env.R2_PUBLIC_BASE_URL, '')
 const R2_ACCOUNT_ID = normalizeEnvValue(process.env.R2_ACCOUNT_ID, '')
 const R2_BUCKET = normalizeEnvValue(process.env.R2_BUCKET, '')
 const MEDIA_BASE_STORAGE_SUFFIX = '/storage/content'
+const DEFAULT_R2_MEDIA_BASE_URL = 'https://pub-e38210c9c2ff4bf3a45338616cd43df2.r2.dev'
 
 function resolvePublicMediaBaseUrl() {
   if (MEDIA_BASE_URL) return MEDIA_BASE_URL
@@ -15,7 +16,7 @@ function resolvePublicMediaBaseUrl() {
   if (R2_ACCOUNT_ID && R2_BUCKET) {
     return `https://${R2_BUCKET}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
   }
-  return ''
+  return DEFAULT_R2_MEDIA_BASE_URL
 }
 
 function extractMediaKeyFromUrl(url) {
@@ -55,7 +56,7 @@ function buildPublicMediaUrlFromSuffix(suffix) {
   const cleanSuffix = normalizeStorageSuffix(suffix)
   if (!cleanSuffix) return ''
   const rawBase = String(resolvePublicMediaBaseUrl() ?? '').trim().replace(/\/+$/, '')
-  if (!rawBase) return `/content/${cleanSuffix}`
+  if (!rawBase) return `${DEFAULT_R2_MEDIA_BASE_URL}/content/${cleanSuffix}`
 
   const basePathLower = (() => {
     try {

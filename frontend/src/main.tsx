@@ -5,9 +5,10 @@ import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
+const DEFAULT_R2_MEDIA_BASE_URL = 'https://pub-e38210c9c2ff4bf3a45338616cd43df2.r2.dev'
 const MEDIA_BASE_URL = String(import.meta.env.VITE_MEDIA_BASE_URL ?? import.meta.env.VITE_PUBLIC_MEDIA_BASE_URL ?? '')
   .trim()
-  .replace(/\/+$/, '')
+  .replace(/\/+$/, '') || DEFAULT_R2_MEDIA_BASE_URL
 
 if (typeof window !== 'undefined') {
   ;(window as Window & { __R360_API_BASE_URL?: string; __R360_MEDIA_BASE_URL?: string }).__R360_API_BASE_URL = API_BASE_URL
@@ -27,6 +28,20 @@ function ensureMediaPreconnect() {
     preconnect.href = origin
     preconnect.crossOrigin = 'anonymous'
     document.head.appendChild(preconnect)
+  } catch {
+    /* ignore malformed media base URL */
+  }
+}
+
+function ensureMediaDnsPrefetch() {
+  if (typeof document === 'undefined' || !MEDIA_BASE_URL) return
+  try {
+    const origin = new URL(MEDIA_BASE_URL).origin
+    if (document.querySelector(`link[rel="dns-prefetch"][href="${origin}"]`)) return
+    const dnsPrefetch = document.createElement('link')
+    dnsPrefetch.rel = 'dns-prefetch'
+    dnsPrefetch.href = origin
+    document.head.appendChild(dnsPrefetch)
   } catch {
     /* ignore malformed media base URL */
   }
@@ -98,6 +113,7 @@ async function setupServiceWorkerBootstrap() {
 
 void setupServiceWorkerBootstrap()
 ensureMediaPreconnect()
+ensureMediaDnsPrefetch()
 
 root.render(
   <LanguageProvider>

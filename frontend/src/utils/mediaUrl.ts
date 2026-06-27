@@ -1,3 +1,5 @@
+const DEFAULT_R2_MEDIA_BASE_URL = 'https://pub-e38210c9c2ff4bf3a45338616cd43df2.r2.dev'
+
 function normalizeRelativeMediaPath(relativePath: string): string {
   return String(relativePath ?? '')
     .trim()
@@ -26,7 +28,7 @@ function mediaBaseFromEnv(): string {
 }
 
 function getConfiguredMediaBaseUrl(): string {
-  return mediaBaseFromWindow() || mediaBaseFromEnv()
+  return mediaBaseFromWindow() || mediaBaseFromEnv() || DEFAULT_R2_MEDIA_BASE_URL
 }
 
 function buildDirectMediaUrl(baseUrl: string, cleanPath: string): string {
@@ -40,9 +42,7 @@ export function getMediaUrl(relativePath: string): string {
   if (/^https?:\/\//i.test(raw)) return raw
   const clean = normalizeRelativeMediaPath(relativePath)
   const mediaBaseUrl = getConfiguredMediaBaseUrl()
-  if (mediaBaseUrl) return buildDirectMediaUrl(mediaBaseUrl, clean)
-  if (!clean) return '/content'
-  return `/content/${clean}`
+  return buildDirectMediaUrl(mediaBaseUrl, clean)
 }
 
 export function getModuleMediaUrl(moduleId: string, ...segments: string[]): string {
