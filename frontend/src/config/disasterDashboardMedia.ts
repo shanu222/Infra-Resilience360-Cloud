@@ -1,5 +1,6 @@
 import { disasterDashboardContentUrl } from './disasterDashboardPaths'
 import {
+  preloadDisasterAudioUrl,
   preloadDisasterImageUrl,
   preloadDisasterVideoUrl,
 } from '../disaster-dashboard-portal/utils/disasterMediaCache'
@@ -196,7 +197,18 @@ export function disasterDashboardCardImageUrl(disasterId: string): string {
 }
 
 export function preloadDisasterMedia(disasterId: string): void {
-  const { imageUrl, videoUrl } = disasterDashboardGuidanceMedia(disasterId)
-  if (imageUrl) preloadDisasterImageUrl(imageUrl)
-  if (videoUrl) preloadDisasterVideoUrl(videoUrl)
+  const { imageCandidates, videoCandidates, audioCandidates } = disasterDashboardGuidanceMedia(disasterId)
+  const preload = () => {
+    if (imageCandidates[0]) preloadDisasterImageUrl(imageCandidates[0])
+    if (videoCandidates[0]) preloadDisasterVideoUrl(videoCandidates[0])
+    if (audioCandidates[0]) preloadDisasterAudioUrl(audioCandidates[0])
+  }
+  const win = window as Window & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+  }
+  if (typeof win.requestIdleCallback === 'function') {
+    win.requestIdleCallback(preload, { timeout: 1200 })
+    return
+  }
+  window.setTimeout(preload, 0)
 }

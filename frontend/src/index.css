@@ -3682,8 +3682,9 @@ h4 {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
+  height: auto;
   overflow: visible;
 }
 
@@ -3897,7 +3898,7 @@ h4 {
 }
 
 .page-wrapper.page-section .app-shell > main > .section-panel.section-pgbc:has(.r360-embedded-portal-frame) {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -3907,8 +3908,9 @@ h4 {
 }
 
 .page-wrapper.page-section .app-shell > main > .section-panel.section-pgbc:has(.r360-embedded-portal-frame) .portal-page-root {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
+  height: auto;
   display: flex;
   flex-direction: column;
 }

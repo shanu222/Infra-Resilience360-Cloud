@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   AlertTriangle,
@@ -46,7 +46,7 @@ export function DisasterDetail() {
   const media = disaster ? disasterDashboardGuidanceMedia(disaster.id) : null
   const heroImage = useMediaCandidates(media?.imageCandidates ?? [])
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (disaster?.id) preloadDisasterMedia(disaster.id)
   }, [disaster?.id])
 

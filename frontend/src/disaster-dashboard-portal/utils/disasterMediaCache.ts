@@ -33,3 +33,15 @@ export function preloadDisasterVideoUrl(url: string): void {
   link.href = url
   document.head.appendChild(link)
 }
+
+export function preloadDisasterAudioUrl(url: string): void {
+  if (!url || typeof document === 'undefined') return
+  const linkId = `dd-preload-audio:${url}`
+  if (document.getElementById(linkId)) return
+  const link = document.createElement('link')
+  link.id = linkId
+  link.rel = 'prefetch'
+  link.as = 'audio'
+  link.href = url
+  document.head.appendChild(link)
+}

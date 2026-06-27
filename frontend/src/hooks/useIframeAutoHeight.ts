@@ -2,6 +2,14 @@ import { useEffect, useRef } from 'react'
 
 const DEFAULT_MIN_HEIGHT = 720
 
+type IframeAutoHeightOptions = {
+  observeResize?: boolean
+  observeMutations?: boolean
+  pollIntervalMs?: number
+  stopWhenStableTicks?: number
+  maxHeightPx?: number
+}
+
 function measureDocumentHeight(doc: Document): number {
   const body = doc.body
   const root = doc.documentElement
@@ -14,7 +22,7 @@ function measureDocumentHeight(doc: Document): number {
   )
 }
 
-export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
+export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: IframeAutoHeightOptions = {}) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
   useEffect(() => {
@@ -26,6 +34,11 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
     let resizeObserver: ResizeObserver | null = null
     let mutationObserver: MutationObserver | null = null
     let unchangedTicks = 0
+    const observeResize = options.observeResize !== false
+    const observeMutations = options.observeMutations !== false
+    const pollIntervalMs = options.pollIntervalMs ?? 5000
+    const stopWhenStableTicks = options.stopWhenStableTicks ?? 8
+    const maxHeightPx = options.maxHeightPx && options.maxHeightPx > 0 ? options.maxHeightPx : Number.POSITIVE_INFINITY
 
     const applyHeight = (): boolean => {
       const node = iframeRef.current
@@ -34,7 +47,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
         const doc = node.contentDocument
         if (!doc) return false
         const measured = measureDocumentHeight(doc)
-        const next = Math.max(minHeight, measured)
+        const next = Math.min(maxHeightPx, Math.max(minHeight, measured))
         const prev = Number.parseInt(node.style.height || '0', 10) || 0
         if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 4) {
           unchangedTicks += 1
@@ -64,27 +77,33 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
         const body = doc.body
         if (!root || !body) return
 
-        resizeObserver = new ResizeObserver(scheduleMeasure)
-        resizeObserver.observe(root)
-        resizeObserver.observe(body)
+        if (observeResize) {
+          resizeObserver = new ResizeObserver(scheduleMeasure)
+          resizeObserver.observe(root)
+          resizeObserver.observe(body)
+        }
 
-        mutationObserver = new MutationObserver(scheduleMeasure)
-        mutationObserver.observe(root, {
-          subtree: true,
-          childList: true,
-          attributes: true,
-          characterData: true,
-        })
+        if (observeMutations) {
+          mutationObserver = new MutationObserver(scheduleMeasure)
+          mutationObserver.observe(root, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            characterData: true,
+          })
+        }
 
-        if (interval !== null) window.clearInterval(interval)
-        interval = window.setInterval(() => {
-          if (document.visibilityState === 'hidden') return
-          scheduleMeasure()
-          if (unchangedTicks >= 8 && interval !== null) {
-            window.clearInterval(interval)
-            interval = null
-          }
-        }, 5000)
+        if (pollIntervalMs > 0) {
+          if (interval !== null) window.clearInterval(interval)
+          interval = window.setInterval(() => {
+            if (document.visibilityState === 'hidden') return
+            scheduleMeasure()
+            if (unchangedTicks >= stopWhenStableTicks && interval !== null) {
+              window.clearInterval(interval)
+              interval = null
+            }
+          }, pollIntervalMs)
+        }
       } catch {
         // Cross-origin; best-effort fallback only.
       }
@@ -110,7 +129,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT) {
       mutationObserver?.disconnect()
       iframe.removeEventListener('load', onLoad)
     }
-  }, [minHeight])
+  }, [minHeight, options.maxHeightPx, options.observeMutations, options.observeResize, options.pollIntervalMs, options.stopWhenStableTicks])
 
   return iframeRef
 }

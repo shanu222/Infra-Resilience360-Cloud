@@ -118,6 +118,7 @@ export const DisasterMediaImageViewer = memo(function DisasterMediaImageViewer({
         aria-label={`View fullscreen image: ${alt}`}
         disabled={!loaded}
       >
+        {!loaded ? <span className="dd-skeleton dd-skeleton--image dd-skeleton--fill" aria-hidden /> : null}
         {src ? (
           <img
             src={src}

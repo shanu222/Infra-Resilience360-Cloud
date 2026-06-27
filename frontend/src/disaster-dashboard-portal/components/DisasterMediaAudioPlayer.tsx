@@ -81,6 +81,7 @@ export const DisasterMediaAudioPlayer = memo(function DisasterMediaAudioPlayer({
   return (
     <div className="dd-glass-media-card dd-media-audio">
       <div className="dd-media-audio__track">
+        {!trackReady ? <div className="dd-skeleton dd-skeleton--audio dd-media-audio__track-skeleton" aria-hidden /> : null}
         <DisasterMediaAudioTrack
           candidates={candidates}
           title={title}

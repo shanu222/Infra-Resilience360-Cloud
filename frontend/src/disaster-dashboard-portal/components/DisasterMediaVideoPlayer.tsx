@@ -19,9 +19,11 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
   const [playbackRate, setPlaybackRate] = useState(1)
   const [volume, setVolume] = useState(1)
   const [metadataReady, setMetadataReady] = useState(false)
+  const [posterLoaded, setPosterLoaded] = useState(false)
 
   useEffect(() => {
     setMetadataReady(false)
+    setPosterLoaded(false)
   }, [src])
 
   useEffect(() => {
@@ -44,6 +46,18 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
   return (
     <div className="dd-glass-media-card dd-media-video">
       <div className="dd-media-video__stage">
+        {!metadataReady ? <div className="dd-skeleton dd-skeleton--video dd-skeleton--fill dd-skeleton--overlay" aria-hidden /> : null}
+        {poster ?
+          <img
+            src={poster}
+            alt=""
+            className={`dd-media-video__poster${posterLoaded ? ' is-loaded' : ''}`}
+            loading="eager"
+            decoding="async"
+            fetchPriority="high"
+            onLoad={() => setPosterLoaded(true)}
+          />
+        : null}
         {src ? (
           <video
             key={src}

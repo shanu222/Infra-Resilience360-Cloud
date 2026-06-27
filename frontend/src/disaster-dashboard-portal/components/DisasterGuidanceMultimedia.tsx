@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { Film, ImageIcon, Volume2 } from 'lucide-react'
 import { disasterDashboardGuidanceMedia, preloadDisasterMedia } from '@/config/disasterDashboardMedia'
 import { DisasterMediaAudioPlayer } from './DisasterMediaAudioPlayer'
@@ -23,7 +23,7 @@ export const DisasterGuidanceMultimedia = memo(function DisasterGuidanceMultimed
   const hasVideo = media.videoCandidates.length > 0
   const hasAudio = media.audioCandidates.length > 0
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     preloadDisasterMedia(disasterId)
   }, [disasterId])
 
