@@ -6510,9 +6510,11 @@ function App(_props: AppProps = {}) {
 
     if (section === 'pgbc') {
       return (
-        <Suspense fallback={null}>
-          <BuildingCodesPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
-        </Suspense>
+        <div className="panel section-panel section-pgbc section-building-codes">
+          <Suspense fallback={null}>
+            <BuildingCodesPage language={language} isAdminMode={isAdminMode} isEditMode={isEditMode} />
+          </Suspense>
+        </div>
       )
     }
 

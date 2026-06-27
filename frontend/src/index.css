@@ -3652,6 +3652,16 @@ h4 {
   z-index: 2;
 }
 
+.section-panel.section-building-codes {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
 .section-panel.section-smart-construction > .section-lead,
 .section-panel.section-smart-construction > h2 {
   position: relative;
@@ -3730,8 +3740,22 @@ h4 {
   background: transparent;
 }
 
+.portal-page-pgbc {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
 @media (max-width: 1023px) {
   .section-panel.section-retrofit-calculator {
+    min-height: auto;
+  }
+
+  .section-panel.section-building-codes {
     min-height: auto;
   }
 
@@ -9109,9 +9133,14 @@ embed {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  overflow-y: visible;
   background: transparent;
 }
 
@@ -9119,6 +9148,8 @@ embed {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .material-hubs-page-host .material-hubs-portal-root,
@@ -9197,9 +9228,14 @@ embed {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
+  overflow-y: visible;
   background: transparent;
 }
 
@@ -9207,6 +9243,8 @@ embed {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .disaster-dashboard-page-host .disaster-dashboard-portal-root,
