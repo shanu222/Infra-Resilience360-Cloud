@@ -132,7 +132,12 @@ const loadConstructionGuidanceService = () =>
 const loadAdvisoryService = () => (advisoryServicePromise ??= import('./services/advisory'))
 
 function isLocalInfraMediaPath(url: string): boolean {
-  return String(url ?? '').includes('/storage/content/resilience-models/')
+  const value = String(url ?? '').trim().toLowerCase()
+  if (!value) return false
+  return (
+    value.includes('/content/resilience-models/') ||
+    value.includes('/storage/content/resilience-models/')
+  )
 }
 
 async function loadInfraModelsMetadataOnce(): Promise<Record<string, { image?: string; pdf?: string }> | null> {
@@ -1581,7 +1586,8 @@ function App(_props: AppProps = {}) {
   const infraLayoutVideoSourceCandidates = useMemo(() => {
     return OFFICIAL_INFRA_VIDEO_CANDIDATES.filter((source) => {
       const s = String(source ?? '').trim()
-      return s.includes('/storage/content/')
+      if (!s) return false
+      return /\/(content|storage\/content)\//i.test(s)
     })
   }, [])
 
@@ -1615,7 +1621,7 @@ function App(_props: AppProps = {}) {
   const openInfraLayoutVideo = useCallback(() => {
     setInfraLayoutVideoError(null)
     const first = infraLayoutVideoSourceCandidates[0] ?? ''
-    if (!first || !first.includes('/storage/content/')) {
+    if (!first || !/\/(content|storage\/content)\//i.test(first)) {
       setInfraLayoutVideoError('Invalid video source.')
       return
     }

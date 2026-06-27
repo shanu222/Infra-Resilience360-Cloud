@@ -39,11 +39,17 @@ function normalizeStaticMediaUrl(raw: string): string {
   if (value.startsWith('/storage/content/')) {
     return getMediaUrl(value.slice('/storage/content/'.length))
   }
+  if (value.startsWith('/content/')) {
+    return getMediaUrl(value.slice('/content/'.length))
+  }
   if (/^https?:\/\//i.test(value)) {
     try {
       const url = new URL(value)
       if (url.pathname.startsWith('/storage/content/')) {
         return getMediaUrl(url.pathname.slice('/storage/content/'.length))
+      }
+      if (url.pathname.startsWith('/content/')) {
+        return getMediaUrl(url.pathname.slice('/content/'.length))
       }
     } catch {
       /* keep original */

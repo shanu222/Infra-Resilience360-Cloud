@@ -1,5 +1,3 @@
-import { buildApiUrl } from '../services/apiBase'
-
 function normalizeRelativeMediaPath(relativePath: string): string {
   return String(relativePath ?? '')
     .trim()
@@ -43,8 +41,8 @@ export function getMediaUrl(relativePath: string): string {
   const clean = normalizeRelativeMediaPath(relativePath)
   const mediaBaseUrl = getConfiguredMediaBaseUrl()
   if (mediaBaseUrl) return buildDirectMediaUrl(mediaBaseUrl, clean)
-  if (!clean) return buildApiUrl('/storage/content')
-  return buildApiUrl(`/storage/content/${clean}`)
+  if (!clean) return '/content'
+  return `/content/${clean}`
 }
 
 export function getModuleMediaUrl(moduleId: string, ...segments: string[]): string {

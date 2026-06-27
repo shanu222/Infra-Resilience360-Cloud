@@ -4,7 +4,19 @@ const normalizeEnvValue = (rawValue, fallback = '') =>
     .replace(/^['\"]|['\"]$/g, '')
 
 const MEDIA_BASE_URL = normalizeEnvValue(process.env.MEDIA_BASE_URL, '').replace(/\/+$/, '')
+const R2_PUBLIC_BASE_URL = normalizeEnvValue(process.env.R2_PUBLIC_BASE_URL, '').replace(/\/+$/, '')
+const R2_ACCOUNT_ID = normalizeEnvValue(process.env.R2_ACCOUNT_ID, '')
+const R2_BUCKET = normalizeEnvValue(process.env.R2_BUCKET, '')
 const MEDIA_BASE_STORAGE_SUFFIX = '/storage/content'
+
+function resolvePublicMediaBaseUrl() {
+  if (MEDIA_BASE_URL) return MEDIA_BASE_URL
+  if (R2_PUBLIC_BASE_URL) return R2_PUBLIC_BASE_URL
+  if (R2_ACCOUNT_ID && R2_BUCKET) {
+    return `https://${R2_BUCKET}.${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`
+  }
+  return ''
+}
 
 function extractMediaKeyFromUrl(url) {
   const s = String(url ?? '').trim()
@@ -42,8 +54,8 @@ function normalizeStorageSuffix(rawPath) {
 function buildPublicMediaUrlFromSuffix(suffix) {
   const cleanSuffix = normalizeStorageSuffix(suffix)
   if (!cleanSuffix) return ''
-  const rawBase = String(MEDIA_BASE_URL ?? '').trim().replace(/\/+$/, '')
-  if (!rawBase) return `/storage/content/${cleanSuffix}`
+  const rawBase = String(resolvePublicMediaBaseUrl() ?? '').trim().replace(/\/+$/, '')
+  if (!rawBase) return `/content/${cleanSuffix}`
 
   const basePathLower = (() => {
     try {

@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Volume2 } from 'lucide-react'
 import { useMediaCandidates } from '../hooks/useMediaCandidates'
 import { DisasterMediaPlaybackRateSelect } from './DisasterMediaPlaybackRates'
-import { isDisasterImageLoaded, markDisasterImageLoaded } from '../utils/disasterMediaCache'
 
 type DisasterMediaVideoPlayerProps = {
   candidates: string[]
@@ -19,26 +18,11 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
   const { src, loaded, failed, onLoad, onError } = useMediaCandidates(candidates, { cacheAsImage: false })
   const [playbackRate, setPlaybackRate] = useState(1)
   const [volume, setVolume] = useState(1)
-  const [posterReady, setPosterReady] = useState(() => (poster ? isDisasterImageLoaded(poster) : false))
+  const [metadataReady, setMetadataReady] = useState(false)
 
   useEffect(() => {
-    if (!poster) {
-      setPosterReady(false)
-      return
-    }
-    if (isDisasterImageLoaded(poster)) {
-      setPosterReady(true)
-      return
-    }
-    setPosterReady(false)
-    const img = new Image()
-    img.decoding = 'async'
-    img.onload = () => {
-      markDisasterImageLoaded(poster)
-      setPosterReady(true)
-    }
-    img.src = poster
-  }, [poster])
+    setMetadataReady(false)
+  }, [src])
 
   useEffect(() => {
     const el = videoRef.current
@@ -60,17 +44,6 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
   return (
     <div className="dd-glass-media-card dd-media-video">
       <div className="dd-media-video__stage">
-        {poster ? (
-          <img
-            src={poster}
-            alt=""
-            className={`dd-media-video__poster${posterReady ? ' is-loaded' : ''}`}
-            loading="eager"
-            decoding="async"
-            fetchPriority="high"
-            aria-hidden
-          />
-        ) : null}
         {src ? (
           <video
             key={src}
@@ -81,11 +54,13 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
             controls
             playsInline
             preload="metadata"
+            onLoadedMetadata={() => setMetadataReady(true)}
             onLoadedData={onLoad}
             onError={onError}
             aria-label={`${title} guidance video`}
           />
         ) : null}
+        {!metadataReady ? <div className="dd-media-video__loading">Loading video...</div> : null}
       </div>
       <div className="dd-media-controls-row">
         <DisasterMediaPlaybackRateSelect

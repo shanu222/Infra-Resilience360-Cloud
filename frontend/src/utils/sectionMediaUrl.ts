@@ -87,10 +87,23 @@ function rewriteKnownApiMediaPath(url: string): string | null {
   return null
 }
 
-/** Resolve relative media paths to backend-routed `/storage/content/*` URLs. */
+/** Resolve section media paths through centralized media URL builder. */
 export function resolveSectionMediaUrl(maybeRelative: string): string {
   const u = String(maybeRelative ?? '').trim()
   if (!u) return ''
+  if (/^https?:\/\//i.test(u)) {
+    try {
+      const parsed = new URL(u)
+      if (parsed.pathname.startsWith('/storage/content/')) {
+        return enforceHttpsOnSecurePage(getMediaUrl(parsed.pathname.slice('/storage/content/'.length)))
+      }
+      if (parsed.pathname.startsWith('/content/')) {
+        return enforceHttpsOnSecurePage(getMediaUrl(parsed.pathname.slice('/content/'.length)))
+      }
+    } catch {
+      /* keep handling below */
+    }
+  }
   const localS3Keys = inferS3KeysFromLocalPath(u)
   if (localS3Keys.length > 0) {
     const proxied = buildS3ProxyMediaUrl(localS3Keys[0])

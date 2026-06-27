@@ -1526,9 +1526,21 @@
         return 'https://infra-resilience360-cloud-production.up.railway.app';
       }
 
+      function resolveMediaBaseUrl() {
+        const globalMediaBase = stripTrailingSlash(String(window.__R360_MEDIA_BASE_URL || ''));
+        if (globalMediaBase) return globalMediaBase;
+        const envMediaBase = stripTrailingSlash(
+          String(window.__ENV__?.VITE_MEDIA_BASE_URL || window.__ENV__?.VITE_PUBLIC_MEDIA_BASE_URL || '')
+        );
+        if (envMediaBase) return envMediaBase;
+        return '';
+      }
+
       function mediaUrl(relativePath) {
         const clean = String(relativePath || '').replace(/^\/+/, '');
-        return `${resolveApiBaseUrl()}/storage/content/${clean}`;
+        const mediaBase = resolveMediaBaseUrl();
+        if (mediaBase) return `${mediaBase}/content/${clean}`;
+        return `${resolveApiBaseUrl()}/content/${clean}`;
       }
 
       const LOCAL_EARTHQUAKE_SOURCES = [
