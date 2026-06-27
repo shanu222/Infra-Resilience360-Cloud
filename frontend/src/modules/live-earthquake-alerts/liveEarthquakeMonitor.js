@@ -123,6 +123,8 @@ export function initLiveEarthquakeMonitor(root) {
           sourceLoading: 'Source: loading…',
           sourceLive: 'Source: live feed',
           sourceUnavailable: 'Source: unavailable',
+          displayLabel: 'Display',
+          allLabel: 'All',
           buildingsLoading: 'Buildings: loading',
           buildingsUnavailable: 'Buildings: unavailable',
           buildingsLabel: 'Buildings:',
@@ -179,6 +181,8 @@ export function initLiveEarthquakeMonitor(root) {
           sourceLoading: 'ماخذ: لوڈ ہو رہا ہے…',
           sourceLive: 'ماخذ: براہ راست فیڈ',
           sourceUnavailable: 'ماخذ: دستیاب نہیں',
+          displayLabel: 'دکھائیں',
+          allLabel: 'تمام',
           buildingsLoading: 'عمارتیں: لوڈ',
           buildingsUnavailable: 'عمارتیں: دستیاب نہیں',
           buildingsLabel: 'عمارتیں:',
@@ -263,6 +267,16 @@ export function initLiveEarthquakeMonitor(root) {
         const recentHead = document.querySelector('.left-head');
         if (recentHead) {
           recentHead.innerHTML = '<span>' + eqT('country') + '</span><span>' + eqT('magnitude') + '</span>';
+        }
+        const displayLabel = document.querySelector('.list-toolbar-label');
+        if (displayLabel) displayLabel.textContent = eqT('displayLabel');
+        const displaySelect = document.getElementById('eventDisplayCountSelect');
+        if (displaySelect) {
+          Array.from(displaySelect.options || []).forEach((option) => {
+            if (String(option.value) === 'all') {
+              option.textContent = eqT('allLabel');
+            }
+          });
         }
         setTxt('sourceMeta', eqT('sourceLoading'));
         const impactPopup = document.getElementById('impactPopup');
@@ -442,6 +456,7 @@ export function initLiveEarthquakeMonitor(root) {
       let selectedCountryFilter = 'all';
       let selectedSortFilter = 'latest';
       let eventSearchQuery = '';
+      let selectedDisplayCount = '25';
       let refreshCountdownTimer = null;
       let nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
       let alertSettings = {
@@ -1475,11 +1490,61 @@ export function initLiveEarthquakeMonitor(root) {
         return visible;
       }
 
+      function getDisplayLimit() {
+        if (selectedDisplayCount === 'all') return Number.POSITIVE_INFINITY;
+        const parsed = Number.parseInt(String(selectedDisplayCount || '25'), 10);
+        if (!Number.isFinite(parsed) || parsed <= 0) return 25;
+        return parsed;
+      }
+
+      function getEventListScrollAnchor(eventsEl, rows) {
+        const previousScrollTop = Number(eventsEl?.scrollTop || 0);
+        const previousScrollHeight = Number(eventsEl?.scrollHeight || 0);
+        const nearTop = previousScrollTop <= 24;
+        if (!eventsEl || !Array.isArray(rows) || rows.length === 0 || nearTop) {
+          return { nearTop, anchorId: null, anchorOffset: 0, previousScrollTop, previousScrollHeight };
+        }
+        const firstVisible =
+          rows.find((row) => Number(row.offsetTop || 0) + Number(row.offsetHeight || 0) >= previousScrollTop) || rows[0];
+        return {
+          nearTop,
+          anchorId: firstVisible?.dataset?.id || null,
+          anchorOffset: Math.max(0, previousScrollTop - Number(firstVisible?.offsetTop || 0)),
+          previousScrollTop,
+          previousScrollHeight,
+        };
+      }
+
+      function restoreEventListScroll(eventsEl, rows, anchor) {
+        if (!eventsEl || !anchor) return;
+        if (anchor.nearTop) {
+          eventsEl.scrollTop = 0;
+          return;
+        }
+
+        const anchoredRow = Array.isArray(rows)
+          ? rows.find((row) => String(row?.dataset?.id || '') === String(anchor.anchorId || ''))
+          : null;
+
+        if (anchoredRow) {
+          eventsEl.scrollTop = Math.max(0, Number(anchoredRow.offsetTop || 0) + Number(anchor.anchorOffset || 0));
+          return;
+        }
+
+        if (Number(anchor.previousScrollHeight || 0) > 0) {
+          const ratio = Number(anchor.previousScrollTop || 0) / Number(anchor.previousScrollHeight || 1);
+          eventsEl.scrollTop = Math.max(0, Math.round(ratio * Number(eventsEl.scrollHeight || 0)));
+        }
+      }
+
       function renderRecentActivityList() {
         const eventsEl = document.getElementById('events');
         if (!eventsEl) return;
+        const previousRows = Array.from(eventsEl.querySelectorAll('.event'));
+        const scrollAnchor = getEventListScrollAnchor(eventsEl, previousRows);
         filteredEvents = getFilteredAndSortedEvents();
-        const items = filteredEvents.slice(0, 250);
+        const displayLimit = getDisplayLimit();
+        const items = Number.isFinite(displayLimit) ? filteredEvents.slice(0, displayLimit) : filteredEvents;
         eventsEl.innerHTML = items.map((e) => {
           const timeText = Number.isFinite(e.time) ? new Date(e.time).toLocaleString() : eqT('unknown');
           const latText = Number.isFinite(e.lat) ? e.lat.toFixed(2) : '--';
@@ -1508,6 +1573,7 @@ export function initLiveEarthquakeMonitor(root) {
         for (const row of quakeRows) {
           row.classList.toggle('selected', row.dataset.id === selectedId);
         }
+        restoreEventListScroll(eventsEl, quakeRows, scrollAnchor);
       }
 
       function fillCountryFilterOptions() {
@@ -2428,6 +2494,7 @@ export function initLiveEarthquakeMonitor(root) {
         const countryFilterSelect = document.getElementById('countryFilterSelect');
         const sortFilterSelect = document.getElementById('sortFilterSelect');
         const eventSearchInput = document.getElementById('eventSearchInput');
+        const eventDisplayCountSelect = document.getElementById('eventDisplayCountSelect');
         const zoomInBtn = document.getElementById('zoomInBtn');
         const zoomOutBtn = document.getElementById('zoomOutBtn');
         const layerToggleBtn = document.getElementById('layerToggleBtn');
@@ -2516,6 +2583,11 @@ export function initLiveEarthquakeMonitor(root) {
           renderRecentActivityList();
           refreshPointsAppearance();
           if (is2DMap) render2DMap();
+        });
+
+        bind(eventDisplayCountSelect, 'change', () => {
+          selectedDisplayCount = String(eventDisplayCountSelect?.value || '25');
+          renderRecentActivityList();
         });
 
         const onLayerSettingChange = () => {

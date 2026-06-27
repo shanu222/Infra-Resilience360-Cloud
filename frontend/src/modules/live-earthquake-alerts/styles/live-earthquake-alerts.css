@@ -20,12 +20,13 @@
 
       .page {
         min-height: 100dvh;
-        height: auto;
+        height: 100dvh;
         display: grid;
         grid-template-rows: auto 1fr auto;
         background:
           radial-gradient(circle at 70% 42%, rgba(34, 95, 210, 0.28), rgba(4, 10, 24, 0.95) 45%),
           linear-gradient(160deg, #0a1327 0%, #040814 100%);
+        overflow: hidden;
       }
 
       .header {
@@ -227,8 +228,10 @@
         grid-template-columns: minmax(132px, min(20vw, 210px)) minmax(0, 1fr);
         gap: 10px;
         padding: 10px;
+        height: 100%;
         min-height: 0;
         align-items: stretch;
+        overflow: hidden;
       }
 
       .card {
@@ -241,8 +244,11 @@
         padding: 8px 10px;
         display: flex;
         flex-direction: column;
+        height: 100%;
         min-height: 0;
+        max-height: 100%;
         max-width: 100%;
+        overflow: hidden;
       }
 
       .left-filters {
@@ -268,6 +274,33 @@
         grid-column: 1 / -1;
       }
 
+      .list-toolbar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        margin: 0 2px 8px;
+      }
+
+      .list-toolbar-label {
+        color: #9cb5de;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .list-toolbar-select {
+        border: 1px solid rgba(124, 173, 255, 0.35);
+        background: rgba(10, 29, 67, 0.86);
+        color: #dce9ff;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 6px 8px;
+        width: 100%;
+      }
+
       .left h2 {
         margin: 2px 2px 6px;
         font-size: clamp(1rem, 2.4vw, 1.25rem);
@@ -289,8 +322,29 @@
 
       .events {
         flex: 1;
-        max-height: none;
+        min-height: 0;
+        max-height: 100%;
+        overflow-x: hidden;
         overflow-y: auto;
+        padding-right: 2px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(116, 175, 255, 0.7) rgba(8, 24, 56, 0.6);
+        overscroll-behavior: contain;
+      }
+
+      .events::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .events::-webkit-scrollbar-track {
+        border-radius: 999px;
+        background: rgba(8, 24, 56, 0.62);
+      }
+
+      .events::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(124, 182, 255, 0.85), rgba(73, 132, 214, 0.85));
+        border: 1px solid rgba(11, 31, 68, 0.75);
       }
 
       .event {
@@ -399,6 +453,8 @@
 
       .right {
         position: relative;
+        height: 100%;
+        max-height: 100%;
         min-height: 0;
         overflow: hidden;
         display: flex;
@@ -886,9 +942,9 @@
 
       @media (max-width: 1200px) {
         .page {
-          height: auto;
-          min-height: 100vh;
-          grid-template-rows: auto auto auto;
+          height: 100dvh;
+          min-height: 100dvh;
+          grid-template-rows: auto 1fr auto;
         }
 
         .layout,
@@ -901,8 +957,8 @@
           height: auto;
         }
 
-        .events {
-          max-height: min(36vh, 300px);
+        .left {
+          max-height: min(42vh, 340px);
         }
 
         .impact-popup {
@@ -918,8 +974,8 @@
           grid-template-columns: minmax(180px, min(30vw, 260px)) minmax(0, 1fr);
         }
 
-        .events {
-          max-height: min(54vh, 420px);
+        .left {
+          max-height: 100%;
         }
       }
 
@@ -1026,8 +1082,8 @@
           padding: 8px;
         }
 
-        .events {
-          max-height: min(40vh, 300px);
+        .left {
+          max-height: min(45vh, 360px);
         }
 
         .map2d {
