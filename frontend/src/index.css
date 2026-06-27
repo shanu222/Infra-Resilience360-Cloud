@@ -9780,9 +9780,11 @@ body,
 .portal-page-retrofit-calculator .bg-white\/95,
 .portal-page-smart-construction .bg-white,
 .portal-page-smart-construction .bg-white\/95 {
-  background: linear-gradient(180deg, rgba(241, 246, 255, 0.93) 0%, rgba(232, 240, 252, 0.9) 100%) !important;
+  background: linear-gradient(180deg, rgba(241, 246, 255, 0.78) 0%, rgba(232, 240, 252, 0.72) 100%) !important;
   border-color: var(--r360-card-border) !important;
   box-shadow: var(--r360-elev-1) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .portal-page-retrofit-calculator button:not(.warning-map-links button),

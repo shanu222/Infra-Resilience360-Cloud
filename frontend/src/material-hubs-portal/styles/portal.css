@@ -6,13 +6,13 @@
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden;
-  --mh-glass: rgba(15, 23, 42, 0.88);
+  --mh-glass: rgba(15, 23, 42, 0.93);
   --mh-glass-border: rgba(255, 255, 255, 0.12);
   --mh-blur: blur(18px);
   --mh-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   --mh-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.45);
   --mh-text: #ffffff;
-  --mh-muted: #cbd5e1;
+  --mh-muted: #e2e8f0;
 }
 
 /* Transparent shell — platform background video shows through */
@@ -485,6 +485,22 @@
   color: var(--mh-muted);
 }
 
+.material-hubs-portal-root :where(h1, h2, h3, h4, h5, h6, p, li, span, label, th, td) {
+  color: var(--mh-text);
+}
+
+.material-hubs-portal-root :where(.text-gray-500, .text-gray-600, .text-gray-700, .text-slate-500, .text-slate-600, .text-slate-700) {
+  color: var(--mh-muted) !important;
+}
+
+.material-hubs-portal-root :where(a, .mh-action-link, .mh-hub-panel__contact-row, .mh-hub-panel__guidance-link) {
+  color: #bfdbfe !important;
+}
+
+.material-hubs-portal-root :where(a:hover, .mh-action-link:hover, .mh-hub-panel__contact-row:hover, .mh-hub-panel__guidance-link:hover) {
+  color: #ffffff !important;
+}
+
 /* 3D action buttons */
 .material-hubs-portal-root .mh-btn-3d {
   display: inline-flex;
@@ -855,6 +871,8 @@
   width: clamp(220px, 78vw, 340px);
   max-width: min(340px, calc(100vw - 24px));
   max-height: min(70dvh, 460px);
+  background: rgba(12, 22, 44, 0.96);
+  border: 1px solid rgba(148, 192, 255, 0.28);
 }
 
 .mh-map-popup .leaflet-popup-content {
@@ -868,6 +886,7 @@
 .mh-map-popup__inner {
   padding: 0.75rem;
   max-width: 100%;
+  background: transparent;
 }
 
 .mh-map-popup__thumb {
@@ -881,14 +900,14 @@
 .mh-map-popup__name {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #111827;
+  color: #f8fbff;
   margin: 0 0 0.15rem;
   overflow-wrap: anywhere;
 }
 
 .mh-map-popup__loc {
   font-size: 0.75rem;
-  color: #4b5563;
+  color: #d6e3f7;
   margin: 0 0 0.5rem;
   overflow-wrap: anywhere;
 }
