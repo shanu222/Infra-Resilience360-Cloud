@@ -1,0 +1,35 @@
+.r360-section-host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.r360-section-pane {
+  width: 100%;
+  min-width: 0;
+}
+
+.r360-section-pane[hidden] {
+  display: none !important;
+}
+
+.r360-page-layout {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.r360-app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.r360-app-shell > .r360-page-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+}

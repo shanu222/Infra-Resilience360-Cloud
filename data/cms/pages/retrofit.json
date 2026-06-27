@@ -1,0 +1,83 @@
+{
+  "page": {
+    "page": "retrofit",
+    "success": true,
+    "title": "retrofit",
+    "sections": [
+      {
+        "type": "content",
+        "title": "retrofit"
+      }
+    ],
+    "elements": {
+      "retrofit-pages": {
+        "cmsType": "dataset",
+        "styles": {}
+      },
+      "retrofit-text-keys": {
+        "cmsType": "content",
+        "styles": {}
+      }
+    },
+    "mediaLibrary": [],
+    "updatedAt": "2026-06-01T00:00:00.000Z",
+    "backgroundMedia": {
+      "video": "",
+      "image": ""
+    }
+  },
+  "cms": {
+    "type": "retrofit_cms",
+    "section": "retrofit",
+    "pages": [
+      {
+        "pageId": "main",
+        "order": 0,
+        "content": {
+          "texts": {},
+          "images": {},
+          "videos": {},
+          "audios": {},
+          "icons": {}
+        },
+        "styles": {}
+      },
+      {
+        "pageId": "analysis",
+        "order": 1,
+        "content": {
+          "texts": {},
+          "images": {},
+          "videos": {},
+          "audios": {},
+          "icons": {}
+        },
+        "styles": {}
+      },
+      {
+        "pageId": "estimate",
+        "order": 2,
+        "content": {
+          "texts": {},
+          "images": {},
+          "videos": {},
+          "audios": {},
+          "icons": {}
+        },
+        "styles": {}
+      }
+    ],
+    "textOverrides": {
+      "en": {},
+      "ur": {}
+    },
+    "globalStyles": {
+      "backgroundColor": "",
+      "backgroundImage": "",
+      "backgroundVideo": "",
+      "isVideoEnabled": false,
+      "textColor": "",
+      "transparency": 1
+    }
+  }
+}

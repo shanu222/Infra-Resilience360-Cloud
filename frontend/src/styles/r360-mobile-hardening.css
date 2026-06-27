@@ -1,0 +1,319 @@
+/**
+ * Mobile / tablet responsiveness (max-width: 1023px only).
+ * Desktop (min-width: 1024px) is unchanged.
+ */
+
+@media (max-width: 1023px) {
+  html,
+  body,
+  #root,
+  .app-container,
+  .r360-app-stack,
+  .page-wrapper,
+  .content-layer,
+  .app-shell {
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .app-container {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Prevent section panels from forcing page-level horizontal scroll */
+  .content-layer .panel.section-panel {
+    overflow-x: hidden;
+    overflow-y: visible;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Embedded portals (Building Codes, Smart Construction, legacy iframes) */
+  .portal-page-root,
+  .portal-page-pgbc,
+  .portal-page-smart-construction,
+  .section-panel.section-pgbc:has(.r360-embedded-portal-frame),
+  .section-panel:has(.r360-embedded-portal-frame) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding-inline: clamp(8px, 2.5vw, 14px);
+  }
+
+  .r360-embedded-portal-frame,
+  .pgbc-portal-frame {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  /* Native portal hosts */
+  .material-hubs-page-host,
+  .disaster-dashboard-page-host,
+  .material-hubs-portal-root,
+  .disaster-dashboard-portal-root {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  .material-hubs-portal-root img,
+  .material-hubs-portal-root video,
+  .material-hubs-portal-root table,
+  .disaster-dashboard-portal-root img,
+  .disaster-dashboard-portal-root video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .mh-map-shell,
+  .mh-map-container,
+  .mh-locations-layout,
+  .mh-locations-map-col {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .material-hubs-page-host .material-hubs-portal-root :where(h1, h2, h3, h4, p, span, li, label, td, th) {
+    word-break: normal;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+
+  .material-hubs-page-host .material-hubs-portal-root .flex > *,
+  .material-hubs-page-host .material-hubs-portal-root .grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Module grids: 1 col phone, 2 col tablet (768–1023) */
+  .card-grid,
+  .design-toolkit-grid,
+  .learn-video-grid,
+  .retrofit-upload-grid,
+  .retrofit-insights-grid,
+  .risk-insights-grid,
+  .warning-toolkit-grid,
+  .readiness-layout .card-grid,
+  .best-practices-grid,
+  .infra-models-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .context-split-layout {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .context-split-layout > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Critical: prevent per-letter vertical text in narrow flex/grid      */
+  /* ------------------------------------------------------------------ */
+  .app-shell :where(
+    .hero-title-wrap,
+    .hero-title,
+    .hero-subtitle,
+    .app-main-brand,
+    .brand,
+    .home-card-title,
+    .section-card-title,
+    .panel-title,
+    h1,
+    h2,
+    h3,
+    h4,
+    p,
+    li,
+    label,
+    th,
+    td
+  ) {
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .app-shell .hero-title-wrap,
+  .app-shell .dynamic-content,
+  .app-shell .home-card,
+  .app-shell .section-card,
+  .app-shell .panel,
+  .app-shell .section-panel {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .app-shell .flex > *,
+  .app-shell .grid > *,
+  .app-shell [class*='-grid'] > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Web single-row header: badge + menu row, full-width brand below */
+  .navbar--web-single-row .navbar-top-strip__brand .hero-title,
+  .navbar--web-single-row .navbar-top-strip__brand .hero-subtitle {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .disaster-dashboard-page-host .disaster-dashboard-portal-root :where(h1, h2, h3, h4, p, span, li, label, td, th) {
+    word-break: normal;
+    overflow-wrap: break-word;
+    white-space: normal;
+    writing-mode: horizontal-tb;
+  }
+
+  .disaster-dashboard-page-host .disaster-dashboard-portal-root .flex > *,
+  .disaster-dashboard-page-host .disaster-dashboard-portal-root .grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Tables: scroll inside panel, not page */
+  .section-panel .table-wrap,
+  .section-panel table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-panel table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  /* Forms and controls: full width, touch-friendly */
+  .section-panel input:not([type='checkbox']):not([type='radio']),
+  .section-panel select,
+  .section-panel textarea {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .section-panel button,
+  .home-card,
+  .section-card,
+  .nav-toolbar-home-btn,
+  .r360-nav-menu-trigger {
+    min-height: 44px;
+  }
+
+  /* Panel modals on small screens (not fullscreen media overlays). */
+  .learn-video-modal-dialog,
+  .r360-panel-modal {
+    max-width: 96vw;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 767px) {
+  .card-grid,
+  .design-toolkit-grid,
+  .learn-video-grid,
+  .retrofit-upload-grid,
+  .retrofit-insights-grid,
+  .risk-insights-grid,
+  .warning-toolkit-grid,
+  .best-practices-grid,
+  .infra-models-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .section-panel table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile drawer: Language / Role selects — dark text on white field   */
+/* ------------------------------------------------------------------ */
+@media (max-width: 1023px) {
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-card .nav-toolbar-unified-controls select,
+  .r360-nav-drawer.nav-toolbar-unified-card .nav-toolbar-unified-controls select,
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select,
+  .r360-nav-drawer .nav-toolbar-unified-controls select,
+  .nav-toolbar-select--drawer {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #ffffff !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23111827' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 18px 18px !important;
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+    font-weight: 600 !important;
+    opacity: 1 !important;
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
+  }
+
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select:hover,
+  .r360-nav-drawer .nav-toolbar-unified-controls select:hover {
+    border-color: #9ca3af !important;
+    background-color: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select:focus,
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select:focus-visible,
+  .r360-nav-drawer .nav-toolbar-unified-controls select:focus,
+  .r360-nav-drawer .nav-toolbar-unified-controls select:focus-visible {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+    border-color: #3b82f6 !important;
+    color: #111827 !important;
+  }
+
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select:disabled,
+  .r360-nav-drawer .nav-toolbar-unified-controls select:disabled {
+    opacity: 0.65 !important;
+    color: #6b7280 !important;
+    -webkit-text-fill-color: #6b7280 !important;
+    background-color: #f3f4f6 !important;
+  }
+
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls select option,
+  .r360-nav-drawer .nav-toolbar-unified-controls select option {
+    color: #111827 !important;
+    background: #ffffff !important;
+    font-weight: 600;
+  }
+
+  /* Drawer action buttons keep light-on-dark styling */
+  .r360-nav-drawer-portal-root .nav-toolbar-unified-controls .nav-toolbar-action,
+  .r360-nav-drawer-portal-root .nav-toolbar-home-btn,
+  .r360-nav-drawer .nav-toolbar-unified-controls .nav-toolbar-action,
+  .r360-nav-drawer .nav-toolbar-home-btn {
+    color: #f0f7ff !important;
+    -webkit-text-fill-color: #f0f7ff !important;
+  }
+
+  .r360-nav-drawer-backdrop {
+    background: rgba(15, 23, 42, 0.45);
+  }
+}

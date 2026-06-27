@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Resilience360 maskable">
+  <rect width="512" height="512" fill="#1b6292"/>
+  <rect x="56" y="56" width="400" height="400" rx="92" fill="#2f85be"/>
+  <g fill="#ffffff" transform="translate(0 4)">
+    <path d="M126 334V174h54c37 0 61 20 61 52 0 24-14 41-36 48l42 60h-40l-37-55h-5v55zm31-84h20c18 0 30-10 30-24s-12-24-30-24h-20z"/>
+    <path d="M262 334V174h110v28h-79v40h66v28h-66v36h82v28z"/>
+    <circle cx="392" cy="306" r="19"/>
+  </g>
+</svg>

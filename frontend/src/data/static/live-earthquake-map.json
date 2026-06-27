@@ -1,0 +1,20 @@
+{
+  "page": {
+    "page": "live-earthquake-map",
+    "success": true,
+    "title": "live-earthquake-map",
+    "sections": [
+      {
+        "type": "content",
+        "title": "live-earthquake-map"
+      }
+    ],
+    "elements": {},
+    "mediaLibrary": [],
+    "updatedAt": "2026-06-01T00:00:00.000Z",
+    "backgroundMedia": {
+      "video": "",
+      "image": ""
+    }
+  }
+}

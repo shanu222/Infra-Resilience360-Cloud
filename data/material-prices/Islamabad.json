@@ -1,0 +1,35 @@
+{
+  "province": "Islamabad Capital Territory",
+  "city": "Islamabad",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 16,
+    "cementPerBag": 840,
+    "sandPerCft": 53,
+    "aggregatePerCft": 63,
+    "steelPerKg": 155,
+    "tilePerSqFt": 395,
+    "doorPerSqFt": 680,
+    "windowPerSqFt": 560,
+    "plasterPerSqFt": 67,
+    "woodPerCft": 4350,
+    "beamPerRft": 475,
+    "concretePerCft": 190,
+    "paintPerSqFt": 29,
+    "doorWoodPerUnit": 18800,
+    "windowAluminumPerUnit": 15000,
+    "waterproofPerSqFt": 45,
+    "gaderPerPiece": 5480,
+    "beamConcretePerCft": 233,
+    "columnConcretePerCft": 252
+  },
+  "laborRates": {
+    "dailyWageMason": 2650,
+    "dailyWageHelper": 1900,
+    "workersPer100SqFt": 2.5,
+    "productivitySqFtPerWorkerDay": 10.9
+  },
+  "notes": [
+    "Local JSON source for smart construction rates."
+  ]
+}

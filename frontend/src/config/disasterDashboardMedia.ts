@@ -1,0 +1,202 @@
+import { disasterDashboardContentUrl } from './disasterDashboardPaths'
+import {
+  preloadDisasterImageUrl,
+  preloadDisasterVideoUrl,
+} from '../disaster-dashboard-portal/utils/disasterMediaCache'
+
+/**
+ * Local-first disaster media map under:
+ * /storage/content/disaster-dashboard/{images|videos|audio}/{hazard}/
+ */
+type DisasterMediaSpec = {
+  folder: string
+  flatImageFile?: string
+  flatVideoFile?: string
+  image?: string
+  video?: string
+  audio?: string
+  imageFlatFallbackFiles?: string[]
+  videoFlatFallbackFiles?: string[]
+  imageFallbackFolders?: string[]
+  videoFallbackFolders?: string[]
+  audioFallbackFolders?: string[]
+}
+
+export const DISASTER_DASHBOARD_MEDIA_SPECS: Record<string, DisasterMediaSpec> = {
+  flood: {
+    folder: 'flood',
+    flatImageFile: 'image.png',
+    flatVideoFile: 'video.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  earthquake: {
+    folder: 'earthquake',
+    flatImageFile: 'image-1.png',
+    flatVideoFile: 'video-1.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  'urban-fire': {
+    folder: 'urban-fire',
+    flatImageFile: 'image-2.png',
+    flatVideoFile: 'video-2.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  'crop-fire': {
+    folder: 'crop-fire',
+    flatImageFile: 'image-3.png',
+    flatVideoFile: 'video-3.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  heatwave: {
+    folder: 'heatwave',
+    flatImageFile: 'image-4.png',
+    flatVideoFile: 'video-4.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  'load-shedding': {
+    folder: 'load-shedding',
+    flatImageFile: 'image-5.png',
+    flatVideoFile: 'video-5.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  'storm-cyclone': {
+    folder: 'storm-cyclone',
+    flatImageFile: 'image-6.png',
+    flatVideoFile: 'video-6.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  landslide: {
+    folder: 'landslide',
+    flatImageFile: 'image-7.png',
+    flatVideoFile: 'video-7.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  'cold-wave': {
+    folder: 'cold-wave',
+    flatImageFile: 'image-8.png',
+    flatVideoFile: 'video-8.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+  smog: {
+    folder: 'smog',
+    flatImageFile: 'image-9.png',
+    flatVideoFile: 'video-9.mp4',
+    image: 'image.png',
+    video: 'video.mp4',
+    audio: 'audio.aac',
+  },
+}
+
+export type DisasterDashboardGuidanceMedia = {
+  imageUrl: string
+  imageCandidates: string[]
+  videoUrl: string
+  videoCandidates: string[]
+  audioUrl: string
+  audioCandidates: string[]
+}
+const DISASTER_MEDIA_CACHE = new Map<string, DisasterDashboardGuidanceMedia>()
+
+function fileUrl(kind: 'image' | 'video' | 'audio', folder: string, file: string): string {
+  const mediaRoot = kind === 'image' ? 'images' : kind === 'video' ? 'videos' : 'audio'
+  return disasterDashboardContentUrl(`${mediaRoot}/${folder}/${file}`)
+}
+
+function fileUrlFlat(kind: 'image' | 'video' | 'audio', file: string): string {
+  const mediaRoot = kind === 'image' ? 'images' : kind === 'video' ? 'videos' : 'audio'
+  return disasterDashboardContentUrl(`${mediaRoot}/${file}`)
+}
+
+function uniqueUrls(urls: string[]): string[] {
+  return [...new Set(urls.filter(Boolean))]
+}
+
+function buildFileCandidates(
+  spec: DisasterMediaSpec,
+  kind: 'image' | 'video' | 'audio',
+  fileName: string,
+  fallbackKey: 'imageFallbackFolders' | 'videoFallbackFolders' | 'audioFallbackFolders',
+): string[] {
+  const urls: string[] = []
+
+  if (kind === 'image') {
+    if (spec.flatImageFile) urls.push(fileUrlFlat('image', spec.flatImageFile))
+    for (const fallbackFile of spec.imageFlatFallbackFiles ?? []) {
+      urls.push(fileUrlFlat('image', fallbackFile))
+    }
+  }
+  if (kind === 'video') {
+    if (spec.flatVideoFile) urls.push(fileUrlFlat('video', spec.flatVideoFile))
+    for (const fallbackFile of spec.videoFlatFallbackFiles ?? []) {
+      urls.push(fileUrlFlat('video', fallbackFile))
+    }
+  }
+
+  if (spec[kind]) urls.push(fileUrl(kind, spec.folder, fileName))
+  for (const folder of spec[fallbackKey] ?? []) {
+    urls.push(fileUrl(kind, folder, fileName))
+  }
+
+  return uniqueUrls(urls)
+}
+
+export function disasterDashboardGuidanceMedia(disasterId: string): DisasterDashboardGuidanceMedia {
+  const cached = DISASTER_MEDIA_CACHE.get(disasterId)
+  if (cached) return cached
+  const spec = DISASTER_DASHBOARD_MEDIA_SPECS[disasterId]
+  if (!spec) {
+    const empty = {
+      imageUrl: '',
+      imageCandidates: [],
+      videoUrl: '',
+      videoCandidates: [],
+      audioUrl: '',
+      audioCandidates: [],
+    }
+    DISASTER_MEDIA_CACHE.set(disasterId, empty)
+    return empty
+  }
+
+  const imageCandidates = buildFileCandidates(spec, 'image', 'image.png', 'imageFallbackFolders')
+  const videoCandidates = buildFileCandidates(spec, 'video', 'video.mp4', 'videoFallbackFolders')
+  const audioCandidates = buildFileCandidates(spec, 'audio', 'audio.aac', 'audioFallbackFolders')
+
+  const resolved = {
+    imageUrl: imageCandidates[0] ?? '',
+    imageCandidates,
+    videoUrl: videoCandidates[0] ?? '',
+    videoCandidates,
+    audioUrl: audioCandidates[0] ?? '',
+    audioCandidates,
+  }
+  DISASTER_MEDIA_CACHE.set(disasterId, resolved)
+  return resolved
+}
+
+export function disasterDashboardCardImageUrl(disasterId: string): string {
+  return disasterDashboardGuidanceMedia(disasterId).imageUrl
+}
+
+export function preloadDisasterMedia(disasterId: string): void {
+  const { imageUrl, videoUrl } = disasterDashboardGuidanceMedia(disasterId)
+  if (imageUrl) preloadDisasterImageUrl(imageUrl)
+  if (videoUrl) preloadDisasterVideoUrl(videoUrl)
+}

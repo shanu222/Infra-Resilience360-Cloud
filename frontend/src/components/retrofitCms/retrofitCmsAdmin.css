@@ -1,0 +1,153 @@
+.r360-retrofit-admin {
+  position: relative;
+}
+
+.r360-retrofit-admin [data-r360-cms-key] {
+  cursor: pointer;
+  transition: outline 0.12s ease;
+}
+
+.r360-retrofit-admin [data-r360-cms-key]:hover {
+  outline: 2px solid rgba(0, 95, 115, 0.45);
+  outline-offset: 2px;
+}
+
+.r360-retrofit-admin [data-r360-cms-key].r360-cms-selected {
+  outline: 2px solid #005f73;
+  outline-offset: 2px;
+}
+
+.r360-retrofit-cms-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10040;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(0, 45, 58, 0.96), rgba(0, 79, 96, 0.96));
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  font-size: 0.88rem;
+}
+
+.r360-retrofit-cms-toolbar button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.r360-retrofit-cms-toolbar button:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.r360-retrofit-cms-toolbar button.primary {
+  background: linear-gradient(135deg, #0a9396, #94d2bd);
+  border-color: transparent;
+  color: #042a2e;
+}
+
+.r360-retrofit-cms-toolbar .r360-retrofit-cms-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.r360-retrofit-cms-toolbar .muted {
+  opacity: 0.85;
+  font-size: 0.82rem;
+}
+
+.r360-retrofit-cms-popover {
+  position: fixed;
+  z-index: 10060;
+  width: min(380px, calc(100vw - 20px));
+  max-height: min(72vh, 520px);
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--panel-bg, #fff);
+  color: var(--text, #1d2530);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.28);
+}
+
+.r360-retrofit-cms-popover h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.r360-retrofit-cms-popover label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.r360-retrofit-cms-popover input[type='text'],
+.r360-retrofit-cms-popover textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  font: inherit;
+}
+
+.r360-retrofit-cms-popover textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.r360-retrofit-cms-popover .r360-pop-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.r360-retrofit-cms-popover .r360-pop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.r360-retrofit-cms-popover .r360-pop-actions button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #f1f3f5;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.r360-retrofit-cms-body-offset {
+  padding-top: 48px;
+}
+
+@media (max-width: 640px) {
+  .r360-retrofit-cms-toolbar {
+    padding: 8px 10px;
+  }
+
+  .r360-retrofit-cms-toolbar button {
+    width: 100%;
+  }
+
+  .r360-retrofit-cms-popover {
+    width: calc(100vw - 12px);
+    max-height: min(84vh, calc(100dvh - 12px));
+    padding: 10px;
+  }
+
+  .r360-retrofit-cms-popover .r360-pop-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "learn": [
+    "flood-barriers",
+    "monsoon-damages",
+    "global-best-practice",
+    "building-resilience-audit",
+    "floodplain-recovery",
+    "infra-damages",
+    "innovative-tech",
+    "innovative-tech-sound",
+    "modular-bridge",
+    "resilient-structures",
+    "stormwater-management",
+    "arc-overview",
+    "video-3"
+  ],
+  "infra-models": [
+    "flood-housing-cluster-pk",
+    "layout"
+  ],
+  "disaster-dashboard": ["flood", "earthquake", "heatwave", "drought", "landslide", "cyclone", "general"],
+  "homepage": ["hero", "shell", "background"],
+  "pgbc": ["library", "codes", "general"]
+}

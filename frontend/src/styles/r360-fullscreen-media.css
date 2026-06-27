@@ -1,0 +1,296 @@
+/**
+ * Fullscreen media overlays (image/video lightboxes).
+ * These must always cover the viewport and must NOT inherit panel-modal sizing
+ * from .learn-video-modal-dialog rules elsewhere in the shell.
+ */
+
+.r360-fullscreen-overlay,
+.best-practice-lightbox,
+.dd-media-lightbox,
+.learn-video-modal-root,
+.material-hubs-page-host [role='dialog'].fixed.inset-0,
+.material-hubs-portal-root [role='dialog'].fixed.inset-0 {
+  position: fixed !important;
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 100dvh;
+  margin: 0 !important;
+  box-sizing: border-box;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.dd-media-lightbox {
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.dd-media-lightbox__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(96vw, 56rem);
+  max-width: 100%;
+  max-height: min(92dvh, 900px);
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.dd-media-lightbox__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.r360-fullscreen-overlay__title,
+.best-practice-lightbox-title,
+.dd-media-lightbox__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.35;
+}
+
+.best-practice-lightbox-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.best-practice-lightbox-toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.best-practice-lightbox-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+.best-practice-lightbox-img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(78dvh, calc(92dvh - 5rem));
+  object-fit: contain;
+  object-position: center;
+  border-radius: 12px;
+  border: 1px solid rgba(140, 118, 200, 0.45);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  background: rgba(12, 8, 36, 0.5);
+}
+
+.r360-fullscreen-overlay__panel,
+.best-practice-lightbox-inner {
+  width: min(96vw, 1320px);
+  max-width: 100%;
+  max-height: min(92dvh, 900px);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.dd-media-lightbox__viewport {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: min(72dvh, calc(92dvh - 5.5rem));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.dd-media-lightbox__img {
+  max-width: 100%;
+  max-height: min(68dvh, calc(92dvh - 7rem));
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  transform-origin: center center;
+}
+
+/* Material Hub guidance gallery lightbox (Tailwind markup) */
+.r360-fullscreen-overlay.mh-guidance-lightbox {
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.mh-guidance-lightbox__frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(96vw, 72rem);
+  max-width: 100%;
+  max-height: min(92dvh, 900px);
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.72);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.mh-guidance-lightbox__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: min(200px, 40dvh);
+  max-height: min(68dvh, calc(92dvh - 9rem));
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.mh-guidance-lightbox__stage img,
+.mh-guidance-lightbox__stage video {
+  max-width: 100%;
+  max-height: min(64dvh, calc(92dvh - 10rem));
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 0.5rem;
+}
+
+.mh-guidance-lightbox__caption {
+  flex-shrink: 0;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.88);
+  min-width: 0;
+}
+
+.mh-guidance-lightbox__caption h3,
+.mh-guidance-lightbox__caption p,
+.mh-guidance-lightbox__caption div {
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.mh-guidance-lightbox__nav {
+  position: absolute;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.mh-guidance-lightbox__nav--prev {
+  left: max(0.5rem, env(safe-area-inset-left, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.mh-guidance-lightbox__nav--next {
+  right: max(0.5rem, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.mh-guidance-lightbox__close {
+  position: absolute;
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  right: max(0.5rem, env(safe-area-inset-right, 0px));
+  z-index: 21;
+}
+
+@media (max-width: 640px) {
+  .best-practice-lightbox,
+  .dd-media-lightbox,
+  .r360-fullscreen-overlay.mh-guidance-lightbox {
+    padding: max(0.5rem, env(safe-area-inset-top, 0px)) max(0.5rem, env(safe-area-inset-right, 0px))
+      max(0.5rem, env(safe-area-inset-bottom, 0px)) max(0.5rem, env(safe-area-inset-left, 0px));
+  }
+
+  .best-practice-lightbox-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .best-practice-lightbox-title,
+  .dd-media-lightbox__title {
+    flex: 1 1 100%;
+    font-size: clamp(0.88rem, 3.6vw, 1rem);
+  }
+
+  .dd-media-lightbox__tools {
+    margin-inline-start: auto;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .best-practice-lightbox-img {
+    max-height: min(62dvh, calc(100dvh - 4.5rem));
+  }
+
+  .dd-media-lightbox__viewport {
+    max-height: min(58dvh, calc(100dvh - 4.5rem));
+  }
+
+  .mh-guidance-lightbox__stage {
+    max-height: min(58dvh, calc(100dvh - 5rem));
+  }
+}

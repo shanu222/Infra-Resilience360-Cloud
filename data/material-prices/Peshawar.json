@@ -1,0 +1,35 @@
+{
+  "province": "Khyber Pakhtunkhwa",
+  "city": "Peshawar",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 15,
+    "cementPerBag": 810,
+    "sandPerCft": 49,
+    "aggregatePerCft": 59,
+    "steelPerKg": 151,
+    "tilePerSqFt": 375,
+    "doorPerSqFt": 640,
+    "windowPerSqFt": 530,
+    "plasterPerSqFt": 64,
+    "woodPerCft": 4150,
+    "beamPerRft": 445,
+    "concretePerCft": 176,
+    "paintPerSqFt": 27,
+    "doorWoodPerUnit": 17600,
+    "windowAluminumPerUnit": 14200,
+    "waterproofPerSqFt": 41,
+    "gaderPerPiece": 5100,
+    "beamConcretePerCft": 216,
+    "columnConcretePerCft": 236
+  },
+  "laborRates": {
+    "dailyWageMason": 2450,
+    "dailyWageHelper": 1750,
+    "workersPer100SqFt": 2.3,
+    "productivitySqFtPerWorkerDay": 11.3
+  },
+  "notes": [
+    "Local JSON source for smart construction rates."
+  ]
+}

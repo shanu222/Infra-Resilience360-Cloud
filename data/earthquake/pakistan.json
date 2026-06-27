@@ -1,0 +1,10 @@
+{
+  "name": "Pakistan",
+  "focusBounds": {
+    "minLat": 23.5,
+    "maxLat": 37.2,
+    "minLng": 60.9,
+    "maxLng": 77.9
+  },
+  "defaultCenter": { "lat": 30.3753, "lng": 69.3451 }
+}

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codes Library - Building Codes</title>
+<link rel="stylesheet" href="styles.css">
+<script src="portal-lang.js"></script>
+</head>
+<body>
+
+<header class="portal-header">
+    <div class="header-strip">
+        <div class="header-logo-wrap">
+            <img src="gov of pakistan logo.jpg" alt="" class="header-logo">
+        </div>
+        <div class="header-title-wrap">
+            <h1>Building Codes</h1>
+            <p>Sustainability &amp; Energy Efficiency Standards</p>
+        </div>
+        <div class="header-logo-wrap">
+            <img src="NDMA Logo.png" alt="" class="header-logo">
+        </div>
+    </div>
+    <div id="userInfo"></div>
+</header>
+
+<nav>
+    <button type="button" onclick="pgbcGo('index.html')">Home</button>
+    <button type="button" onclick="pgbcGo('library.html')">Codes Library</button>
+</nav>
+
+<!-- LIBRARY SECTION -->
+<section class="active">
+    <div class="card library-card">
+        <h2 class="library-title">Codes Library</h2>
+
+        <div id="uploadSection" class="hidden">
+            <h3 style="color: #043617; margin-bottom: 15px; text-align: center;">📤 Upload New Code</h3>
+            <input type="text" id="codeName" placeholder="Code Name (e.g., Building Code of Pakistan 2025)">
+            <input type="file" id="pdfFile" accept="application/pdf">
+            <button onclick="uploadCode()" style="width: 100%; background: #026440; color: white; font-weight: bold; padding: 12px;">Upload Code</button>
+            <hr style="margin: 20px 0; border: 1px solid #ddd;">
+            
+            <h3 style="color: #043617; margin-bottom: 15px; text-align: center;">🤖 AI Settings</h3>
+            <p style="text-align: center; color: white; font-size: 0.9rem; margin: 4px 0 10px;">AI summary key is now server-side for security. No manual key entry is required here.</p>
+            <hr style="margin: 20px 0; border: 1px solid #ddd;">
+
+            <p style="text-align: center; color: white; font-size: 0.9rem; margin-top: 8px;">Recovery email delivery is configured in backend settings.</p>
+            <hr style="margin: 20px 0; border: 1px solid #ddd;">
+        </div>
+
+        <div id="codeQaPanel" style="border: 1px solid rgba(153,58,139,0.25); background: #fff8f5; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <h3 style="margin: 0 0 10px 0; color: #5f2f4e;">🤖 Ask From Selected Codes</h3>
+            <p style="margin: 0 0 10px 0; color: #7a4658; font-size: 0.92rem;">
+                Pick one code from the list below, or select all codes, then ask your question.
+            </p>
+
+            <textarea id="codeQuestionInput" rows="3" placeholder="Type your question (e.g., How many fire extinguishers are required in a two-storey school building?)" style="width: 100%; border: 1px solid #bf7587; border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.95rem; resize: vertical;"></textarea>
+
+            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <button id="answerFromCodesBtn" onclick="answerQuestionFromSelectedCodes()" style="background: #993a8b; color: white; padding: 10px 16px; font-weight: 700;">Get Answer</button>
+                <button onclick="clearCodeQaResult()" style="background: #a2574f; color: white; padding: 10px 16px;">Clear</button>
+            </div>
+
+            <div id="codeQaStatus" style="margin-top: 10px; color: #7a4658; font-size: 0.9rem;"></div>
+            <div id="codeQaResult" style="margin-top: 10px; background: white; border: 1px solid rgba(191,117,135,0.45); border-radius: 8px; padding: 12px; color: #5f2f4e; white-space: pre-wrap; line-height: 1.55;"></div>
+        </div>
+
+        <div class="codes-toolbar">
+            <div class="codes-toolbar-search">
+                <input type="text" id="codeListSearchInput" placeholder="Search code title..." aria-label="Search codes">
+            </div>
+            <div class="codes-toolbar-filter">
+                <select id="codeYearFilter" aria-label="Filter by year">
+                    <option value="all">All Years</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="codes-list-head" role="presentation">
+            <div class="codes-col-select">Sel</div>
+            <div class="codes-col-title">Code</div>
+            <div class="codes-col-year">Year</div>
+            <div class="codes-col-actions">Actions</div>
+        </div>
+
+        <h3 class="library-subtitle">📚 Available Codes</h3>
+        <label style="display: inline-flex; align-items: center; gap: 8px; margin: 0 0 10px 0; color: #5f2f4e; font-weight: 600; cursor: pointer;">
+            <input type="checkbox" id="selectAllCodesCheckbox" onchange="toggleSelectAllCodes(this.checked)">
+            Select all codes
+        </label>
+        <div id="codesList" class="library-codes-list"></div>
+    </div>
+</section>
+
+<!-- Two-Panel Code Browser (for BCP 2007 and similar hierarchical codes) -->
+<section id="codeBrowserSection" class="hidden">
+    <div class="code-browser-container">
+        <!-- Left Sidebar -->
+        <div class="browser-sidebar">
+            <div class="sidebar-header">
+                <h3 style="margin: 0; color: white; font-size: 1rem;">BUILDING CODE<br>OF PAKISTAN<br><span style="font-size: 0.8rem;">(BCP-SP 2007)</span></h3>
+                <input type="text" id="codeSearchBox" placeholder="🔍 Search code..." class="search-box">
+            </div>
+            
+            <h4 style="margin: 15px 0 10px 0; color: #a0d4c4; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Chapters</h4>
+            <div id="sidebarChaptersList" class="chapters-sidebar"></div>
+        </div>
+        
+        <!-- Right Main Content -->
+        <div class="browser-main">
+            <div id="browserHeader" style="margin-bottom: 20px; border-bottom: 2px solid #026440; padding-bottom: 15px;">
+                <h2 style="margin: 0 0 5px 0; color: #043617;">BUILDING CODE OF PAKISTAN (BCP-SP 2007)</h2>
+                <p style="margin: 0; color: #666; font-size: 0.9rem;">Complete Code Navigation</p>
+            </div>
+            
+            <div id="browserContent" class="browser-content-area">
+                <p style="text-align: center; color: #999; padding: 40px 20px;">Select a chapter from the left sidebar to view details</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<!-- AI Explanation Modal -->
+<div id="aiModal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeAiModal()">&times;</span>
+        <div id="modalBody">
+            <div class="loading" id="loadingSpinner">
+                <div class="spinner"></div>
+                <p>Generating AI explanation...</p>
+            </div>
+            <div id="explanationContent" class="hidden"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Chapter Explanation Modal (Non-downloadable PDF) -->
+<div id="explanationModal" class="modal hidden">
+    <div class="modal-content" style="user-select: none; -webkit-user-select: none; -moz-user-select: none;">
+        <span class="close-btn" onclick="closeExplanationModal()">&times;</span>
+        <div id="explanationModalBody">
+            <div class="loading" id="explanationLoadingSpinner">
+                <div class="spinner"></div>
+                <p>Loading explanation document...</p>
+            </div>
+            <div id="explanationContent" class="hidden" style="user-select: none; -webkit-user-select: none; -moz-user-select: none;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- In-app PDF Preview Modal -->
+<div id="pdfPreviewModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content pdf-preview-modal-content">
+        <button type="button" class="pdf-preview-close" onclick="closeCodePdfPreview()" aria-label="Close PDF preview">&times;</button>
+        <div class="pdf-preview-head">
+            <h3 id="pdfPreviewTitle">Code PDF Preview</h3>
+            <p>Preview the selected code inside the portal.</p>
+        </div>
+        <div class="pdf-preview-frame-wrap">
+            <iframe id="pdfPreviewFrame" title="Code PDF Preview" class="pdf-preview-frame"></iframe>
+        </div>
+    </div>
+</div>
+
+<script src="contentMediaResolver.js"></script>
+<script src="script.js"></script>
+<script>
+    // Public mode: no authentication required
+    window.onload = function() {
+        const userInfo = document.getElementById("userInfo");
+        if (userInfo) {
+            userInfo.innerText = "Public Access";
+        }
+        loadCodes();
+        initializeCodeQaPanel();
+    }
+</script>
+</body>
+</html>

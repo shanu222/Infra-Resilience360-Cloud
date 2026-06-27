@@ -1,0 +1,57 @@
+{
+  "page": {
+    "page": "portals",
+    "success": true,
+    "title": "portals",
+    "sections": [
+      {
+        "type": "content",
+        "title": "portals"
+      }
+    ],
+    "elements": {
+      "pgbc-portal": {
+        "cmsType": "portal",
+        "styles": {}
+      },
+      "material-hubs-portal": {
+        "cmsType": "portal",
+        "styles": {}
+      },
+      "retrofit-calculator-portal": {
+        "cmsType": "portal",
+        "styles": {}
+      },
+      "smart-construction-portal": {
+        "cmsType": "portal",
+        "styles": {}
+      },
+      "disaster-dashboard-portal": {
+        "cmsType": "portal",
+        "styles": {}
+      }
+    },
+    "mediaLibrary": [],
+    "updatedAt": "2026-06-01T00:00:00.000Z",
+    "backgroundMedia": {
+      "video": "",
+      "image": ""
+    }
+  },
+  "seeds": {
+    "pgbcSrc": "/pgbc/index.html",
+    "materialHubsSrc": "/material-hubs/index.html",
+    "retrofitCalculatorSrc": "/retrofit-calculator/index.html",
+    "smartConstructionSrc": "/smart-construction/index.html",
+    "disasterDashboardCandidates": [
+      "/disaster-dashboard/index.html"
+    ],
+    "visibility": {
+      "pgbc": true,
+      "materialHubs": true,
+      "retrofitCalculator": true,
+      "smartConstruction": true,
+      "disasterDashboard": true
+    }
+  }
+}

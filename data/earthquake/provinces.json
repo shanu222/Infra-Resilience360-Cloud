@@ -1,0 +1,11 @@
+{
+  "provinces": [
+    { "name": "Punjab", "risk": "Medium" },
+    { "name": "Sindh", "risk": "Low" },
+    { "name": "Balochistan", "risk": "High" },
+    { "name": "Khyber Pakhtunkhwa", "risk": "High" },
+    { "name": "Gilgit-Baltistan", "risk": "Very High" },
+    { "name": "Azad Jammu and Kashmir", "risk": "Very High" },
+    { "name": "Islamabad Capital Territory", "risk": "Medium" }
+  ]
+}

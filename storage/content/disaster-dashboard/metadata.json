@@ -1,0 +1,33 @@
+{
+  "module": "disaster-dashboard",
+  "version": "1.0",
+  "images": [
+    "images/disaster_dashboard_bg.png",
+    "images/image-1.png",
+    "images/image-2.png",
+    "images/image-3.png",
+    "images/image-4.png",
+    "images/image-5.png",
+    "images/image-6.png",
+    "images/image-7.png",
+    "images/image-8.png",
+    "images/image-9.png",
+    "images/image.png"
+  ],
+  "videos": [
+    "videos/video-1.mp4",
+    "videos/video-2.mp4",
+    "videos/video-3.mp4",
+    "videos/video-4.mp4",
+    "videos/video-5.mp4",
+    "videos/video-6.mp4",
+    "videos/video-7.mp4",
+    "videos/video-8.mp4",
+    "videos/video-9.mp4",
+    "videos/video.mp4"
+  ],
+  "pdfs": [
+    "pdfs/risk-atlas.pdf"
+  ],
+  "audio": []
+}

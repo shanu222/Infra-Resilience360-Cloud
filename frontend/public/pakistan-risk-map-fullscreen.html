@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pakistan Risk Map - Fullscreen</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+      }
+
+      body {
+        background: #d9ecfb;
+      }
+
+      .page {
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-bottom: 1px solid #bfd7ed;
+        background: #ecf6ff;
+      }
+
+      .title {
+        margin-right: auto;
+        font-weight: 800;
+        color: #1d3f63;
+      }
+
+      .btn {
+        border: 1px solid rgba(39, 103, 182, 0.4);
+        background: linear-gradient(180deg, #1d4ed8, #1e3a8a);
+        color: #fff;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #map {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="toolbar">
+        <div class="title">Pakistan Risk Map (Fullscreen)</div>
+        <button id="backBtn" class="btn" type="button">Back</button>
+        <button id="fullscreenBtn" class="btn" type="button">Fullscreen</button>
+        <button id="resetBtn" class="btn" type="button">Reset</button>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script>
+      const map = L.map('map', { zoomControl: true }).setView([30.2, 69.3], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      const adm1Url = 'https://raw.githubusercontent.com/shanu222/Resilience360/main/src/data/pakistan-adm1.geojson';
+      const adm2Url = 'https://raw.githubusercontent.com/shanu222/Resilience360/main/src/data/pakistan-adm2.geojson';
+
+      const historicalEvents = [
+        {
+          id: 'pk-eq-2005-kashmir',
+          hazard: 'Earthquake',
+          title: 'Kashmir Earthquake',
+          year: 2005,
+          lat: 34.49,
+          lng: 73.63,
+          extentKm: 130,
+          livesLost: 87350,
+          economicCostUsdBn: 5.2,
+          affectedPeopleMillions: 3.5,
+          source: 'Government of Pakistan / UN reports',
+        },
+        {
+          id: 'pk-eq-2013-awaran',
+          hazard: 'Earthquake',
+          title: 'Awaran Earthquake',
+          year: 2013,
+          lat: 26.97,
+          lng: 65.5,
+          extentKm: 95,
+          livesLost: 825,
+          economicCostUsdBn: 0.25,
+          source: 'USGS + provincial situation reports',
+        },
+        {
+          id: 'pk-eq-2019-mirpur',
+          hazard: 'Earthquake',
+          title: 'Mirpur Earthquake',
+          year: 2019,
+          lat: 33.13,
+          lng: 73.79,
+          extentKm: 70,
+          livesLost: 40,
+          economicCostUsdBn: 0.09,
+          source: 'NDMA / media-verified summaries',
+        },
+        {
+          id: 'pk-flood-2010-super',
+          hazard: 'Flood',
+          title: 'Pakistan Super Floods',
+          year: 2010,
+          lat: 30.5,
+          lng: 71.0,
+          extentKm: 500,
+          livesLost: 1985,
+          economicCostUsdBn: 9.7,
+          affectedPeopleMillions: 20,
+          source: 'NDMA / World Bank / UN OCHA',
+        },
+        {
+          id: 'pk-flood-2011-sindh',
+          hazard: 'Flood',
+          title: 'Sindh Floods',
+          year: 2011,
+          lat: 25.83,
+          lng: 68.74,
+          extentKm: 220,
+          livesLost: 520,
+          economicCostUsdBn: 2.0,
+          affectedPeopleMillions: 9,
+          source: 'Government of Sindh / UN humanitarian briefs',
+        },
+        {
+          id: 'pk-flood-2014-chenab-jhelum',
+          hazard: 'Flood',
+          title: 'Jhelum-Chenab Basin Floods',
+          year: 2014,
+          lat: 32.5,
+          lng: 74.2,
+          extentKm: 170,
+          livesLost: 367,
+          economicCostUsdBn: 1.0,
+          affectedPeopleMillions: 2.5,
+          source: 'NDMA / PDMA Punjab / relief assessments',
+        },
+        {
+          id: 'pk-flood-2022-monsoon',
+          hazard: 'Flood',
+          title: '2022 Monsoon Floods',
+          year: 2022,
+          lat: 26.2,
+          lng: 68.5,
+          extentKm: 380,
+          livesLost: 1739,
+          economicCostUsdBn: 30,
+          affectedPeopleMillions: 33,
+          source: 'NDMA + World Bank rapid damage assessment',
+        },
+      ];
+
+      const provinceRisk = {
+        Punjab: { earthquake: 'Medium', flood: 'High', infraRisk: 'High' },
+        Sindh: { earthquake: 'Low', flood: 'Very High', infraRisk: 'Very High' },
+        Balochistan: { earthquake: 'High', flood: 'Medium', infraRisk: 'High' },
+        KP: { earthquake: 'High', flood: 'High', infraRisk: 'High' },
+        GB: { earthquake: 'Very High', flood: 'Medium', infraRisk: 'High' },
+        AJK: { earthquake: 'Very High', flood: 'Medium', infraRisk: 'High' },
+        ICT: { earthquake: 'Medium', flood: 'Medium', infraRisk: 'Medium' },
+      };
+
+      function normalizeProvince(shapeName) {
+        const key = String(shapeName || '').trim().toLowerCase();
+        if (key === 'khyber pakhtunkhwa') return 'KP';
+        if (key === 'gilgit baltistan') return 'GB';
+        if (key === 'azad kashmir') return 'AJK';
+        if (key === 'islamabad capital territory') return 'ICT';
+        if (key === 'punjab') return 'Punjab';
+        if (key === 'sindh') return 'Sindh';
+        if (key === 'balochistan') return 'Balochistan';
+        return null;
+      }
+
+      function riskColor(risk) {
+        if (risk === 'Very High') return '#a50026';
+        if (risk === 'High') return '#d73027';
+        if (risk === 'Medium') return '#fdae61';
+        return '#74add1';
+      }
+
+      async function loadBoundaries() {
+        try {
+          const [adm1Res, adm2Res] = await Promise.all([fetch(adm1Url), fetch(adm2Url)]);
+          const adm1 = await adm1Res.json();
+          const adm2 = await adm2Res.json();
+
+          L.geoJSON(adm1, {
+            style: (feature) => {
+              const province = normalizeProvince(feature?.properties?.shapeName);
+              const floodRisk = province ? provinceRisk[province]?.flood || 'Low' : 'Low';
+              return {
+                fillColor: riskColor(floodRisk),
+                weight: 1,
+                color: '#1f3349',
+                fillOpacity: 0.5,
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const province = normalizeProvince(feature?.properties?.shapeName) || feature?.properties?.shapeName || 'Province';
+              layer.bindPopup(`<strong>${province}</strong><br/>Flood risk layer preview`);
+            },
+          }).addTo(map);
+
+          L.geoJSON(adm2, {
+            style: {
+              color: '#334155',
+              weight: 0.45,
+              fillOpacity: 0,
+            },
+          }).addTo(map);
+        } catch (error) {
+          console.error('Failed to load boundary data', error);
+        }
+      }
+
+      function addHistoricalEvents() {
+        historicalEvents.forEach((event) => {
+          const hazardColor = event.hazard === 'Flood' ? '#0ea5e9' : '#ef4444';
+          const fillColor = event.hazard === 'Flood' ? '#38bdf8' : '#f87171';
+
+          L.circle([event.lat, event.lng], {
+            radius: Math.max(10000, event.extentKm * 1000),
+            color: hazardColor,
+            weight: 1.5,
+            fillColor,
+            fillOpacity: 0.12,
+          })
+            .bindPopup(`
+              <strong>${event.title}</strong><br/>
+              Hazard: ${event.hazard}<br/>
+              Year: ${event.year}<br/>
+              Estimated extent: ${event.extentKm} km radius<br/>
+              Lives lost: ${event.livesLost.toLocaleString()}<br/>
+              ${event.affectedPeopleMillions !== undefined ? `People affected: ${event.affectedPeopleMillions.toFixed(1)} million<br/>` : ''}
+              ${event.economicCostUsdBn !== undefined ? `Economic cost: $${event.economicCostUsdBn.toFixed(1)} bn<br/>` : ''}
+              Source: ${event.source}
+            `)
+            .addTo(map);
+
+          L.circleMarker([event.lat, event.lng], {
+            radius: 6,
+            color: '#1f2937',
+            weight: 1,
+            fillColor: hazardColor,
+            fillOpacity: 0.9,
+          })
+            .bindTooltip(`${event.hazard === 'Flood' ? '🌊' : '🌍'} ${event.year}`)
+            .bindPopup(`
+              <strong>${event.title}</strong><br/>
+              Hazard: ${event.hazard}<br/>
+              Year: ${event.year}<br/>
+              Estimated extent: ${event.extentKm} km radius<br/>
+              Lives lost: ${event.livesLost.toLocaleString()}<br/>
+              ${event.affectedPeopleMillions !== undefined ? `People affected: ${event.affectedPeopleMillions.toFixed(1)} million<br/>` : ''}
+              ${event.economicCostUsdBn !== undefined ? `Economic cost: $${event.economicCostUsdBn.toFixed(1)} bn<br/>` : ''}
+              Source: ${event.source}
+            `)
+            .addTo(map);
+        });
+      }
+
+      document.getElementById('backBtn').addEventListener('click', () => {
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+        window.location.href = './';
+      });
+
+      document.getElementById('fullscreenBtn').addEventListener('click', async () => {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await document.documentElement.requestFullscreen();
+        }
+      });
+
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        map.setView([30.2, 69.3], 5);
+      });
+
+      loadBoundaries();
+      addHistoricalEvents();
+
+      const params = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
+      if (params.get('autofs') === '1' || hashParams.get('autofs') === '1') {
+        setTimeout(() => {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }, 120);
+      }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building Codes</title>
+<link rel="stylesheet" href="styles.css">
+<script src="portal-lang.js"></script>
+</head>
+<body>
+
+<header class="portal-header">
+    <div class="header-strip">
+        <div class="header-logo-wrap">
+            <img src="gov of pakistan logo.jpg" alt="" class="header-logo">
+        </div>
+        <div class="header-title-wrap">
+            <h1 id="pgbc-header-title">Building Codes</h1>
+            <p id="pgbc-header-subtitle">Sustainability &amp; Energy Efficiency Standards</p>
+        </div>
+        <div class="header-logo-wrap">
+            <img src="NDMA Logo.png" alt="" class="header-logo">
+        </div>
+    </div>
+    <div id="userInfo"></div>
+</header>
+
+<nav class="portal-nav">
+    <button id="homeBtn" class="active-tab" onclick="showSection('home')">Home</button>
+    <button id="libraryBtn" onclick="goToLibrary()">Codes Library</button>
+</nav>
+
+<main class="portal-main">
+<!-- HOME PAGE -->
+<section id="home" class="active">
+    <div class="home-container">
+        <div class="search-banner">
+            <input type="text" id="librarySearch" placeholder="Search Codes Library..." class="search-input">
+            <button id="pgbc-search-btn" onclick="searchLibrary()" class="search-button">Search</button>
+        </div>
+
+        <div class="welcome-banner">
+            <h2 id="pgbc-welcome-title">Welcome to Building Codes</h2>
+            <p id="pgbc-welcome-text">Access national green building codes, sustainability standards, and energy conservation regulations through this comprehensive portal.</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card green-building">
+                <div class="feature-icon">🏢</div>
+                <div class="feature-content">
+                    <h3 id="pgbc-feat-green-h">Green Building</h3>
+                    <p id="pgbc-feat-green-p">Sustainable construction practices</p>
+                </div>
+            </div>
+
+            <div class="feature-card energy-conservation">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-content">
+                    <h3 id="pgbc-feat-energy-h">Energy Conservation</h3>
+                    <p id="pgbc-feat-energy-p">Energy efficiency standards</p>
+                </div>
+            </div>
+
+            <div class="feature-card rainwater-harvesting">
+                <div class="feature-icon">💧</div>
+                <div class="feature-content">
+                    <h3 id="pgbc-feat-rain-h">Rainwater Harvesting</h3>
+                    <p id="pgbc-feat-rain-p">Water management codes</p>
+                </div>
+            </div>
+
+            <div class="feature-card sustainable-design">
+                <div class="feature-icon">🌱</div>
+                <div class="feature-content">
+                    <h3 id="pgbc-feat-sus-h">Sustainable Design</h3>
+                    <p id="pgbc-feat-sus-p">Eco-friendly architecture</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="contentMediaResolver.js"></script>
+<script src="script.js"></script>
+<script>
+    // Public mode: no authentication required
+    window.addEventListener('DOMContentLoaded', function() {
+        const userInfo = document.getElementById("userInfo");
+        if (userInfo) {
+            userInfo.innerText = "Public Access";
+        }
+        if (typeof showSection === 'function') {
+            showSection('home');
+        }
+    });
+</script>
+</body>
+</html>

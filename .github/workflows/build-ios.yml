@@ -1,0 +1,62 @@
+name: Build iOS App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Build web assets and sync to iOS
+        run: npm run mobile:prepare
+
+      # iOS uses Capacitor’s Swift Package (CapApp-SPM); there is no Podfile or xcworkspace.
+      
+      - name: Build iOS App (Simulator, no signing)
+        run: |
+          cd ios/App
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -derivedDataPath build \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+      
+      - name: Package iOS app artifact
+        run: |
+          cd ios/App
+          cd build/Build/Products/Release-iphonesimulator
+          zip -r App-simulator.zip App.app
+      
+      - name: Upload iOS Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-simulator
+          path: ios/App/build/Build/Products/Release-iphonesimulator/App-simulator.zip
+          retention-days: 30
+      
+      - name: Upload Build Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            ios/App/build/logs/**
+            ~/Library/Logs/xcodebuild/**

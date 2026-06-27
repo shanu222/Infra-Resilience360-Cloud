@@ -1,0 +1,35 @@
+{
+  "province": "Gilgit-Baltistan",
+  "city": "Gilgit",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 18,
+    "cementPerBag": 890,
+    "sandPerCft": 58,
+    "aggregatePerCft": 69,
+    "steelPerKg": 162,
+    "tilePerSqFt": 425,
+    "doorPerSqFt": 720,
+    "windowPerSqFt": 590,
+    "plasterPerSqFt": 71,
+    "woodPerCft": 4550,
+    "beamPerRft": 510,
+    "concretePerCft": 204,
+    "paintPerSqFt": 32,
+    "doorWoodPerUnit": 20100,
+    "windowAluminumPerUnit": 16200,
+    "waterproofPerSqFt": 49,
+    "gaderPerPiece": 5900,
+    "beamConcretePerCft": 248,
+    "columnConcretePerCft": 270
+  },
+  "laborRates": {
+    "dailyWageMason": 2800,
+    "dailyWageHelper": 2000,
+    "workersPer100SqFt": 2.7,
+    "productivitySqFtPerWorkerDay": 9.8
+  },
+  "notes": [
+    "Local JSON source for smart construction rates."
+  ]
+}

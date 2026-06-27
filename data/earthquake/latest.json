@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "source": "local-cache",
+  "generatedAt": "2026-06-25T19:00:00.000Z",
+  "features": [
+    {
+      "id": "pk-lahore-20260625-01",
+      "type": "Feature",
+      "properties": {
+        "mag": 4.6,
+        "place": "58 km NW of Lahore, Pakistan",
+        "time": 1761860400000,
+        "url": "/storage/content/live-earthquake-alerts/feeds/local-feed.json"
+      },
+      "geometry": { "type": "Point", "coordinates": [73.58, 31.88, 18.2] }
+    },
+    {
+      "id": "pk-quetta-20260625-02",
+      "type": "Feature",
+      "properties": {
+        "mag": 5.1,
+        "place": "42 km SW of Quetta, Pakistan",
+        "time": 1761858600000,
+        "url": "/storage/content/live-earthquake-alerts/feeds/local-feed.json"
+      },
+      "geometry": { "type": "Point", "coordinates": [66.69, 29.83, 24.1] }
+    },
+    {
+      "id": "pk-gb-20260625-03",
+      "type": "Feature",
+      "properties": {
+        "mag": 4.2,
+        "place": "Gilgit-Baltistan, Pakistan",
+        "time": 1761855000000,
+        "url": "/storage/content/live-earthquake-alerts/feeds/local-feed.json"
+      },
+      "geometry": { "type": "Point", "coordinates": [74.34, 35.92, 12.5] }
+    }
+  ]
+}

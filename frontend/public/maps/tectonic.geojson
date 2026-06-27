@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Indian Plate Edge (approx)"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [61, 25],
+          [66, 27],
+          [71, 29],
+          [76, 31],
+          [81, 33],
+          [86, 34],
+          [91, 35]
+        ]
+      }
+    }
+  ]
+}

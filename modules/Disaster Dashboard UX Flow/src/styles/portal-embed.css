@@ -1,0 +1,15 @@
+/**
+ * When the portal runs inside the Resilience360 shell iframe (`dd-portal-embedded` on <html>),
+ * strip document-level backgrounds so the parent page hero video shows through.
+ */
+html.dd-portal-embedded,
+html.dd-portal-embedded body {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+html.dd-portal-embedded #root {
+  min-height: 100%;
+  background-color: transparent !important;
+  background-image: none !important;
+}

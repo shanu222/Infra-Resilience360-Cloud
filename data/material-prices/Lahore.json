@@ -1,0 +1,36 @@
+{
+  "province": "Punjab",
+  "city": "Lahore",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 15,
+    "cementPerBag": 800,
+    "sandPerCft": 50,
+    "aggregatePerCft": 60,
+    "steelPerKg": 150,
+    "tilePerSqFt": 380,
+    "doorPerSqFt": 650,
+    "windowPerSqFt": 540,
+    "plasterPerSqFt": 65,
+    "woodPerCft": 4200,
+    "beamPerRft": 450,
+    "concretePerCft": 180,
+    "paintPerSqFt": 28,
+    "doorWoodPerUnit": 18000,
+    "windowAluminumPerUnit": 14500,
+    "waterproofPerSqFt": 42,
+    "gaderPerPiece": 5200,
+    "beamConcretePerCft": 220,
+    "columnConcretePerCft": 240
+  },
+  "laborRates": {
+    "dailyWageMason": 2500,
+    "dailyWageHelper": 1800,
+    "workersPer100SqFt": 2.4,
+    "productivitySqFtPerWorkerDay": 11
+  },
+  "notes": [
+    "Local JSON source for smart construction rates.",
+    "Update these numbers with district market surveys when available."
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "type": "retrofit_cms",
+  "section": "retrofit",
+  "pages": [
+    {
+      "pageId": "main",
+      "order": 0,
+      "content": {
+        "texts": {},
+        "images": {},
+        "videos": {},
+        "audios": {},
+        "icons": {}
+      },
+      "styles": {}
+    },
+    {
+      "pageId": "analysis",
+      "order": 1,
+      "content": {
+        "texts": {},
+        "images": {},
+        "videos": {},
+        "audios": {},
+        "icons": {}
+      },
+      "styles": {}
+    },
+    {
+      "pageId": "estimate",
+      "order": 2,
+      "content": {
+        "texts": {},
+        "images": {},
+        "videos": {},
+        "audios": {},
+        "icons": {}
+      },
+      "styles": {}
+    }
+  ],
+  "textOverrides": {
+    "en": {},
+    "ur": {}
+  },
+  "globalStyles": {
+    "backgroundColor": "",
+    "backgroundImage": "",
+    "backgroundVideo": "",
+    "isVideoEnabled": false,
+    "textColor": "",
+    "transparency": 1
+  }
+}

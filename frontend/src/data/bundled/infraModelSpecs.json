@@ -1,0 +1,320 @@
+{
+  "models": [
+    {
+      "id": "flood-housing-cluster-pk",
+      "title": "Elevated Flood-Resilient Housing Cluster",
+      "description": "Neighborhood housing cluster with raised plinths, safe egress lanes, and flood-compatible lower levels.",
+      "features": [
+        "Raised plinth blocks and dry refuge deck",
+        "Flood-compatible ground floor detailing",
+        "Protected lifeline utility shafts"
+      ],
+      "advantagesPakistan": [
+        "Suitable for riverine settlements in Sindh/South Punjab",
+        "Cuts repetitive household flood losses",
+        "Faster re-occupancy after inundation"
+      ]
+    },
+    {
+      "id": "flood-health-post-pk",
+      "title": "Flood-Safe Primary Health Post Model",
+      "description": "Health post with raised clinical areas and protected medicine/cold-chain services.",
+      "features": [
+        "Raised treatment and storage areas",
+        "Backflow-safe sanitation routing",
+        "Protected emergency access path"
+      ],
+      "advantagesPakistan": [
+        "Keeps basic care running during floods",
+        "Reduces medicine spoilage losses",
+        "Improves continuity in vulnerable districts"
+      ]
+    },
+    {
+      "id": "resilient-waterpoint-pk",
+      "title": "Resilient Community Water Point Model",
+      "description": "Flood- and quake-aware public water point with protected pump controls and anchored system layout.",
+      "features": [
+        "Raised/anchored pump and control units",
+        "Drainage apron and contamination barrier",
+        "Quick-repair modular component access"
+      ],
+      "advantagesPakistan": [
+        "Improves safe water availability post-disaster",
+        "Lower contamination risk after floods",
+        "Easier local maintenance by municipal teams"
+      ]
+    },
+    {
+      "id": "lifeline-utility-corridor-pk",
+      "title": "Seismic-Resilient Lifeline Utility Corridor",
+      "description": "Utility corridor package for water, power, and telecom with seismic restraints and flexible joints.",
+      "features": [
+        "Seismic braces for utility runs",
+        "Flexible joint transition sections",
+        "Critical valve and panel anchorage"
+      ],
+      "advantagesPakistan": [
+        "Reduces service interruption during earthquakes",
+        "Protects critical urban systems",
+        "Supports rapid post-event restoration"
+      ]
+    },
+    {
+      "id": "sponge-street-drainage-pk",
+      "title": "Urban Sponge Street and Drainage Retrofit",
+      "description": "Permeable paving + bioswale + retention pocket model for dense flood-prone neighborhoods.",
+      "features": [
+        "Permeable roadside surface sections",
+        "Bioswale and sediment trap chain",
+        "Controlled outflow retention chambers"
+      ],
+      "advantagesPakistan": [
+        "Reduces urban waterlogging duration",
+        "Improves monsoon drainage performance",
+        "Adaptable to phased municipal upgrading"
+      ]
+    },
+    {
+      "id": "resilient-market-block-pk",
+      "title": "Resilient Market and Commercial Block Model",
+      "description": "Small-business cluster design with flood-safe services and improved seismic load paths.",
+      "features": [
+        "Elevated critical service zone",
+        "Confinement/tie detailing for shop rows",
+        "Emergency exit and utility isolation plan"
+      ],
+      "advantagesPakistan": [
+        "Protects livelihoods in district bazaars",
+        "Reduces downtime after hazard events",
+        "Supports safer rebuilding standards"
+      ]
+    },
+    {
+      "id": "district-eoc-building-pk",
+      "title": "District Emergency Operations Center (EOC) Model",
+      "description": "Multi-hazard command facility model for district response coordination and continuity operations.",
+      "features": [
+        "Resilient command floor and communication core",
+        "Backup control power/water system",
+        "Integrated dispatch and shelter coordination room"
+      ],
+      "advantagesPakistan": [
+        "Improves district incident coordination",
+        "Supports faster field deployment",
+        "Strengthens institutional resilience capacity"
+      ]
+    },
+    {
+      "id": "bamboo-frame-wattle-daub",
+      "title": "Bamboo Frame with Wattle and Daub",
+      "description": "Low-carbon bamboo framing and wattle-daub walling adapted for resilient and affordable housing.",
+      "features": [
+        "Locally sourced bamboo structural frame",
+        "Lightweight walling system",
+        "Repair-friendly material workflow"
+      ],
+      "advantagesPakistan": [
+        "Suitable for low-cost rural housing",
+        "Lower embodied carbon than conventional masonry",
+        "Supports local construction skills"
+      ]
+    },
+    {
+      "id": "cement-bamboo-frame-structure",
+      "title": "Cement Bamboo Frame Structure",
+      "description": "Hybrid system combining bamboo framing with cement-stabilized components for added durability.",
+      "features": [
+        "Bamboo primary skeleton with stabilized finishes",
+        "Improved weather resistance",
+        "Lightweight lateral load behavior"
+      ],
+      "advantagesPakistan": [
+        "Useful for mixed climate zones",
+        "Faster construction than heavy systems",
+        "Balances durability and affordability"
+      ]
+    },
+    {
+      "id": "confined-concrete-block-masonry-structure",
+      "title": "Confined Concrete Block Masonry Structure",
+      "description": "Concrete block masonry strengthened by confinement elements to improve seismic and structural safety.",
+      "features": [
+        "Confined masonry detailing",
+        "Integrated tie and confinement members",
+        "Improved crack control under lateral loads"
+      ],
+      "advantagesPakistan": [
+        "Aligned with practical seismic safety upgrades",
+        "Scalable for peri-urban construction",
+        "Better life-safety performance"
+      ]
+    },
+    {
+      "id": "earthbag-masonry-structure",
+      "title": "Earthbag Masonry Structure",
+      "description": "Compacted earthbag walling approach for resilient, low-cost, and thermally efficient structures.",
+      "features": [
+        "Compacted soil bag wall units",
+        "Layered construction with confinement logic",
+        "Low-cost material strategy"
+      ],
+      "advantagesPakistan": [
+        "Cost-efficient for resource-constrained settings",
+        "Thermal comfort in hot regions",
+        "Community-build friendly approach"
+      ]
+    },
+    {
+      "id": "floating-amphibious-structure",
+      "title": "Floating Amphibious Structure",
+      "description": "Amphibious building concept designed to adapt to variable flood levels while maintaining habitability.",
+      "features": [
+        "Flood-responsive buoyant platform concept",
+        "Anchored guidance and stability system",
+        "Flexible utility routing for variable water levels"
+      ],
+      "advantagesPakistan": [
+        "Applicable in recurrent flood basins",
+        "Reduces prolonged displacement risk",
+        "Improves adaptive flood resilience"
+      ]
+    },
+    {
+      "id": "fly-ash-masonry-structure",
+      "title": "Fly Ash Masonry Structure",
+      "description": "Masonry system using fly-ash based units for improved material efficiency and lower environmental impact.",
+      "features": [
+        "Fly-ash masonry blocks",
+        "Consistent block geometry for quality control",
+        "Compatible with standard masonry workflows"
+      ],
+      "advantagesPakistan": [
+        "Promotes resource-efficient construction",
+        "Potentially lower material cost variability",
+        "Supports cleaner building practices"
+      ]
+    },
+    {
+      "id": "geogrid-reinforced-retaining-wall-structure",
+      "title": "Geogrid Reinforced Retaining Wall Structure",
+      "description": "Retaining wall system with geogrid reinforcement to improve slope and embankment stability.",
+      "features": [
+        "Geogrid soil reinforcement layers",
+        "Retained earth stability detailing",
+        "Drainage-integrated retaining strategy"
+      ],
+      "advantagesPakistan": [
+        "Useful for hilly and road corridor regions",
+        "Improves slope failure resistance",
+        "Supports transport network resilience"
+      ]
+    },
+    {
+      "id": "light-gauge-steel-house-structure",
+      "title": "Light Gauge Steel House Structure",
+      "description": "Prefabricated light-gauge steel framing approach for rapid and resilient housing delivery.",
+      "features": [
+        "Factory-friendly light steel sections",
+        "Fast dry construction sequence",
+        "Repeatable quality-controlled detailing"
+      ],
+      "advantagesPakistan": [
+        "Suitable for rapid reconstruction programs",
+        "Shorter on-site construction time",
+        "High consistency in structural components"
+      ]
+    },
+    {
+      "id": "loh-kaat-timber-house-structure",
+      "title": "Loh-Kaat Timber House Structure",
+      "description": "Traditional timber-focused house concept modernized for improved resilience and serviceability.",
+      "features": [
+        "Timber frame with resilient joints",
+        "Reduced mass structural approach",
+        "Context-adapted vernacular compatibility"
+      ],
+      "advantagesPakistan": [
+        "Leverages local building traditions",
+        "Potentially improved seismic response",
+        "Supports culturally compatible housing upgrades"
+      ]
+    },
+    {
+      "id": "pre-fabricated-house-structure",
+      "title": "Pre-Fabricated House Structure",
+      "description": "Modular prefabricated housing concept for quicker deployment and better construction consistency.",
+      "features": [
+        "Modular prefabricated components",
+        "Reduced on-site assembly complexity",
+        "Scalable repeatable layout system"
+      ],
+      "advantagesPakistan": [
+        "Ideal for post-disaster rapid housing",
+        "Improves construction speed and quality",
+        "Supports phased settlement rebuilding"
+      ]
+    },
+    {
+      "id": "raised-plinth-flood-resilient-house",
+      "title": "Raised Plinth Flood Resilient House",
+      "description": "Raised plinth residential model focused on flood-safe occupancy and protected service routing.",
+      "features": [
+        "Elevated plinth foundation strategy",
+        "Flood-adapted ingress and circulation",
+        "Protected service and utility layout"
+      ],
+      "advantagesPakistan": [
+        "Highly relevant for flood-prone settlements",
+        "Reduces routine inundation damage",
+        "Improves household recovery speed"
+      ]
+    },
+    {
+      "id": "rat-trap-bond-masonry-structure",
+      "title": "Rat Trap Bond Masonry Structure",
+      "description": "Rat-trap bond masonry model for material-efficient walling with improved thermal behavior.",
+      "features": [
+        "Rat-trap bond wall configuration",
+        "Reduced brick consumption",
+        "Lightweight cavity-based wall performance"
+      ],
+      "advantagesPakistan": [
+        "Cost-efficient wall construction option",
+        "Lower material intensity",
+        "Useful for climate-responsive housing"
+      ]
+    },
+    {
+      "id": "reinforced-adobe-brick-structure",
+      "title": "Reinforced Adobe Brick Structure",
+      "description": "Adobe brick structural concept upgraded with reinforcement details for enhanced resilience.",
+      "features": [
+        "Reinforced adobe wall strategy",
+        "Improved confinement and tie detailing",
+        "Locally available earth-based materials"
+      ],
+      "advantagesPakistan": [
+        "Supports safer traditional construction",
+        "Affordable for rural communities",
+        "Improves durability of earthen systems"
+      ]
+    },
+    {
+      "id": "timber-frame-lath-plaster",
+      "title": "Timber Frame with Lath and Plaster",
+      "description": "Lightweight timber frame system with lath and plaster infill adapted for resilient housing applications.",
+      "features": [
+        "Timber framing with light infill",
+        "Lath-plaster wall assembly",
+        "Maintainable and upgradable envelope"
+      ],
+      "advantagesPakistan": [
+        "Can reduce seismic inertial demands",
+        "Uses locally familiar methods",
+        "Supports incremental resilient upgrades"
+      ]
+    }
+  ],
+  "pdfMap": {}
+}

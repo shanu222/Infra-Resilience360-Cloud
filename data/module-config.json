@@ -1,0 +1,15 @@
+{
+  "modules": [
+    "retrofit-guide",
+    "material-hubs",
+    "building-codes",
+    "best-practices",
+    "learn",
+    "disaster-dashboard",
+    "live-earthquake-alerts",
+    "resilience-models",
+    "design-toolkit",
+    "smart-construction",
+    "readiness-calculator"
+  ]
+}

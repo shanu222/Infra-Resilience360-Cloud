@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "layers": [
+    {
+      "id": "pakistan-adm1",
+      "file": "pakistan-adm1.geojson",
+      "type": "geojson",
+      "description": "Pakistan administrative boundaries level 1"
+    },
+    {
+      "id": "pakistan-adm2",
+      "file": "pakistan-adm2.geojson",
+      "type": "geojson",
+      "description": "Pakistan administrative boundaries level 2"
+    }
+  ]
+}

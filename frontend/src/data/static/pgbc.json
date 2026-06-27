@@ -1,0 +1,20 @@
+{
+  "page": {
+    "page": "pgbc",
+    "success": true,
+    "title": "pgbc",
+    "sections": [
+      {
+        "type": "content",
+        "title": "pgbc"
+      }
+    ],
+    "elements": {},
+    "mediaLibrary": [],
+    "updatedAt": "2026-06-01T00:00:00.000Z",
+    "backgroundMedia": {
+      "video": "",
+      "image": ""
+    }
+  }
+}

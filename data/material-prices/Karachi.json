@@ -1,0 +1,35 @@
+{
+  "province": "Sindh",
+  "city": "Karachi",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 16,
+    "cementPerBag": 830,
+    "sandPerCft": 52,
+    "aggregatePerCft": 62,
+    "steelPerKg": 154,
+    "tilePerSqFt": 390,
+    "doorPerSqFt": 670,
+    "windowPerSqFt": 555,
+    "plasterPerSqFt": 66,
+    "woodPerCft": 4300,
+    "beamPerRft": 470,
+    "concretePerCft": 188,
+    "paintPerSqFt": 29,
+    "doorWoodPerUnit": 18600,
+    "windowAluminumPerUnit": 14900,
+    "waterproofPerSqFt": 44,
+    "gaderPerPiece": 5400,
+    "beamConcretePerCft": 230,
+    "columnConcretePerCft": 250
+  },
+  "laborRates": {
+    "dailyWageMason": 2600,
+    "dailyWageHelper": 1850,
+    "workersPer100SqFt": 2.5,
+    "productivitySqFtPerWorkerDay": 10.8
+  },
+  "notes": [
+    "Local JSON source for smart construction rates."
+  ]
+}

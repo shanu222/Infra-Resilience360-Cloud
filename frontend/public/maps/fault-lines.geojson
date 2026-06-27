@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Himalayan Arc (approx)"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [70, 30],
+          [74, 32],
+          [78, 33],
+          [83, 31],
+          [88, 29],
+          [93, 27]
+        ]
+      }
+    }
+  ]
+}

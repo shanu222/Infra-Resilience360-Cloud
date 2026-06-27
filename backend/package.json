@@ -1,0 +1,9 @@
+{
+  "name": "resilience360-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node ./server.js",
+    "dev": "node ./index.mjs"
+  }
+}

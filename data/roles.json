@@ -1,0 +1,16 @@
+{
+  "roles": [
+    {
+      "id": "public",
+      "label": "Public"
+    },
+    {
+      "id": "engineer",
+      "label": "Engineer"
+    },
+    {
+      "id": "admin",
+      "label": "Administrator"
+    }
+  ]
+}

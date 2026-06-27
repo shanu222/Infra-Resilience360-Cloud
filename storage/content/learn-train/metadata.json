@@ -1,0 +1,36 @@
+{
+  "module": "learn-train",
+  "version": "1.0",
+  "images": [
+    "images/arc-explainer.jpg",
+    "images/flood-protection-barriers.jpg",
+    "images/floodplain-resilient-recovery.jpg",
+    "images/global-best-practices.jpg",
+    "images/infrastructure-damages.jpg",
+    "images/infrastructure-resilience-audit.jpg",
+    "images/infrastructure-video-3.jpg",
+    "images/innovative-construction-technologies-audio.jpg",
+    "images/innovative-construction-technologies.jpg",
+    "images/modular-bridge-animation.jpg",
+    "images/monsoon-2025-damages-pakistan.jpg",
+    "images/resilient-structures-earthquake-floods.jpg",
+    "images/stormwater-management-drainage-permeable-pavement.jpg"
+  ],
+  "videos": [
+    "videos/arc-explainer.mp4",
+    "videos/flood-protection-barriers.mp4",
+    "videos/floodplain-resilient-recovery.mp4",
+    "videos/global-best-practices.mp4",
+    "videos/infrastructure-damages.mp4",
+    "videos/infrastructure-resilience-audit.mp4",
+    "videos/infrastructure-video-3.mp4",
+    "videos/innovative-construction-technologies-audio.mp4",
+    "videos/innovative-construction-technologies.mp4",
+    "videos/modular-bridge-animation.mp4",
+    "videos/monsoon-2025-damages-pakistan.mp4",
+    "videos/resilient-structures-earthquake-floods.mp4",
+    "videos/stormwater-management-drainage-permeable-pavement.mp4"
+  ],
+  "pdfs": [],
+  "audio": []
+}

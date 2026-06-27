@@ -1,0 +1,20 @@
+{
+  "page": {
+    "page": "best-practices",
+    "success": true,
+    "title": "best-practices",
+    "sections": [
+      {
+        "type": "content",
+        "title": "best-practices"
+      }
+    ],
+    "elements": {},
+    "mediaLibrary": [],
+    "updatedAt": "2026-06-01T00:00:00.000Z",
+    "backgroundMedia": {
+      "video": "",
+      "image": ""
+    }
+  }
+}

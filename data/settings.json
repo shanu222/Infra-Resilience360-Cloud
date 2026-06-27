@@ -1,0 +1,7 @@
+{
+  "localFirst": true,
+  "apiPort": 10000,
+  "contentBase": "/content",
+  "mediaBase": "/static/media/s3",
+  "cmsSource": "data/"
+}

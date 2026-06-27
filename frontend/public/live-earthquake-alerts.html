@@ -1,0 +1,3707 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      try {
+        if (new URLSearchParams(window.location.search).get('embed') === '1') {
+          document.documentElement.classList.add('eq-embed')
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    </script>
+    <title>Live Earthquake Alerts</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+        background: #0b1220;
+        color: #eef5ff;
+      }
+
+      html,
+      body {
+        height: auto;
+        min-height: 100%;
+      }
+
+      .page {
+        min-height: 100dvh;
+        height: auto;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        background:
+          radial-gradient(circle at 70% 42%, rgba(34, 95, 210, 0.28), rgba(4, 10, 24, 0.95) 45%),
+          linear-gradient(160deg, #0a1327 0%, #040814 100%);
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(110, 162, 255, 0.25);
+        background: rgba(5, 15, 36, 0.72);
+        flex-wrap: wrap;
+      }
+
+      .title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: clamp(1.15rem, 2.8vw, 1.65rem);
+        font-weight: 800;
+        min-width: 0;
+      }
+
+      .title-icon {
+        color: #4cc6ff;
+        font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+        flex-shrink: 0;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #8ff7b7;
+        font-weight: 700;
+        font-size: 12px;
+        background: rgba(14, 41, 97, 0.65);
+        border: 1px solid rgba(102, 176, 255, 0.33);
+        border-radius: 999px;
+        padding: 5px 10px;
+        white-space: nowrap;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #46ff87;
+        box-shadow: 0 0 8px rgba(70, 255, 135, 0.9);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .btn {
+        border: 1px solid rgba(141, 193, 255, 0.3);
+        background: linear-gradient(180deg, #194aa6, #10316f);
+        color: #f5f9ff;
+        border-radius: 8px;
+        padding: 7px 11px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn.back {
+        background: linear-gradient(180deg, #64748b, #334155);
+      }
+
+      .btn.primary {
+        background: linear-gradient(180deg, #2b9cff, #1b6cdd);
+      }
+
+      .btn.success {
+        background: linear-gradient(180deg, #22c55e, #15803d);
+      }
+
+      .btn.formula {
+        background: linear-gradient(180deg, #7c3aed, #5b21b6);
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 10px rgba(124, 58, 237, 0.35);
+        transition: transform 160ms ease, box-shadow 160ms ease;
+      }
+
+      .btn.formula:hover {
+        transform: scale(1.08);
+        box-shadow: 0 0 16px rgba(167, 139, 250, 0.48);
+      }
+
+      .btn.formula svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .formula-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 141;
+        background: rgba(2, 8, 20, 0.72);
+        backdrop-filter: blur(2px);
+      }
+
+      .formula-modal.open {
+        display: flex;
+      }
+
+      .formula-modal-card {
+        width: min(680px, calc(100vw - 24px));
+        max-height: calc(100vh - 28px);
+        overflow: auto;
+        border: 1px solid rgba(140, 116, 255, 0.55);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(14, 12, 43, 0.98), rgba(8, 8, 28, 0.98));
+        padding: 14px;
+      }
+
+      .formula-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .formula-modal-head h3 {
+        margin: 0;
+        font-size: 22px;
+        color: #efe7ff;
+      }
+
+      .formula-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .formula-item {
+        border: 1px solid rgba(157, 133, 255, 0.35);
+        border-radius: 10px;
+        background: rgba(18, 16, 52, 0.8);
+        padding: 10px;
+      }
+
+      .formula-item h4 {
+        margin: 0 0 6px;
+        color: #d8c8ff;
+        font-size: 15px;
+      }
+
+      .formula-item code {
+        display: block;
+        font-family: Consolas, 'Courier New', monospace;
+        color: #f9f7ff;
+        font-size: 14px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      .formula-note {
+        margin-top: 8px;
+        color: #cfc2ef;
+        font-size: 13px;
+      }
+
+      .formula-breakdown {
+        margin-top: 8px;
+        display: grid;
+        gap: 4px;
+      }
+
+      .formula-breakdown code {
+        margin-top: 2px;
+      }
+
+      .formula-value {
+        color: #ffd875;
+        font-weight: 700;
+      }
+
+      .email-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 140;
+        background: rgba(2, 8, 20, 0.65);
+        backdrop-filter: blur(2px);
+      }
+
+      .email-modal.open {
+        display: flex;
+      }
+
+      .email-modal-card {
+        width: min(560px, calc(100vw - 24px));
+        max-height: calc(100vh - 28px);
+        overflow: auto;
+        border: 1px solid rgba(119, 174, 255, 0.4);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(9, 23, 56, 0.98), rgba(4, 12, 34, 0.98));
+        padding: 14px;
+      }
+
+      .email-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .email-modal-head h3 {
+        margin: 0;
+      }
+
+      .email-help {
+        margin: 0 0 10px;
+        color: #b7cdef;
+        font-size: 13px;
+      }
+
+      .email-add-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+
+      .email-input {
+        border: 1px solid rgba(141, 193, 255, 0.3);
+        border-radius: 8px;
+        padding: 9px 10px;
+        color: #eef5ff;
+        background: rgba(7, 19, 43, 0.9);
+      }
+
+      .email-status {
+        min-height: 18px;
+        font-size: 12px;
+        color: #9bd2ff;
+        margin: 8px 0;
+      }
+
+      .email-status.error {
+        color: #ff9aa8;
+      }
+
+      .email-sub-list {
+        margin-top: 8px;
+        max-height: 220px;
+        overflow: auto;
+        border: 1px solid rgba(121, 170, 247, 0.24);
+        border-radius: 9px;
+        padding: 8px;
+        background: rgba(5, 16, 37, 0.92);
+      }
+
+      .email-sub-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid rgba(124, 173, 255, 0.18);
+        border-radius: 8px;
+        padding: 7px 8px;
+        margin-bottom: 6px;
+      }
+
+      .email-sub-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .email-tag {
+        font-size: 11px;
+        color: #9bbde5;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(132px, min(20vw, 210px)) minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px;
+        min-height: 0;
+        align-items: stretch;
+      }
+
+      .card {
+        border: 1px solid rgba(106, 165, 255, 0.35);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(8, 21, 52, 0.92), rgba(4, 11, 29, 0.92));
+      }
+
+      .left {
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        max-width: 100%;
+      }
+
+      .left-tabs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 6px;
+        margin: 0 2px 10px;
+      }
+
+      .left-tab {
+        border: 1px solid rgba(124, 173, 255, 0.35);
+        background: rgba(10, 29, 67, 0.86);
+        color: #dce9ff;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 6px 8px;
+        cursor: pointer;
+      }
+
+      .left-tab.active {
+        background: linear-gradient(180deg, #2b9cff, #1b6cdd);
+        color: #f7fbff;
+      }
+
+      .left-panel {
+        display: none;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+      }
+
+      .left-panel.active {
+        display: flex;
+      }
+
+      .left h2 {
+        margin: 2px 2px 6px;
+        font-size: clamp(1rem, 2.4vw, 1.25rem);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: #e8f0ff;
+      }
+
+      .left-head {
+        display: flex;
+        justify-content: space-between;
+        color: #9cb5de;
+        font-weight: 700;
+        font-size: 10px;
+        padding: 0 4px 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .events {
+        flex: 1;
+        max-height: none;
+        overflow-y: auto;
+      }
+
+      .locations-list {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+
+      .country-row {
+        border: 1px solid rgba(124, 173, 255, 0.2);
+        border-radius: 10px;
+        margin-bottom: 6px;
+        background: rgba(6, 17, 41, 0.88);
+        overflow: hidden;
+      }
+
+      .country-row.active-country {
+        border-color: rgba(82, 209, 142, 0.56);
+      }
+
+      .country-head {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border: none;
+        background: transparent;
+        color: #eef5ff;
+        padding: 9px 10px;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .country-name {
+        font-weight: 700;
+        font-size: 14px;
+      }
+
+      .country-count {
+        min-width: 32px;
+        text-align: center;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 800;
+        color: #06142d;
+        background: #86c7ff;
+      }
+
+      .country-count.live {
+        background: #4bff9c;
+      }
+
+      .country-details {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 240ms ease;
+        border-top: 1px solid rgba(124, 173, 255, 0.2);
+      }
+
+      .country-row.expanded .country-details {
+        max-height: 360px;
+      }
+
+      .state-block {
+        padding: 8px 10px;
+        border-top: 1px solid rgba(124, 173, 255, 0.12);
+      }
+
+      .state-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 12px;
+        color: #c0d5f4;
+        margin-bottom: 6px;
+      }
+
+      .state-name {
+        font-weight: 700;
+        color: #f1f7ff;
+      }
+
+      .state-events {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .state-event {
+        width: 100%;
+        border: 1px solid rgba(113, 167, 250, 0.28);
+        border-radius: 8px;
+        background: rgba(8, 23, 53, 0.92);
+        color: #e6f0ff;
+        font-size: 12px;
+        padding: 6px 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .state-event strong {
+        font-size: 11px;
+        color: #85bfff;
+      }
+
+      .state-empty {
+        color: #9db5dd;
+        font-size: 12px;
+        padding: 8px 10px;
+      }
+
+      .event {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 8px;
+        align-items: start;
+        border: 1px solid rgba(124, 173, 255, 0.25);
+        border-radius: 8px;
+        padding: 6px 7px;
+        margin-bottom: 5px;
+        background: rgba(6, 17, 41, 0.92);
+        cursor: pointer;
+      }
+
+      .event.selected {
+        border-color: rgba(255, 89, 89, 0.8);
+        box-shadow: 0 0 0 1px rgba(255, 89, 89, 0.25);
+      }
+
+      .event .meta {
+        display: flex;
+        gap: 6px;
+        min-width: 0;
+        align-items: flex-start;
+      }
+
+      .event .meta > div:last-child {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .flag {
+        font-size: 15px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .country {
+        font-weight: 700;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+
+      .place {
+        color: #b0c4e3;
+        font-size: 10px;
+        line-height: 1.35;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .mag {
+        text-align: right;
+        flex-shrink: 0;
+        min-width: 4.75rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+      }
+
+      .mag-badge {
+        display: inline-block;
+        border-radius: 6px;
+        padding: 2px 6px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .m-veryhigh { background: linear-gradient(180deg, #cf1f35, #8c0d1d); }
+      .m-high { background: linear-gradient(180deg, #ef7f1f, #b3470e); }
+      .m-medium { background: linear-gradient(180deg, #d4bc18, #9c8308); }
+      .m-low { background: linear-gradient(180deg, #2f96ef, #1a69bf); }
+
+      .time {
+        font-size: 9px;
+        color: #b4c7e7;
+        margin-top: 0;
+        white-space: nowrap;
+      }
+
+      .right {
+        position: relative;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .globe-wrap {
+        flex: 1 1 auto;
+        width: 100%;
+        height: auto;
+        min-height: clamp(400px, 64vh, 900px);
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        justify-content: stretch;
+        padding: 8px;
+        overflow: hidden;
+      }
+
+      .globe {
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+        align-self: stretch;
+        border-radius: 12px;
+        background:
+          radial-gradient(circle at 30% 25%, rgba(58, 145, 255, 0.3), rgba(2, 8, 23, 0.97) 52%),
+          url('/vendor/earth-night.jpg') center/cover no-repeat;
+        box-shadow: 0 0 40px rgba(94, 140, 255, 0.25);
+        position: relative;
+        overflow: hidden;
+        transition: background 320ms ease, filter 320ms ease;
+      }
+
+      .map2d {
+        position: absolute;
+        inset: 12px;
+        border-radius: 12px;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 240ms ease;
+        z-index: 2;
+      }
+
+      .map2d.active {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .map2d .leaflet-container {
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+      }
+
+      .globe.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .globe canvas {
+        transition: opacity 240ms ease, filter 320ms ease;
+      }
+
+      .globe.layer-default {
+        background:
+          radial-gradient(circle at 30% 25%, rgba(58, 145, 255, 0.3), rgba(2, 8, 23, 0.97) 52%),
+          url('/vendor/earth-night.jpg') center/cover no-repeat;
+      }
+
+      .globe.layer-heatmap {
+        background:
+          radial-gradient(circle at 30% 25%, rgba(99, 232, 255, 0.28), rgba(3, 11, 28, 0.96) 56%),
+          linear-gradient(145deg, rgba(6, 16, 43, 0.92), rgba(2, 7, 20, 0.98));
+      }
+
+      .globe.layer-satellite {
+        background:
+          radial-gradient(circle at 30% 25%, rgba(167, 231, 255, 0.3), rgba(12, 29, 64, 0.78) 60%),
+          url('/vendor/earth-blue-marble.jpg') center/cover no-repeat;
+        filter: brightness(1.08) saturate(1.08);
+      }
+
+      .globe.layer-satellite canvas {
+        filter: brightness(1.22) saturate(1.14);
+      }
+
+      .globe.layer-heatmap canvas {
+        filter: contrast(1.08) saturate(1.15);
+      }
+
+      .globe.layer-switching canvas {
+        opacity: 0.68;
+        filter: blur(0.55px);
+      }
+
+      .tools {
+        position: absolute;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 10px;
+        z-index: 1000;
+        pointer-events: auto;
+      }
+
+      .tool {
+        width: 44px;
+        height: 44px;
+        border: 1px solid rgba(119, 174, 255, 0.45);
+        border-radius: 10px;
+        background: rgba(5, 23, 54, 0.9);
+        color: #eff6ff;
+        cursor: pointer;
+        transform: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .tool:hover {
+        background: rgba(0, 150, 255, 0.2);
+        border-color: rgba(0, 150, 255, 0.6);
+        box-shadow: 0 0 14px rgba(138, 192, 255, 0.35);
+      }
+
+      .tool:hover svg {
+        color: #00bfff;
+      }
+
+      .tool.active,
+      .tool.is-active {
+        background: rgba(0, 200, 255, 0.3);
+        box-shadow: 0 0 12px rgba(0, 200, 255, 0.8);
+        color: #00ffff;
+      }
+
+      .tool.layer-toggle {
+        background: rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 10px rgba(108, 168, 255, 0.28);
+      }
+
+      .tool.layer-toggle svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .tool.layer-toggle[data-layer="default"] {
+        color: #f7fbff;
+      }
+
+      .tool.layer-toggle[data-layer="heatmap"] {
+        color: #ff8b3d;
+        box-shadow: 0 0 14px rgba(255, 138, 58, 0.45);
+      }
+
+      .tool.layer-toggle[data-layer="satellite"] {
+        color: #4ce1b2;
+        box-shadow: 0 0 14px rgba(76, 225, 178, 0.45);
+      }
+
+      .tool.map-toggle svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .tool.map-toggle.is-active {
+        color: #6de8ff;
+        border-color: rgba(109, 232, 255, 0.72);
+        box-shadow: 0 0 14px rgba(109, 232, 255, 0.45);
+      }
+
+      .tool.map-toggle:hover {
+        transform: none;
+      }
+
+      .source-meta {
+        color: #9db5dd;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+
+      .mini {
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        width: 134px;
+        height: 82px;
+        border-radius: 8px;
+        border: 1px solid rgba(112, 176, 255, 0.42);
+        background: linear-gradient(180deg, rgba(4, 15, 42, 0.75), rgba(3, 9, 27, 0.78)), url('/vendor/earth-dark.jpg') center/cover no-repeat;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        color: #dde9ff;
+        font-size: 11px;
+        padding-bottom: 4px;
+      }
+
+      .impact-popup {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: min(320px, calc(100% - 18px));
+        max-height: min(72vh, 440px);
+        overflow-y: auto;
+        border: 1px solid rgba(117, 172, 255, 0.32);
+        border-radius: 10px;
+        background: rgba(8, 21, 49, 0.94);
+        padding: 10px;
+        z-index: 8;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+      }
+
+      .impact-popup.is-hidden {
+        display: none;
+      }
+
+      .impact-arrow {
+        position: absolute;
+        left: 50%;
+        bottom: -7px;
+        width: 12px;
+        height: 12px;
+        background: rgba(8, 21, 49, 0.94);
+        border-right: 1px solid rgba(117, 172, 255, 0.32);
+        border-bottom: 1px solid rgba(117, 172, 255, 0.32);
+        transform: translateX(-50%) rotate(45deg);
+      }
+
+      .impact-close {
+        width: 22px;
+        height: 22px;
+        border: 1px solid rgba(117, 172, 255, 0.35);
+        border-radius: 6px;
+        background: rgba(6, 18, 44, 0.92);
+        color: #eaf2ff;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .impact-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .impact-title h4 {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      .impact-risk {
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fff;
+      }
+
+      .impact-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(110px, 1fr));
+        gap: 8px;
+        margin: 8px 0;
+      }
+
+      .impact-item {
+        border: 1px solid rgba(118, 168, 248, 0.28);
+        border-radius: 8px;
+        padding: 7px;
+        background: rgba(7, 18, 43, 0.88);
+      }
+
+      .impact-item small {
+        color: #9db6dd;
+        font-size: 11px;
+      }
+
+      .impact-item strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 14px;
+      }
+
+      .impact-subtitle {
+        margin: 8px 0 6px;
+        color: #9fd1ff;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .impact-zone-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+
+      .impact-zone-card {
+        border-radius: 8px;
+        padding: 7px;
+        border: 1px solid transparent;
+      }
+
+      .impact-zone-card.primary {
+        background: rgba(220, 38, 38, 0.18);
+        border-color: rgba(220, 38, 38, 0.45);
+      }
+
+      .impact-zone-card.secondary {
+        background: rgba(245, 158, 11, 0.18);
+        border-color: rgba(245, 158, 11, 0.45);
+      }
+
+      .impact-zone-card.felt {
+        background: rgba(34, 197, 94, 0.17);
+        border-color: rgba(34, 197, 94, 0.42);
+      }
+
+      .impact-zone-card b {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+      }
+
+      .impact-zone-card span {
+        display: block;
+        color: #dbeafe;
+        font-size: 10px;
+      }
+
+      .impact-empty {
+        color: #a9bfdc;
+        font-size: 12px;
+      }
+
+      .footer {
+        display: grid;
+        grid-template-columns: minmax(132px, min(20vw, 210px)) minmax(0, 1fr);
+        gap: 10px;
+        padding: 0 10px 10px;
+      }
+
+      .legend,
+      .stats {
+        padding: 10px;
+      }
+
+      .legend h3,
+      .stats h3 {
+        margin: 0 0 8px;
+      }
+
+      .legend-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        color: #c5dbff;
+        font-size: 14px;
+      }
+
+      .dot-s { font-size: 20px; line-height: 1; }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(110px, 1fr));
+        gap: 8px;
+      }
+
+      .stats-item {
+        border: 1px solid rgba(117, 172, 255, 0.33);
+        border-radius: 8px;
+        background: rgba(8, 22, 52, 0.8);
+        padding: 8px;
+      }
+
+      .stats-item small {
+        color: #9db6dd;
+        font-size: 12px;
+      }
+
+      .stats-item strong {
+        display: block;
+        margin-top: 2px;
+        font-size: 24px;
+      }
+
+      .stats-item .stat-subtitle {
+        display: block;
+        margin-top: 3px;
+        font-size: 12px;
+        color: #ccc;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      @media (max-width: 1200px) {
+        .page {
+          height: auto;
+          min-height: 100vh;
+          grid-template-rows: auto auto auto;
+        }
+
+        .layout,
+        .footer {
+          grid-template-columns: 1fr;
+        }
+
+        .globe-wrap {
+          min-height: clamp(360px, 60vh, 680px);
+          height: auto;
+        }
+
+        .events,
+        .locations-list {
+          max-height: min(36vh, 300px);
+        }
+
+        .impact-popup {
+          width: min(290px, calc(100% - 16px));
+          max-height: min(58vh, 360px);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .header {
+          flex-wrap: wrap;
+          align-items: stretch;
+        }
+
+        .title {
+          width: 100%;
+          font-size: clamp(1.3rem, 3.8vw, 1.9rem);
+        }
+
+        .status {
+          width: fit-content;
+          max-width: 100%;
+        }
+
+        .actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
+        .btn {
+          flex: 1 1 160px;
+          min-height: 40px;
+        }
+
+        .btn.formula {
+          flex: 0 0 40px;
+          width: 40px;
+          height: 40px;
+        }
+
+        .tools {
+          top: auto;
+          bottom: 14px;
+          right: 10px;
+          transform: none;
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 8px;
+          max-width: min(300px, calc(100% - 20px));
+          padding: 0;
+        }
+
+        .tool {
+          width: 38px;
+          height: 38px;
+          border-radius: 8px;
+        }
+
+        .mini {
+          display: none;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .layout {
+          padding: 10px;
+          gap: 10px;
+        }
+
+        .footer {
+          padding: 0 10px 10px;
+          gap: 10px;
+        }
+
+        .left {
+          padding: 8px;
+        }
+
+        .left h2 {
+          font-size: clamp(1.1rem, 4vw, 1.4rem);
+          margin-bottom: 6px;
+        }
+
+        .event {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .place {
+          font-size: 10px;
+        }
+
+        @media (max-width: 480px) {
+          .event {
+            grid-template-columns: 1fr;
+          }
+
+          .mag {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-width: 0;
+            text-align: left;
+          }
+        }
+
+        .globe-wrap {
+          min-height: clamp(300px, 56vh, 580px);
+          height: auto;
+          padding: 8px;
+        }
+
+        .events,
+        .locations-list {
+          max-height: min(40vh, 300px);
+        }
+
+        .map2d {
+          inset: 8px;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      /* Embedded in Resilience360: allow vertical scroll so footer / stats stay reachable on short phones */
+      html.eq-embed,
+      html.eq-embed body {
+        height: 100%;
+        margin: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      html.eq-embed .header {
+        flex-shrink: 0;
+      }
+
+      /* In iframe mode, prevent accidental "Back" taps from navigating away. */
+      html.eq-embed #backBtn {
+        display: none !important;
+      }
+
+      html.eq-embed .footer {
+        flex-shrink: 0;
+      }
+
+      html.eq-embed .page {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        width: 100%;
+        min-height: 100dvh;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
+
+      html.eq-embed .layout {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow: visible;
+        align-items: stretch;
+      }
+
+      @media (min-width: 900px) {
+        html.eq-embed .layout {
+          display: grid;
+          grid-template-columns: minmax(120px, min(17vw, 195px)) minmax(0, 1fr);
+          align-items: stretch;
+        }
+      }
+
+      html.eq-embed .left {
+        max-height: none;
+        overflow: visible;
+      }
+
+      @media (min-width: 900px) {
+        html.eq-embed .events,
+        html.eq-embed .locations-list {
+          max-height: min(58vh, 520px);
+        }
+      }
+
+      html.eq-embed .right {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex: 1 1 auto;
+      }
+
+      html.eq-embed .globe-wrap {
+        flex: 1 1 auto;
+        min-height: clamp(340px, min(74vh, calc(100dvh - 200px)), 980px);
+        height: auto;
+      }
+
+      @media (max-width: 899px) {
+        html.eq-embed .globe-wrap {
+          min-height: clamp(300px, 58vh, 600px);
+        }
+      }
+
+      @media (max-width: 640px) {
+        html.eq-embed .globe-wrap {
+          min-height: clamp(280px, 52vh, 520px);
+        }
+      }
+
+      /* Stability + responsive hardening (no behavior/data-source changes) */
+      .page,
+      .layout,
+      .footer,
+      .left,
+      .right,
+      .card,
+      .events,
+      .locations-list,
+      .globe-wrap,
+      .globe {
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+
+      .page {
+        overflow: hidden;
+      }
+
+      .layout,
+      .footer {
+        width: 100%;
+      }
+
+      .left {
+        min-height: 0;
+      }
+
+      .events,
+      .locations-list {
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+      }
+
+      .right,
+      .globe-wrap {
+        min-height: 0;
+      }
+
+      @media (max-width: 900px) {
+        .layout,
+        .footer {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .events,
+        .locations-list {
+          max-height: min(42vh, 320px);
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <div class="title"><span class="title-icon">📡</span> Earthquake Live Monitor</div>
+        <div class="status"><span class="dot"></span> Live Data <small id="updatedAt">Last Updated: Just Now</small></div>
+        <div class="actions">
+          <button class="btn back" id="backBtn" type="button">Back</button>
+          <button class="btn success" id="emailAlertsBtn" type="button">Upload Emails</button>
+          <button class="btn" id="autoRotateBtn" type="button">Stop Motion</button>
+          <button class="btn" id="fullscreenBtn" type="button">Fullscreen</button>
+          <button class="btn primary" id="refreshBtn" type="button">Refresh</button>
+          <button class="btn formula" id="formulaBtn" type="button" title="Open Formula Table" aria-label="Open Formula Table">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 6h16"></path>
+              <path d="M4 12h8"></path>
+              <path d="M4 18h12"></path>
+              <path d="M17 10v8"></path>
+              <path d="M13 14h8"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <aside class="left card">
+          <h2>Recent Activity</h2>
+          <div class="left-tabs">
+            <button type="button" class="left-tab active" id="tabRecentBtn">Recent Activity</button>
+            <button type="button" class="left-tab" id="tabLocationsBtn">Locations</button>
+          </div>
+          <div class="left-panel active" id="recentPanel">
+            <div class="left-head"><span>Country</span><span>Magnitude</span></div>
+            <div class="events" id="events"></div>
+          </div>
+          <div class="left-panel" id="locationsPanel">
+            <div class="left-head"><span>Country</span><span>Live</span></div>
+            <div class="locations-list" id="locationsList"></div>
+          </div>
+          <div id="sourceMeta" class="source-meta">Source: loading…</div>
+        </aside>
+
+        <section class="right card">
+          <div class="globe-wrap">
+            <div id="globeViz" class="globe"></div>
+            <div id="map2D" class="map2d" aria-label="2D earthquake map"></div>
+            <div class="impact-popup is-hidden" id="impactPopup" role="dialog" aria-live="polite" aria-label="Seismic impact details">
+              <div class="impact-title">
+                <h4>Seismic Impact Assessment</h4>
+                <button class="impact-close" id="impactPopupClose" type="button" aria-label="Close impact popup">×</button>
+              </div>
+              <div class="impact-empty">Click an earthquake marker to view details.</div>
+              <div class="impact-arrow" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="tools">
+            <button class="tool" id="zoomInBtn">+</button>
+            <button class="tool" id="zoomOutBtn">−</button>
+            <button class="tool layer-toggle" id="layerToggleBtn" type="button" data-layer="default" aria-label="Cycle globe layer" title="Default Mode">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3 3 8l9 5 9-5-9-5z"></path>
+                <path d="m3 12 9 5 9-5"></path>
+                <path d="m3 16 9 5 9-5"></path>
+              </svg>
+            </button>
+            <button class="tool map-toggle" id="mapToggleBtn" type="button" aria-label="Switch to 2D Map" title="Switch to 2D Map">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2z"></path>
+                <path d="M9 4v14"></path>
+                <path d="M15 6v14"></path>
+              </svg>
+            </button>
+            <button class="tool" id="resetViewBtn">🌐</button>
+          </div>
+          <div class="mini">World View</div>
+        </section>
+      </div>
+
+      <div class="footer">
+        <section class="legend card">
+          <h3>Magnitude Scale</h3>
+          <div class="legend-row">
+            <span class="dot-s" style="color:#49aefe">•</span><span>M &lt; 4.0</span>
+            <span class="dot-s" style="color:#e7d73b">•</span><span>4.0 - 5.0</span>
+            <span class="dot-s" style="color:#ff972a">•</span><span>5.0 - 6.0</span>
+            <span class="dot-s" style="color:#ff3553">•</span><span>&gt; 6.0</span>
+          </div>
+        </section>
+
+        <section class="stats card">
+          <h3>Global Statistics (24h)</h3>
+          <div class="stats-grid" id="statsGrid"></div>
+        </section>
+      </div>
+
+      <div class="email-modal" id="emailModal">
+        <div class="email-modal-card" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle">
+          <div class="email-modal-head">
+            <h3 id="emailModalTitle">Earthquake Email Alerts (M &gt; 5)</h3>
+            <button class="btn back" id="emailModalCloseBtn" type="button">Close</button>
+          </div>
+          <p class="email-help">Enter Gmail addresses to receive live notifications for earthquakes above magnitude 5. This subscription is shared across devices.</p>
+          <div class="email-add-row">
+            <input id="emailInput" class="email-input" type="email" placeholder="example@gmail.com" autocomplete="email" />
+            <button class="btn success" id="emailAddBtn" type="button">Add Gmail</button>
+          </div>
+          <div id="emailStatus" class="email-status"></div>
+          <div id="emailThresholdTag" class="email-tag">Threshold: M 5.0+</div>
+          <div class="email-sub-list" id="emailSubscribersList"></div>
+        </div>
+      </div>
+
+      <div class="formula-modal" id="formulaModal">
+        <div class="formula-modal-card" role="dialog" aria-modal="true" aria-labelledby="formulaModalTitle">
+          <div class="formula-modal-head">
+            <h3 id="formulaModalTitle">🧮 Seismic Logic & Formula</h3>
+            <button class="btn back" id="formulaModalCloseBtn" type="button">Close</button>
+          </div>
+          <div class="formula-list">
+            <div class="formula-item">
+              <h4>Primary Radius</h4>
+              <code>R₁ (km) = max(2, 10 + 8×(M - 5) - 0.15×DepthKm)</code>
+            </div>
+            <div class="formula-item">
+              <h4>Secondary Radius</h4>
+              <code>R₂ (km) = R₁ × 1.8</code>
+            </div>
+            <div class="formula-item">
+              <h4>Felt Radius</h4>
+              <code>Rfelt (km) = R₁ × 3.2</code>
+            </div>
+            <div class="formula-item">
+              <h4>Affected Area</h4>
+              <code>Area (km²) = π × (R₂)²</code>
+            </div>
+            <div class="formula-item">
+              <h4>Population Estimate</h4>
+              <code>Population = Math.round(population)</code>
+              <div class="formula-note" id="formulaPopulationNote">Population is computed from the Pakistan population raster when available.</div>
+            </div>
+            <div class="formula-item">
+              <h4>Building Estimate</h4>
+              <code>Buildings ≈ OSM way count inside impact zones</code>
+            </div>
+            <div class="formula-item">
+              <h4>Building Count Logic</h4>
+              <code>Buildings = count(way["building"]) from Overpass API</code>
+              <div class="formula-breakdown">
+                <code>Area (km²): <span class="formula-value" id="formulaAreaValue">--</span></code>
+                <code>Building Source: <span class="formula-value" id="formulaBuildingDensityValue">--</span></code>
+                <code id="formulaBuildingResult">Buildings = --</code>
+              </div>
+              <div class="formula-note" id="formulaDensitySource">Waiting for live OSM building query.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/vendor/globe.gl.min.js"></script>
+    <script src="/vendor/leaflet/leaflet.js"></script>
+    <script>
+      const REGION_COUNTRIES = ['Pakistan', 'India', 'Afghanistan', 'Iran', 'China'];
+      const REGION_BOUNDS = {
+        minLat: 20,
+        maxLat: 40,
+        minLng: 60,
+        maxLng: 100,
+      };
+      const COUNTRY_BOUNDS = [
+        { name: 'Pakistan', minLat: 23, maxLat: 37, minLng: 60, maxLng: 77 },
+        { name: 'India', minLat: 8, maxLat: 37, minLng: 68, maxLng: 97 },
+        { name: 'Afghanistan', minLat: 29, maxLat: 38, minLng: 60, maxLng: 75 },
+        { name: 'Iran', minLat: 24, maxLat: 40, minLng: 44, maxLng: 64 },
+        { name: 'China', minLat: 18, maxLat: 54, minLng: 73, maxLng: 135 },
+      ];
+      const TRACKED_COUNTRIES = COUNTRY_BOUNDS.map((item) => item.name);
+      function stripTrailingSlash(value) {
+        return String(value || '').replace(/\/+$/, '');
+      }
+
+      function resolveApiBaseUrl() {
+        const globalBase = stripTrailingSlash(String(window.__R360_API_BASE_URL || window.__API_BASE_URL || ''));
+        if (globalBase) return globalBase;
+        const envBase = stripTrailingSlash(String(window.__ENV__?.VITE_API_BASE_URL || window.__ENV__?.VITE_API_URL || ''));
+        if (envBase) return envBase;
+        if (window.location.port === '5173') {
+          return `${window.location.protocol}//${window.location.hostname}:10000`;
+        }
+        return `${window.location.protocol}//${window.location.host}`;
+      }
+
+      function mediaUrl(relativePath) {
+        const clean = String(relativePath || '').replace(/^\/+/, '');
+        return `${resolveApiBaseUrl()}/storage/content/${clean}`;
+      }
+
+      const LOCAL_EARTHQUAKE_SOURCES = [
+        '/data/earthquake/latest.json',
+        '/data/earthquake/recent.json',
+        '/data/earthquake/historical.json',
+        mediaUrl('live-earthquake-alerts/earthquakes.json'),
+      ];
+      const LOCAL_SUBSCRIBERS_KEY = 'r360-earthquake-local-subscribers';
+
+      async function fetchLocalJson(path) {
+        const response = await fetch(path, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Local dataset request failed (${response.status}) for ${path}`);
+        return response.json();
+      }
+      const GLOBE_TEXTURES = {
+        default: '/vendor/earth-night.jpg',
+        heatmap: '/vendor/earth-night.jpg',
+        satellite: '/vendor/earth-day.jpg',
+      };
+      const LOCAL_BUILDING_COUNT = 0;
+      const MAX_PAKISTAN_BUILDINGS = 2500;
+      const MAX_IMPACT_QUERY_RADIUS_METERS = 180000;
+      const LIVE_REFRESH_MS = 60000;
+      const LIVE_FETCH_TIMEOUT_MS = 16000;
+      const MAX_FETCH_RETRIES = 1;
+
+      function eqLang() {
+        try {
+          return new URLSearchParams(window.location.search).get('lang') === 'ur' ? 'ur' : 'en';
+        } catch {
+          return 'en';
+        }
+      }
+
+      const EQ_I18N = {
+        en: {
+          docTitle: 'Live Earthquake Alerts',
+          headerTitle: 'Earthquake Live Monitor',
+          statusLive: 'Live Data',
+          lastUpdated: 'Last Updated:',
+          justNow: 'Just Now',
+          back: 'Back',
+          uploadEmails: 'Upload Emails',
+          motionStop: 'Stop Motion',
+          motionStart: 'Start Motion',
+          fullscreen: 'Fullscreen',
+          refresh: 'Refresh',
+          formulaTitle: 'Open Formula Table',
+          recentActivity: 'Recent Activity',
+          locationsTab: 'Locations',
+          country: 'Country',
+          magnitude: 'Magnitude',
+          live: 'Live',
+          sourceLoading: 'Source: loading…',
+          sourceLive: 'Source: live feed',
+          sourceUnavailable: 'Source: unavailable',
+          buildingsLoading: 'Buildings: loading',
+          buildingsUnavailable: 'Buildings: unavailable',
+          buildingsLabel: 'Buildings:',
+          statsTotal: 'Total Events',
+          statsAvg: 'Avg. Magnitude',
+          statsLargest: 'Largest',
+          statsLocations: 'Locations',
+          statsCountries: 'Countries',
+          magnitudeScale: 'Magnitude Scale',
+          globalStats: 'Global Statistics (24h)',
+          worldView: 'World View',
+          impactTitle: 'Seismic Impact Assessment',
+          impactEmpty: 'Click an earthquake marker to view details.',
+          map2dLabel: '2D earthquake map',
+          layerCycle: 'Cycle globe layer',
+          defaultMode: 'Default Mode',
+          switch2d: 'Switch to 2D Map',
+          switch3d: 'Switch to 3D Globe',
+          layerDefault: 'Default Mode',
+          layerHeatmap: 'Heatmap Mode',
+          layerSatellite: 'Satellite Mode',
+          emailModalTitle: 'Earthquake Email Alerts (M > 5)',
+          close: 'Close',
+          emailHelp:
+            'Enter Gmail addresses to receive live notifications for earthquakes above magnitude 5. This subscription is shared across devices.',
+          emailPlaceholder: 'example@gmail.com',
+          addGmail: 'Add Gmail',
+          thresholdTag: 'Threshold: M 5.0+',
+          noSubscribers: 'No Gmail subscribers added yet.',
+          formulaModalTitle: '🧮 Seismic Logic & Formula',
+          formulaPopNote: 'Population is computed from the Pakistan population raster when available.',
+          formulaWaitOsm: 'Waiting for live OSM building query.',
+          unknownLocation: 'Unknown location',
+          unknown: 'Unknown',
+          primarySecondaryOuter: 'Primary {p}, Secondary {s}, Outer {o}',
+          populationComputed: 'Population is computed from the Pakistan population raster when available.',
+          buildingsEq: 'Buildings = {n}',
+          waitingOsm: 'Waiting for live OSM building query.',
+          buildingSourceShort: 'OSM Overpass API',
+          buildingSourceLong: 'OSM Overpass API (way count)',
+          noActiveQuakes: 'No active earthquakes',
+          stateLiveSuffix: 'live',
+          thresholdPrefix: 'Threshold:',
+        },
+        ur: {
+          docTitle: 'زلزلے کی براہ راست انتباہات',
+          headerTitle: 'زلزلہ براہ راست نگرانی',
+          statusLive: 'براہ راست ڈیٹا',
+          lastUpdated: 'آخری اپ ڈیٹ:',
+          justNow: 'ابھی',
+          back: 'واپس',
+          uploadEmails: 'ای میل اپ لوڈ',
+          motionStop: 'حرکت روکیں',
+          motionStart: 'حرکت شروع کریں',
+          fullscreen: 'پوری سکرین',
+          refresh: 'تازہ کریں',
+          formulaTitle: 'فارمولہ کی جدول کھولیں',
+          recentActivity: 'حالیہ سرگرمی',
+          locationsTab: 'مقامات',
+          country: 'ملک',
+          magnitude: 'شدت',
+          live: 'براہ راست',
+          sourceLoading: 'ماخذ: لوڈ ہو رہا ہے…',
+          sourceLive: 'ماخذ: براہ راست فیڈ',
+          sourceUnavailable: 'ماخذ: دستیاب نہیں',
+          buildingsLoading: 'عمارتیں: لوڈ',
+          buildingsUnavailable: 'عمارتیں: دستیاب نہیں',
+          buildingsLabel: 'عمارتیں:',
+          statsTotal: 'کل واقعات',
+          statsAvg: 'اوسط شدت',
+          statsLargest: 'سب سے بڑا',
+          statsLocations: 'مقامات',
+          statsCountries: 'ممالک',
+          magnitudeScale: 'شدت کا پیمانہ',
+          globalStats: 'عالمی اعداد (۲۴ گھنٹے)',
+          worldView: 'عالمی منظر',
+          impactTitle: 'زلزلے کے اثر کی تشخیص',
+          impactEmpty: 'تفصیل کے لیے زلزلے کا نشان منتخب کریں۔',
+          map2dLabel: '۲ ڈی زلزلہ نقشہ',
+          layerCycle: 'گلوب کی تہہ تبدیل کریں',
+          defaultMode: 'طے شدہ موڈ',
+          switch2d: '۲ ڈی نقشے پر جائیں',
+          switch3d: '۳ ڈی گلوب پر جائیں',
+          layerDefault: 'طے شدہ موڈ',
+          layerHeatmap: 'ہیٹ میپ موڈ',
+          layerSatellite: 'سیٹلائٹ موڈ',
+          emailModalTitle: 'زلزلے کی ای میل انتباہات (M > 5)',
+          close: 'بند کریں',
+          emailHelp:
+            '۵ سے بڑی شدت کے زلزلوں کی فوری اطلاع کے لیے جی میل پتے درج کریں۔ یہ سبسکرپشن تمام آلات پر مشترک ہے۔',
+          emailPlaceholder: 'example@gmail.com',
+          addGmail: 'جی میل شامل کریں',
+          thresholdTag: 'حد: M 5.0+',
+          noSubscribers: 'ابھی کوئی جی میل سبسکرائبر نہیں۔',
+          formulaModalTitle: '🧮 زلزلی منطق اور فارمولا',
+          formulaPopNote: 'آبادی پاکستان کی آبادی راسٹر سے نکالی جاتی ہے جب دستیاب ہو۔',
+          formulaWaitOsm: 'او ایس ایم عمارت کے استفسار کا انتظار۔',
+          unknownLocation: 'نامعلوم مقام',
+          unknown: 'نامعلوم',
+          primarySecondaryOuter: 'ابتدائی {p}، ثانوی {s}، بیرونی {o}',
+          populationComputed: 'آبادی پاکستان کی آبادی راسٹر سے نکالی جاتی ہے جب دستیاب ہو۔',
+          buildingsEq: 'عمارتیں = {n}',
+          waitingOsm: 'او ایس ایم عمارت کے استفسار کا انتظار۔',
+          buildingSourceShort: 'OSM Overpass API',
+          buildingSourceLong: 'OSM Overpass API (way count)',
+          noActiveQuakes: 'کوئی فعال زلزلہ نہیں',
+          stateLiveSuffix: 'براہ راست',
+          thresholdPrefix: 'حد:',
+        },
+      };
+
+      function eqT(key) {
+        const pack = EQ_I18N[eqLang()] || EQ_I18N.en;
+        return pack[key] !== undefined ? pack[key] : EQ_I18N.en[key];
+      }
+
+      function applyEqStaticLabels() {
+        const isUr = eqLang() === 'ur';
+        if (isUr) {
+          document.documentElement.setAttribute('lang', 'ur-PK');
+          document.documentElement.setAttribute('dir', 'rtl');
+        } else {
+          document.documentElement.setAttribute('lang', 'en');
+          document.documentElement.removeAttribute('dir');
+        }
+        document.title = eqT('docTitle');
+        const titleEl = document.querySelector('.page .header .title');
+        if (titleEl) titleEl.innerHTML = '<span class="title-icon">📡</span> ' + eqT('headerTitle');
+        const st = document.querySelector('.page .header .status');
+        if (st) {
+          st.innerHTML =
+            '<span class="dot"></span> ' +
+            eqT('statusLive') +
+            ' <small id="updatedAt">' +
+            eqT('lastUpdated') +
+            ' ' +
+            eqT('justNow') +
+            '</small>';
+        }
+        const setTxt = (id, text) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = text;
+        };
+        setTxt('backBtn', eqT('back'));
+        setTxt('emailAlertsBtn', eqT('uploadEmails'));
+        setTxt('autoRotateBtn', eqT('motionStop'));
+        setTxt('fullscreenBtn', eqT('fullscreen'));
+        setTxt('refreshBtn', eqT('refresh'));
+        const formulaBtn = document.getElementById('formulaBtn');
+        if (formulaBtn) {
+          formulaBtn.setAttribute('title', eqT('formulaTitle'));
+          formulaBtn.setAttribute('aria-label', eqT('formulaTitle'));
+        }
+        const asideH = document.querySelector('.left.card h2');
+        if (asideH) asideH.textContent = eqT('recentActivity');
+        setTxt('tabRecentBtn', eqT('recentActivity'));
+        setTxt('tabLocationsBtn', eqT('locationsTab'));
+        const recentHead = document.querySelector('#recentPanel .left-head');
+        if (recentHead) {
+          recentHead.innerHTML = '<span>' + eqT('country') + '</span><span>' + eqT('magnitude') + '</span>';
+        }
+        const locHead = document.querySelector('#locationsPanel .left-head');
+        if (locHead) {
+          locHead.innerHTML = '<span>' + eqT('country') + '</span><span>' + eqT('live') + '</span>';
+        }
+        setTxt('sourceMeta', eqT('sourceLoading'));
+        const impactPopup = document.getElementById('impactPopup');
+        if (impactPopup) {
+          const h4 = impactPopup.querySelector('.impact-title h4');
+          if (h4) h4.textContent = eqT('impactTitle');
+          const empty = impactPopup.querySelector('.impact-empty');
+          if (empty) empty.textContent = eqT('impactEmpty');
+        }
+        const map2d = document.getElementById('map2D');
+        if (map2d) map2d.setAttribute('aria-label', eqT('map2dLabel'));
+        const legendH = document.querySelector('.legend.card h3');
+        if (legendH) legendH.textContent = eqT('magnitudeScale');
+        const statsH = document.querySelector('.stats.card > h3');
+        if (statsH) statsH.textContent = eqT('globalStats');
+        const mini = document.querySelector('.right.card .mini');
+        if (mini) mini.textContent = eqT('worldView');
+        setTxt('emailModalTitle', eqT('emailModalTitle'));
+        setTxt('emailModalCloseBtn', eqT('close'));
+        const emailHelp = document.querySelector('.email-help');
+        if (emailHelp) emailHelp.textContent = eqT('emailHelp');
+        const emailInput = document.getElementById('emailInput');
+        if (emailInput) emailInput.setAttribute('placeholder', eqT('emailPlaceholder'));
+        setTxt('emailAddBtn', eqT('addGmail'));
+        setTxt('formulaModalTitle', eqT('formulaModalTitle'));
+        setTxt('formulaModalCloseBtn', eqT('close'));
+        const fp = document.getElementById('formulaPopulationNote');
+        if (fp) fp.textContent = eqT('formulaPopNote');
+        const fds = document.getElementById('formulaDensitySource');
+        if (fds) fds.textContent = eqT('formulaWaitOsm');
+      }
+
+      function buildApiTargets(path) {
+        const targets = new Set([path]);
+        const apiBase = resolveApiBaseUrl();
+        if (apiBase) {
+          targets.add(`${apiBase}${path}`);
+        }
+
+        return Array.from(targets).map((item) => {
+          if (/^https?:\/\//i.test(item)) return item;
+          return stripTrailingSlash(item);
+        });
+      }
+
+      async function requestJsonWithFallback(path, options = {}) {
+        const targets = buildApiTargets(path);
+        let lastError = null;
+
+        for (const target of targets) {
+          try {
+            const response = await fetch(target, options);
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+              lastError = new Error(String(payload?.error || `Request failed (${response.status})`));
+              continue;
+            }
+            return payload;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        throw lastError || new Error('Network request failed.');
+      }
+
+      function normalizeBuildingHeight(tags) {
+        const rawHeight = Number.parseFloat(String(tags?.height || '').replace(/[^\d.\-]/g, ''));
+        if (Number.isFinite(rawHeight) && rawHeight > 0) return rawHeight;
+
+        const levels = Number.parseFloat(String(tags?.['building:levels'] || '').replace(/[^\d.\-]/g, ''));
+        if (Number.isFinite(levels) && levels > 0) return levels * 3;
+
+        return 10;
+      }
+
+      function convertToGeoJSON(osmData) {
+        const elements = Array.isArray(osmData?.elements) ? osmData.elements : [];
+        const nodeMap = new Map();
+        for (const el of elements) {
+          if (el?.type === 'node' && Number.isFinite(el.lat) && Number.isFinite(el.lon)) {
+            nodeMap.set(el.id, [Number(el.lon), Number(el.lat)]);
+          }
+        }
+
+        const features = [];
+        for (const el of elements) {
+          if (el?.type !== 'way' || !el?.tags?.building) continue;
+
+          let ring = [];
+          if (Array.isArray(el.geometry) && el.geometry.length) {
+            ring = el.geometry
+              .map((point) => {
+                const lat = Number(point?.lat);
+                const lon = Number(point?.lon);
+                if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+                return [lon, lat];
+              })
+              .filter(Boolean);
+          } else if (Array.isArray(el.nodes) && el.nodes.length) {
+            ring = el.nodes.map((nodeId) => nodeMap.get(nodeId)).filter(Boolean);
+          }
+
+          if (ring.length < 3) continue;
+
+          const first = ring[0];
+          const last = ring[ring.length - 1];
+          if (!first || !last) continue;
+          if (first[0] !== last[0] || first[1] !== last[1]) {
+            ring.push([first[0], first[1]]);
+          }
+
+          features.push({
+            type: 'Feature',
+            properties: {
+              id: el.id,
+              height: normalizeBuildingHeight(el.tags || {}),
+            },
+            geometry: {
+              type: 'Polygon',
+              coordinates: [ring],
+            },
+          });
+        }
+
+        return {
+          type: 'FeatureCollection',
+          features,
+        };
+      }
+
+      function renderBuildings(globeInstance, buildings) {
+        if (!globeInstance) return;
+
+        globeInstance
+          .polygonsData(buildings)
+          .polygonCapColor(() => 'rgba(78, 148, 255, 0.34)')
+          .polygonSideColor(() => 'rgba(124, 186, 255, 0.2)')
+          .polygonStrokeColor(() => 'rgba(14, 34, 66, 0.9)')
+          .polygonAltitude((d) => {
+            const h = Number(d?.properties?.height || 10);
+            return Math.max(0.0008, Math.min(0.03, h / 12000));
+          });
+      }
+
+      async function loadPakistanBuildings(globeInstance) {
+        if (!globeInstance || globeInstance.__pakBuildingsLoaded || globeInstance.__pakBuildingsLoading) return;
+        globeInstance.__pakBuildingsLoading = true;
+
+        try {
+          const sourceMeta = document.getElementById('sourceMeta');
+          globeInstance.__pakBuildingsLoaded = true;
+          if (sourceMeta) {
+            sourceMeta.textContent = `${window.__sourceLabel || eqT('sourceLive')} · ${eqT('buildingsLabel')} ${LOCAL_BUILDING_COUNT.toLocaleString()}`;
+          }
+        } catch (error) {
+          void error;
+          const sourceMeta = document.getElementById('sourceMeta');
+          if (sourceMeta)
+            sourceMeta.textContent = `${window.__sourceLabel || eqT('sourceLive')} · ${eqT('buildingsUnavailable')}`;
+        } finally {
+          globeInstance.__pakBuildingsLoading = false;
+        }
+      }
+
+      let globe = null;
+      let quakeRows = [];
+      let selectedId = null;
+      let currentAltitude = 1.7;
+      let eventsData = [];
+      let activeGlobeLayer = 'default';
+      let globeLayerTransitionTimer = null;
+      let layerToggleController = null;
+      let selectedImpactEvent = null;
+      let locationsData = [];
+      let activeLeftTab = 'recent';
+      let expandedCountry = null;
+      let emailSubscribers = [];
+      let isEmailModalOpen = false;
+      let earthquakeAlertThreshold = 5;
+      let latestImpactAssessment = null;
+      const impactBuildingCache = new Map();
+      const IMPACT_BUILDING_CACHE_MAX = 48;
+
+      function impactBuildingCacheSet(key, value) {
+        impactBuildingCache.set(key, value);
+        while (impactBuildingCache.size > IMPACT_BUILDING_CACHE_MAX) {
+          const oldest = impactBuildingCache.keys().next().value;
+          impactBuildingCache.delete(oldest);
+        }
+      }
+      const defaultCenter = { lat: 20, lng: 15 };
+      let isAutoRotateEnabled = true;
+      let is2DMap = false;
+      let selectedEarthquake = null;
+      let leafletMap = null;
+      let leafletLayerGroup = null;
+      const defaultMapCenter = [30, 70];
+      const defaultMapZoom = 4;
+      let populationServiceModule = null;
+      let populationDataLoaded = false;
+      let loadingPopulation = false;
+      let refreshTimer = null;
+      let refreshRetryTimer = null;
+      let refreshInFlight = false;
+      let pendingRefreshReason = '';
+      let consecutiveLoadFailures = 0;
+      let lastGoodFeatures = [];
+      let pageDisposed = false;
+      let globeControls = null;
+      const disposeCallbacks = [];
+
+      function addDisposeCallback(fn) {
+        if (typeof fn !== 'function') return;
+        disposeCallbacks.push(fn);
+      }
+
+      function clearLiveTimers() {
+        if (refreshTimer) {
+          window.clearInterval(refreshTimer);
+          refreshTimer = null;
+        }
+        if (refreshRetryTimer) {
+          window.clearTimeout(refreshRetryTimer);
+          refreshRetryTimer = null;
+        }
+        if (resizeGlobeViewportTimer) {
+          window.clearTimeout(resizeGlobeViewportTimer);
+          resizeGlobeViewportTimer = null;
+        }
+        if (globeLayerTransitionTimer) {
+          window.clearTimeout(globeLayerTransitionTimer);
+          globeLayerTransitionTimer = null;
+        }
+        if (impactPopupPositionRaf) {
+          window.cancelAnimationFrame(impactPopupPositionRaf);
+          impactPopupPositionRaf = null;
+        }
+      }
+
+      function disposeEarthquakePage() {
+        if (pageDisposed) return;
+        pageDisposed = true;
+        clearLiveTimers();
+        pendingRefreshReason = '';
+        while (disposeCallbacks.length > 0) {
+          const cb = disposeCallbacks.pop();
+          try {
+            cb && cb();
+          } catch {
+            /* ignore dispose callback failure */
+          }
+        }
+        if (globeControls && typeof globeControls.removeEventListener === 'function') {
+          try {
+            globeControls.removeEventListener('change', positionImpactPopup);
+          } catch {
+            /* ignore */
+          }
+        }
+        globeControls = null;
+        destroyLeafletMap();
+      }
+
+      const populationDensityMap = {
+        Karachi: 24000,
+        Lahore: 13000,
+        Islamabad: 2200,
+        Rawalpindi: 4800,
+        Peshawar: 3500,
+        Quetta: 800,
+        Gilgit: 50,
+        Skardu: 60,
+        DefaultUrban: 5000,
+        DefaultRural: 300,
+      };
+
+      async function ensurePopulationService() {
+        if (populationServiceModule) return populationServiceModule;
+        populationServiceModule = await import('/services/populationService.js');
+        return populationServiceModule;
+      }
+
+      async function loadPopulationRaster() {
+        try {
+          const service = await ensurePopulationService();
+          await service.loadPopulationData();
+          populationDataLoaded = true;
+        } catch (error) {
+          populationDataLoaded = false;
+          void error;
+        }
+      }
+
+      const usStateNames = new Set([
+        'alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware','florida','georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky','louisiana','maine','maryland','massachusetts','michigan','minnesota','mississippi','missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico','new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania','rhode island','south carolina','south dakota','tennessee','texas','utah','vermont','virginia','washington','west virginia','wisconsin','wyoming','district of columbia'
+      ]);
+      const usStateAbbr = new Set(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']);
+      const caProvinceNames = new Set(['alberta','british columbia','manitoba','new brunswick','newfoundland and labrador','northwest territories','nova scotia','nunavut','ontario','prince edward island','quebec','saskatchewan','yukon']);
+      const caProvinceAbbr = new Set(['AB','BC','MB','NB','NL','NT','NS','NU','ON','PE','QC','SK','YT']);
+      const countryAlias = {
+        usa: 'United States',
+        'u.s.a.': 'United States',
+        'u.s.': 'United States',
+        us: 'United States',
+        uk: 'United Kingdom',
+        uae: 'United Arab Emirates',
+        russia: 'Russia',
+        korea: 'South Korea',
+        'south korea': 'South Korea',
+        'north korea': 'North Korea',
+      };
+
+      const regionDisplay = typeof Intl !== 'undefined' && Intl.DisplayNames
+        ? new Intl.DisplayNames(['en'], { type: 'region' })
+        : null;
+
+      function getAllCountries() {
+        if (!regionDisplay || !Intl.supportedValuesOf) return [];
+        try {
+          return Intl.supportedValuesOf('region')
+            .map((code) => regionDisplay.of(code))
+            .filter((name) => Boolean(name) && typeof name === 'string' && !/^\d+$/.test(name))
+            .sort((a, b) => a.localeCompare(b));
+        } catch {
+          return [];
+        }
+      }
+
+      const allCountries = getAllCountries();
+
+      function selectedQuakeRings(selected) {
+        if (!selected) return [];
+
+        return [
+          {
+            id: `${selected.id}-ring-a`,
+            lat: selected.lat,
+            lng: selected.lng,
+            color: '#ff2a45',
+            maxRadius: 5.2,
+            speed: 2.2,
+            period: 900,
+          },
+          {
+            id: `${selected.id}-ring-b`,
+            lat: selected.lat,
+            lng: selected.lng,
+            color: '#ff5f52',
+            maxRadius: 4.2,
+            speed: 1.8,
+            period: 760,
+          },
+          {
+            id: `${selected.id}-ring-c`,
+            lat: selected.lat,
+            lng: selected.lng,
+            color: '#ff9a6a',
+            maxRadius: 3.4,
+            speed: 1.55,
+            period: 620,
+          },
+        ];
+      }
+
+      function getVisibleEarthquakes() {
+        if (!selectedEarthquake) return eventsData;
+        return eventsData.filter((item) => item.id === selectedEarthquake.id);
+      }
+
+      function clearSelection() {
+        selectedEarthquake = null;
+        selectedId = null;
+        selectedImpactEvent = null;
+        latestImpactAssessment = null;
+        for (const row of quakeRows) row.classList.remove('selected');
+        hideImpactPopup();
+        refreshPointsAppearance();
+        if (is2DMap) {
+          render2DMap();
+        } else if (globe) {
+          globe.pointOfView({ ...defaultCenter, altitude: 1.7 }, 600);
+        }
+      }
+
+      function setSelectedEarthquake(eventItem) {
+        selectedEarthquake = eventItem || null;
+        selectedId = selectedEarthquake ? selectedEarthquake.id : null;
+        selectedImpactEvent = selectedEarthquake;
+
+        for (const row of quakeRows) {
+          row.classList.toggle('selected', row.dataset.id === selectedId);
+        }
+
+        refreshPointsAppearance();
+        if (selectedEarthquake && !is2DMap && globe) {
+          globe.pointOfView({ lat: selectedEarthquake.lat, lng: selectedEarthquake.lng, altitude: 1.5 }, 1000);
+        }
+        if (is2DMap) {
+          render2DMap();
+        }
+      }
+
+      function ensureLeafletMap() {
+        const mapHost = document.getElementById('map2D');
+        if (!mapHost || typeof L === 'undefined') return null;
+        if (leafletMap) return leafletMap;
+
+        leafletMap = L.map(mapHost, { zoomControl: false, preferCanvas: true }).setView(defaultMapCenter, defaultMapZoom);
+        // Local-only mode: do not bind remote tile providers.
+        leafletLayerGroup = L.layerGroup().addTo(leafletMap);
+        return leafletMap;
+      }
+
+      function destroyLeafletMap() {
+        if (leafletMap) {
+          leafletMap.remove();
+        }
+        leafletMap = null;
+        leafletLayerGroup = null;
+      }
+
+      function render2DMap() {
+        if (pageDisposed) return;
+        if (!is2DMap) return;
+        const map = ensureLeafletMap();
+        if (!map || !leafletLayerGroup) return;
+
+        leafletLayerGroup.clearLayers();
+        const visible = getVisibleEarthquakes();
+        if (!visible.length) {
+          map.setView(defaultMapCenter, defaultMapZoom);
+          return;
+        }
+
+        if (selectedEarthquake) {
+          const lat = Number(selectedEarthquake.lat);
+          const lng = Number(selectedEarthquake.lng);
+          const assessment = buildImpactAssessment(selectedEarthquake);
+          L.marker([lat, lng]).addTo(leafletLayerGroup)
+            .bindPopup(`${escapeHtml(selectedEarthquake.place || 'Unknown')}<br/>M ${Number(selectedEarthquake.mag || 0).toFixed(1)}`);
+          L.circle([lat, lng], {
+            radius: Number(assessment.secondaryRadiusKm || 0) * 1000,
+            color: '#ff4b4b',
+            fillColor: '#ff4b4b',
+            fillOpacity: 0.2,
+          }).addTo(leafletLayerGroup);
+          map.setView([lat, lng], 6);
+        } else {
+          visible.forEach((eq) => {
+            const marker = L.circleMarker([eq.lat, eq.lng], {
+              radius: 4,
+              color: '#5aa7ff',
+              weight: 1,
+              fillColor: '#5aa7ff',
+              fillOpacity: 0.7,
+            }).addTo(leafletLayerGroup);
+
+            marker.bindPopup(`${escapeHtml(eq.place || 'Unknown')}<br/>M ${Number(eq.mag || 0).toFixed(1)}<br/>${new Date(eq.time).toLocaleString()}`);
+            marker.on('click', () => {
+              if (selectedEarthquake && selectedEarthquake.id === eq.id) {
+                clearSelection();
+                return;
+              }
+              setSelectedEarthquake(eq);
+            });
+          });
+          map.setView(defaultMapCenter, defaultMapZoom);
+        }
+
+        window.setTimeout(() => {
+          if (leafletMap) leafletMap.invalidateSize();
+        }, 40);
+      }
+
+      function setIs2DMap(nextState) {
+        is2DMap = Boolean(nextState);
+        const globeEl = document.getElementById('globeViz');
+        const mapHost = document.getElementById('map2D');
+        const mapToggleBtn = document.getElementById('mapToggleBtn');
+
+        if (mapToggleBtn) {
+          mapToggleBtn.classList.toggle('is-active', is2DMap);
+          mapToggleBtn.title = is2DMap ? eqT('switch3d') : eqT('switch2d');
+          mapToggleBtn.setAttribute('aria-label', mapToggleBtn.title);
+        }
+
+        if (globeEl) globeEl.classList.toggle('hidden', is2DMap);
+        if (mapHost) mapHost.classList.toggle('active', is2DMap);
+
+        if (is2DMap) {
+          render2DMap();
+        } else {
+          destroyLeafletMap();
+        }
+      }
+
+      let resizeGlobeViewportTimer = null;
+      function resizeGlobeViewport() {
+        if (resizeGlobeViewportTimer) {
+          window.clearTimeout(resizeGlobeViewportTimer);
+        }
+        resizeGlobeViewportTimer = window.setTimeout(() => {
+          resizeGlobeViewportTimer = null;
+          if (!globe) return;
+          const host = document.getElementById('globeViz');
+          if (!host) return;
+          const width = Math.max(320, Math.floor(host.clientWidth));
+          const height = Math.max(280, Math.floor(host.clientHeight));
+          globe.width(width).height(height);
+          positionImpactPopup();
+        }, 120);
+      }
+
+      function tierClass(m) {
+        if (m >= 6) return 'm-veryhigh';
+        if (m >= 5) return 'm-high';
+        if (m >= 4) return 'm-medium';
+        return 'm-low';
+      }
+
+      function normalizeCountryToken(token) {
+        const raw = String(token || '').trim();
+        if (!raw) return 'Unknown';
+
+        const lowered = raw.toLowerCase();
+        if (countryAlias[lowered]) return countryAlias[lowered];
+
+        if (/^[A-Z]{2}$/.test(raw) && regionDisplay) {
+          const display = regionDisplay.of(raw);
+          if (display && display !== raw) return display;
+        }
+
+        return raw;
+      }
+
+      function parseGeoFromPlace(place) {
+        const raw = String(place || '').trim();
+        const parts = raw.split(',').map((segment) => segment.trim()).filter(Boolean);
+        const last = parts[parts.length - 1] || 'Unknown';
+        const prev = parts.length > 1 ? parts[parts.length - 2] : '';
+
+        const lastUpper = last.toUpperCase();
+        const lastLower = last.toLowerCase();
+        const prevUpper = prev.toUpperCase();
+        const prevLower = prev.toLowerCase();
+
+        if (usStateAbbr.has(lastUpper) || usStateNames.has(lastLower)) {
+          return { country: 'United States', subdivision: last };
+        }
+
+        if (caProvinceAbbr.has(lastUpper) || caProvinceNames.has(lastLower)) {
+          return { country: 'Canada', subdivision: last };
+        }
+
+        if (usStateAbbr.has(prevUpper) || usStateNames.has(prevLower)) {
+          return { country: 'United States', subdivision: prev };
+        }
+
+        if (caProvinceAbbr.has(prevUpper) || caProvinceNames.has(prevLower)) {
+          return { country: 'Canada', subdivision: prev };
+        }
+
+        return { country: normalizeCountryToken(last), subdivision: null };
+      }
+
+      function countryFromPlace(place) {
+        return parseGeoFromPlace(place).country;
+      }
+
+      function largestCardPlace(place) {
+        const raw = String(place || '').trim();
+        if (!raw) return 'Unknown Location';
+
+        const cleaned = raw.replace(/^\s*\d+(?:\.\d+)?\s*km\s+[NSEW]{1,2}\s+of\s+/i, '').trim();
+        return cleaned || 'Unknown Location';
+      }
+
+      function flagFor(country) {
+        const x = country.toLowerCase();
+        if (x.includes('usa') || x.includes('united states')) return '🇺🇸';
+        if (x.includes('mexico')) return '🇲🇽';
+        if (x.includes('japan')) return '🇯🇵';
+        if (x.includes('indonesia')) return '🇮🇩';
+        if (x.includes('pakistan')) return '🇵🇰';
+        return '🌍';
+      }
+
+      function toPointColor(m) {
+        const mag = Number(m || 0);
+        if (mag >= 6.5) return 'rgba(255, 40, 60, 0.92)';
+        if (mag >= 5.5) return 'rgba(255, 74, 48, 0.88)';
+        if (mag >= 4.5) return 'rgba(255, 130, 36, 0.84)';
+        if (mag >= 3) return 'rgba(255, 188, 58, 0.8)';
+        return 'rgba(255, 214, 92, 0.74)';
+      }
+
+      function heatmapPointColor(magnitude) {
+        return toPointColor(magnitude);
+      }
+
+      function markerColorForLayer(magnitude) {
+        if (activeGlobeLayer === 'heatmap') return heatmapPointColor(magnitude);
+        return toPointColor(magnitude);
+      }
+
+      const LayerManager = (() => {
+        const modes = ['default', 'heatmap', 'satellite'];
+
+        const isMode = (value) => modes.includes(value);
+
+        return {
+          getMode() {
+            return activeGlobeLayer;
+          },
+          getTitle(mode) {
+            const m = mode === 'heatmap' ? 'heatmap' : mode === 'satellite' ? 'satellite' : 'default';
+            if (m === 'heatmap') return eqT('layerHeatmap');
+            if (m === 'satellite') return eqT('layerSatellite');
+            return eqT('layerDefault');
+          },
+          cycle() {
+            const currentIndex = modes.indexOf(activeGlobeLayer);
+            const nextIndex = (currentIndex + 1) % modes.length;
+            const nextMode = modes[nextIndex];
+            setGlobeLayer(nextMode);
+            return nextMode;
+          },
+          normalize(mode) {
+            return isMode(mode) ? mode : 'default';
+          },
+        };
+      })();
+
+      function LayerToggleButton(button) {
+        if (!button) return { sync: () => {} };
+
+        const sync = (mode) => {
+          const normalized = LayerManager.normalize(mode);
+          button.dataset.layer = normalized;
+          button.title = LayerManager.getTitle(normalized);
+          button.setAttribute('aria-label', LayerManager.getTitle(normalized));
+          button.classList.add('is-active');
+        };
+
+        button.addEventListener('click', () => {
+          const nextMode = LayerManager.cycle();
+          sync(nextMode);
+        });
+
+        sync(LayerManager.getMode());
+        return { sync };
+      }
+
+      function isWithinRegionalBounds(coordinates) {
+        const lng = Number(coordinates?.[0]);
+        const lat = Number(coordinates?.[1]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+        return lat >= REGION_BOUNDS.minLat && lat <= REGION_BOUNDS.maxLat &&
+          lng >= REGION_BOUNDS.minLng && lng <= REGION_BOUNDS.maxLng;
+      }
+
+      function filterFeaturesByRegion(features) {
+        return (Array.isArray(features) ? features : []).filter((feature) => {
+          const coordinates = feature?.geometry?.coordinates;
+          return isWithinRegionalBounds(coordinates);
+        });
+      }
+
+      function getCountry(place) {
+        if (!place) return 'Unknown';
+
+        const text = String(place).toLowerCase();
+        if (text.includes('pakistan')) return 'Pakistan';
+        if (text.includes('india')) return 'India';
+        if (text.includes('afghanistan')) return 'Afghanistan';
+        if (text.includes('iran')) return 'Iran';
+        if (text.includes('china')) return 'China';
+        return 'Other';
+      }
+
+      function countryFromEvent(event) {
+        return getCountry(event?.properties?.place);
+      }
+
+      function countByCountry(features) {
+        const counts = {
+          Pakistan: 0,
+          India: 0,
+          Afghanistan: 0,
+          Iran: 0,
+          China: 0,
+        };
+
+        for (const feature of Array.isArray(features) ? features : []) {
+          const country = getCountry(feature?.properties?.place);
+          if (Object.prototype.hasOwnProperty.call(counts, country)) {
+            counts[country] += 1;
+          }
+        }
+
+        return counts;
+      }
+
+      function buildPulseRings() {
+        if (selectedEarthquake) {
+          return selectedQuakeRings(selectedEarthquake);
+        }
+        /**
+         * Do not animate ambient pulse rings for every event — with ~100 quakes × 2–3 rings each,
+         * three-globe runs hundreds of concurrent ring animations and can exhaust the GPU process
+         * (Chromium "Aw, Snap" / STATUS_BREAKPOINT after minutes). Markers alone are enough until
+         * the user selects an event (then selectedQuakeRings provides a small fixed set).
+         */
+        return [];
+      }
+
+      function setGlobeLayer(mode) {
+        const nextMode = LayerManager.normalize(mode);
+        const globeEl = document.getElementById('globeViz');
+
+        activeGlobeLayer = nextMode;
+        layerToggleController?.sync(nextMode);
+
+        if (globeEl) {
+          globeEl.classList.remove('layer-default', 'layer-heatmap', 'layer-satellite');
+          globeEl.classList.add(`layer-${nextMode}`, 'layer-switching');
+
+          if (globeLayerTransitionTimer) {
+            window.clearTimeout(globeLayerTransitionTimer);
+          }
+          globeLayerTransitionTimer = window.setTimeout(() => {
+            globeEl.classList.remove('layer-switching');
+          }, 260);
+        }
+
+        if (globe && GLOBE_TEXTURES[nextMode]) {
+          globe.globeImageUrl(GLOBE_TEXTURES[nextMode]);
+        }
+
+        refreshPointsAppearance();
+      }
+
+      function setLeftTab(tab) {
+        activeLeftTab = tab === 'locations' ? 'locations' : 'recent';
+
+        const recentBtn = document.getElementById('tabRecentBtn');
+        const locationsBtn = document.getElementById('tabLocationsBtn');
+        const recentPanel = document.getElementById('recentPanel');
+        const locationsPanel = document.getElementById('locationsPanel');
+
+        if (!recentBtn || !locationsBtn || !recentPanel || !locationsPanel) return;
+
+        const isRecent = activeLeftTab === 'recent';
+        recentBtn.classList.toggle('active', isRecent);
+        locationsBtn.classList.toggle('active', !isRecent);
+        recentPanel.classList.toggle('active', isRecent);
+        locationsPanel.classList.toggle('active', !isRecent);
+      }
+
+      function buildLocationsData(data, countryCounts = null) {
+        const map = new Map();
+        const counts = countryCounts || countByCountry(data);
+
+        for (const name of TRACKED_COUNTRIES) {
+          map.set(name, {
+            country: name,
+            total: Number(counts[name] || 0),
+            subdivisions: new Map(),
+          });
+        }
+
+        for (const event of data) {
+          const country = countryFromEvent(event);
+          if (!map.has(country)) continue;
+          const eventId = String(event.id ?? `${event.geometry.coordinates?.[1]}-${event.geometry.coordinates?.[0]}-${event.properties.time}`);
+
+          const countryEntry = map.get(country);
+
+          const subdivisionKey = String(event?.properties?.place || 'Other Areas').split(',').map((segment) => segment.trim()).filter(Boolean).slice(0, 2).join(', ') || 'Other Areas';
+          if (!countryEntry.subdivisions.has(subdivisionKey)) {
+            countryEntry.subdivisions.set(subdivisionKey, {
+              name: subdivisionKey,
+              events: [],
+            });
+          }
+
+          countryEntry.subdivisions.get(subdivisionKey).events.push({
+            id: eventId,
+            place: String(event.properties.place || 'Unknown'),
+            mag: Number(event.properties.mag || 0),
+            time: Number(event.properties.time || Date.now()),
+          });
+        }
+
+        const rows = Array.from(map.values()).map((entry) => {
+          const subdivisions = Array.from(entry.subdivisions.values())
+            .map((item) => ({
+              name: item.name,
+              events: item.events.sort((a, b) => b.mag - a.mag),
+            }))
+            .sort((a, b) => b.events.length - a.events.length || a.name.localeCompare(b.name));
+
+          return {
+            country: entry.country,
+            total: entry.total,
+            subdivisions,
+          };
+        });
+
+        rows.sort((a, b) => {
+          if (a.total > 0 && b.total > 0) return b.total - a.total || a.country.localeCompare(b.country);
+          if (a.total > 0) return -1;
+          if (b.total > 0) return 1;
+          return a.country.localeCompare(b.country);
+        });
+
+        return rows;
+      }
+
+      function updateLiveCounts(features) {
+        const counts = countByCountry(features);
+        void counts;
+        locationsData = buildLocationsData(features, counts);
+        renderLocationsPanel();
+      }
+
+      function renderLocationsPanel() {
+        const host = document.getElementById('locationsList');
+        if (!host) return;
+
+        host.innerHTML = locationsData.map((countryRow) => {
+          const isExpanded = expandedCountry === countryRow.country;
+          const rowClass = `country-row ${countryRow.total > 0 ? 'active-country' : ''} ${isExpanded ? 'expanded' : ''}`;
+          const countClass = `country-count ${countryRow.total > 0 ? 'live' : ''}`;
+
+          const details = countryRow.total > 0
+            ? countryRow.subdivisions.map((sub) => {
+                const events = sub.events.map((ev) => `
+                  <button class="state-event" data-event-id="${ev.id}">
+                    <span>${ev.place}</span>
+                    <strong>M ${ev.mag.toFixed(1)}</strong>
+                  </button>
+                `).join('');
+
+                return `
+                  <div class="state-block">
+                    <div class="state-head">
+                      <span class="state-name">${sub.name}</span>
+                      <span>${sub.events.length} ${eqT('stateLiveSuffix')}</span>
+                    </div>
+                    <div class="state-events">${events}</div>
+                  </div>
+                `;
+              }).join('')
+            : '<div class="state-empty">' + eqT('noActiveQuakes') + '</div>';
+
+          return `
+            <div class="${rowClass}">
+              <button type="button" class="country-head" data-country="${countryRow.country}">
+                <span class="country-name">${countryRow.country}</span>
+                <span class="${countClass}">${countryRow.total}</span>
+              </button>
+              <div class="country-details">${details}</div>
+            </div>
+          `;
+        }).join('');
+
+        host.querySelectorAll('.country-head').forEach((button) => {
+          button.addEventListener('click', () => {
+            const country = button.getAttribute('data-country');
+            expandedCountry = expandedCountry === country ? null : country;
+            renderLocationsPanel();
+          });
+        });
+
+        host.querySelectorAll('.state-event').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const eventId = button.getAttribute('data-event-id');
+            if (eventId) selectEvent(eventId);
+            setLeftTab('recent');
+          });
+        });
+      }
+
+      function setEmailStatus(message, isError = false) {
+        const statusEl = document.getElementById('emailStatus');
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        statusEl.classList.toggle('error', Boolean(isError));
+      }
+
+      function renderSubscribersList() {
+        const host = document.getElementById('emailSubscribersList');
+        const thresholdTag = document.getElementById('emailThresholdTag');
+        if (!host) return;
+
+        if (thresholdTag) {
+          thresholdTag.textContent = `${eqT('thresholdPrefix')} M ${Number(earthquakeAlertThreshold || 5).toFixed(1)}+`;
+        }
+
+        if (!emailSubscribers.length) {
+          host.innerHTML = '<div class="state-empty">' + eqT('noSubscribers') + '</div>';
+          return;
+        }
+
+        host.innerHTML = emailSubscribers.map((subscriber) => `
+          <div class="email-sub-item">
+            <div>
+              <div>${subscriber.email}</div>
+              <div class="email-tag">Subscribed ${new Date(subscriber.subscribedAt || Date.now()).toLocaleString()}</div>
+            </div>
+            <button class="btn back" type="button" data-remove-email="${subscriber.email}">Remove</button>
+          </div>
+        `).join('');
+
+        host.querySelectorAll('[data-remove-email]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const email = button.getAttribute('data-remove-email');
+            if (!email) return;
+
+            try {
+              emailSubscribers = emailSubscribers.filter((entry) => entry.email !== email);
+              localStorage.setItem(
+                LOCAL_SUBSCRIBERS_KEY,
+                JSON.stringify({
+                  threshold: earthquakeAlertThreshold,
+                  subscribers: emailSubscribers,
+                }),
+              );
+              setEmailStatus(`Removed ${email}`);
+              renderSubscribersList();
+            } catch (error) {
+              setEmailStatus(error?.message || 'Failed to remove subscriber.', true);
+            }
+          });
+        });
+      }
+
+      function openEmailModal() {
+        const modal = document.getElementById('emailModal');
+        if (!modal) return;
+        modal.classList.add('open');
+        isEmailModalOpen = true;
+      }
+
+      function closeEmailModal() {
+        const modal = document.getElementById('emailModal');
+        if (!modal) return;
+        modal.classList.remove('open');
+        isEmailModalOpen = false;
+      }
+
+      async function loadSubscribers() {
+        try {
+          const payloadRaw = localStorage.getItem(LOCAL_SUBSCRIBERS_KEY);
+          const payload = payloadRaw ? JSON.parse(payloadRaw) : {};
+          emailSubscribers = Array.isArray(payload?.subscribers) ? payload.subscribers : [];
+          earthquakeAlertThreshold = Number(payload?.threshold ?? 5) || 5;
+          renderSubscribersList();
+        } catch (error) {
+          setEmailStatus(error?.message || 'Unable to load subscribers.', true);
+        }
+      }
+
+      async function addSubscriberFromInput() {
+        const input = document.getElementById('emailInput');
+        if (!input) return;
+
+        const email = String(input.value || '').trim().toLowerCase();
+        if (!email) {
+          setEmailStatus('Please enter a Gmail address.', true);
+          return;
+        }
+
+        try {
+          const current = emailSubscribers.filter((entry) => entry.email !== email);
+          current.unshift({ email, subscribedAt: new Date().toISOString() });
+          emailSubscribers = current;
+          localStorage.setItem(
+            LOCAL_SUBSCRIBERS_KEY,
+            JSON.stringify({
+              threshold: earthquakeAlertThreshold,
+              subscribers: emailSubscribers,
+            }),
+          );
+          input.value = '';
+          setEmailStatus(`Subscribed ${email} for live M > ${earthquakeAlertThreshold} alerts.`);
+          renderSubscribersList();
+        } catch (error) {
+          setEmailStatus(error?.message || 'Failed to subscribe Gmail.', true);
+        }
+      }
+
+      async function triggerAlertDispatch() {
+        // Local-only mode: alert dispatch remains in-page only.
+      }
+
+      async function fetchEarthquakes() {
+        for (const sourcePath of LOCAL_EARTHQUAKE_SOURCES) {
+          try {
+            const payload = await fetchLocalJson(sourcePath);
+            const features = Array.isArray(payload?.features) ? payload.features : [];
+            if (features.length > 0) {
+              return {
+                features,
+                sourceLabel: `Source: local dataset (${sourcePath})`,
+              };
+            }
+          } catch {
+            // Continue to next local source.
+          }
+        }
+        return { features: [], sourceLabel: 'Source: local dataset unavailable' };
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function mmiAtDistance(magnitude, depthKm, distanceKm) {
+        const a = 1.5;
+        const b = 1.5;
+        const c = 3.5;
+        const depthFactor = Math.max(1, Number(depthKm || 0) * 0.3);
+        const mmi = a + b * Number(magnitude || 0) - c * Math.log10(Math.max(0.1, distanceKm) + depthFactor);
+        return Math.max(1, Math.min(12, mmi));
+      }
+
+      function radiusForMmi(magnitude, depthKm, targetMmi) {
+        let minR = 0;
+        let maxR = 2000;
+        for (let i = 0; i < 48; i += 1) {
+          const mid = (minR + maxR) / 2;
+          const mmi = mmiAtDistance(magnitude, depthKm, mid);
+          if (mmi > targetMmi) minR = mid;
+          else maxR = mid;
+        }
+        return (minR + maxR) / 2;
+      }
+
+      function getRiskLevel(magnitude, maxMmi) {
+        if (magnitude >= 7 || maxMmi >= 9) return 'Extreme';
+        if (magnitude >= 6 || maxMmi >= 7.5) return 'Very High';
+        if (magnitude >= 5 || maxMmi >= 6) return 'High';
+        if (magnitude >= 4 || maxMmi >= 4.5) return 'Moderate';
+        return 'Low';
+      }
+
+      function riskColor(level) {
+        if (level === 'Extreme') return '#7f1d1d';
+        if (level === 'Very High') return '#b91c1c';
+        if (level === 'High') return '#dc2626';
+        if (level === 'Moderate') return '#f59e0b';
+        return '#3b82f6';
+      }
+
+      function areaFromRadius(radiusKm) {
+        return Math.PI * radiusKm * radiusKm;
+      }
+
+      function inferDefaultDensityKey(location) {
+        const raw = String(location || '').toLowerCase();
+        if (!raw) return 'DefaultUrban';
+        return /(rural|village|tehsil|valley|mountain|remote|district)/i.test(raw)
+          ? 'DefaultRural'
+          : 'DefaultUrban';
+      }
+
+      function resolveDensity(location, densityMap, unitLabel) {
+        const raw = String(location || '').trim();
+        const entries = Object.entries(densityMap).filter(([name]) => !name.startsWith('Default'));
+
+        for (const [city, value] of entries) {
+          if (raw.toLowerCase().includes(city.toLowerCase())) {
+            return {
+              value: Number(value) || 0,
+              source: `Density selected for: ${city} (${Number(value).toLocaleString()} ${unitLabel})`,
+              key: city,
+              isDefault: false,
+            };
+          }
+        }
+
+        const defaultKey = inferDefaultDensityKey(raw);
+        const fallbackValue = Number(densityMap[defaultKey] || densityMap.DefaultUrban || 0);
+        const defaultLabel = defaultKey === 'DefaultRural' ? 'Default Rural Density' : 'Default Urban Density';
+        return {
+          value: fallbackValue,
+          source: `Using ${defaultLabel} (${fallbackValue.toLocaleString()} ${unitLabel})`,
+          key: defaultKey,
+          isDefault: true,
+        };
+      }
+
+      function getPopulationDensity(location) {
+        return resolveDensity(location, populationDensityMap, 'people/km²');
+      }
+
+      function buildImpactAssessment(eventItem) {
+        const magnitude = Number(eventItem.mag || 0);
+        const depthKm = Number(eventItem.depthKm || 0);
+        const location = String(eventItem.place || eventItem.properties?.place || '');
+
+        const maxMmi = mmiAtDistance(magnitude, depthKm, 0.1);
+        const primaryRadiusKm = Math.max(2, 10 + 8 * (magnitude - 5) - 0.15 * depthKm);
+        const secondaryRadiusKm = primaryRadiusKm * 1.8;
+        const feltRadiusKm = primaryRadiusKm * 3.2;
+
+        const primaryArea = areaFromRadius(primaryRadiusKm);
+        const secondaryArea = areaFromRadius(secondaryRadiusKm);
+        const feltArea = areaFromRadius(feltRadiusKm);
+
+        const ringSecondaryArea = Math.max(0, secondaryArea - primaryArea);
+        const ringFeltArea = Math.max(0, feltArea - secondaryArea);
+
+        const populationDensityInfo = getPopulationDensity(location);
+        const populationDensity = Number.isFinite(populationDensityInfo.value) ? populationDensityInfo.value : 0;
+
+        const primaryPopulation = Math.round(primaryArea * populationDensity);
+        const secondaryPopulation = Math.round(ringSecondaryArea * populationDensity);
+        const feltPopulation = Math.round(ringFeltArea * populationDensity);
+        const area = secondaryArea;
+        const populationAffected = Math.round(area * populationDensity);
+
+        const totalInfra = {
+          buildings: 0,
+          bridges: 0,
+          roadsKm: 0,
+          hospitals: 0,
+          schools: 0,
+          emergency: 0,
+          powerStations: 0,
+          waterPlants: 0,
+        };
+
+        const risk = getRiskLevel(magnitude, maxMmi);
+        return {
+          risk,
+          maxMmi,
+          primaryRadiusKm,
+          secondaryRadiusKm,
+          feltRadiusKm,
+          primaryArea,
+          secondaryArea,
+          feltArea,
+          area,
+          populationDensity,
+          location,
+          populationDensitySource: populationDensityInfo.source || 'Population density fallback applied.',
+          primaryPopulation,
+          secondaryPopulation,
+          feltPopulation,
+          totalPopulation: populationAffected,
+          populationAffected,
+          buildingsAffected: 0,
+          buildingSource: eqT('buildingSourceShort'),
+          impactBreakdown: {
+            primary: { buildingCount: 0, population: primaryPopulation },
+            secondary: { buildingCount: 0, population: secondaryPopulation },
+            outer: { buildingCount: 0, population: feltPopulation },
+          },
+          totalInfra,
+        };
+      }
+
+      async function computeDualPopulation(eventItem, baseAssessment) {
+        try {
+          const service = await ensurePopulationService();
+          const lat = Number(eventItem?.lat);
+          const lon = Number(eventItem?.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            return null;
+          }
+
+          const result = await service.getBothPopulations(
+            lat,
+            lon,
+            Number(baseAssessment.secondaryRadiusKm || 0),
+            Number(baseAssessment.area || 0),
+            String(baseAssessment.location || '')
+          );
+
+          if (!result || !result.density) {
+            return null;
+          }
+
+          const densityTotal = Math.max(0, Number(result.density.total || 0));
+          const rasterTotal = Math.max(0, Number(result.raster || 0));
+          const baseTotal = Math.max(1, Number(baseAssessment.populationAffected || 1));
+          const scale = densityTotal > 0 ? densityTotal / baseTotal : 1;
+
+          const primaryEstimated = Math.max(0, Math.round(Number(baseAssessment.primaryPopulation || 0) * scale));
+          const secondaryEstimated = Math.max(0, Math.round(Number(baseAssessment.secondaryPopulation || 0) * scale));
+          const outerEstimated = Math.max(0, densityTotal - primaryEstimated - secondaryEstimated);
+
+          return {
+            primaryPopulation: primaryEstimated,
+            secondaryPopulation: secondaryEstimated,
+            feltPopulation: outerEstimated,
+            totalPopulation: densityTotal,
+            populationAffected: densityTotal,
+            populationDensitySource: 'Enhanced urban/rural density model',
+            populationComparison: {
+              raster: Math.round(rasterTotal),
+              density: Math.round(densityTotal),
+              urban: Math.max(0, Math.round(Number(result.density.urban || 0))),
+              rural: Math.max(0, Math.round(Number(result.density.rural || 0))),
+              city: String(result.density.city || 'Unknown'),
+              difference: Math.round(rasterTotal - densityTotal),
+              source: String(result.source || 'Failed'),
+            },
+          };
+        } catch (error) {
+          void error;
+          return null;
+        }
+      }
+
+      async function fetchBuildingsInRadius(lat, lon, radiusKm) {
+        const safeLat = Number(lat);
+        const safeLon = Number(lon);
+        const safeRadiusMeters = Math.max(200, Math.min(MAX_IMPACT_QUERY_RADIUS_METERS, Math.round(Number(radiusKm || 0) * 1000)));
+
+        if (!Number.isFinite(safeLat) || !Number.isFinite(safeLon) || !Number.isFinite(safeRadiusMeters) || safeRadiusMeters <= 0) {
+          return [];
+        }
+
+        const cacheKey = `${safeLat.toFixed(3)}:${safeLon.toFixed(3)}:${safeRadiusMeters}`;
+        if (impactBuildingCache.has(cacheKey)) {
+          return impactBuildingCache.get(cacheKey);
+        }
+        impactBuildingCacheSet(cacheKey, []);
+        return [];
+      }
+
+      async function analyzeImpact(eventItem) {
+        const base = buildImpactAssessment(eventItem);
+        const lat = Number(eventItem?.lat);
+        const lon = Number(eventItem?.lng);
+
+        loadingPopulation = true;
+        const bothPopulation = await computeDualPopulation(eventItem, base);
+        loadingPopulation = false;
+
+        const populationValues = bothPopulation || {
+          primaryPopulation: base.primaryPopulation,
+          secondaryPopulation: base.secondaryPopulation,
+          feltPopulation: base.feltPopulation,
+          totalPopulation: base.totalPopulation,
+          populationAffected: base.populationAffected,
+          populationDensitySource: base.populationDensitySource,
+          populationComparison: {
+            raster: 0,
+            density: base.populationAffected,
+            urban: Math.round(base.populationAffected * 0.4),
+            rural: Math.round(base.populationAffected * 0.6),
+            city: 'Unknown',
+            difference: Math.round(0 - base.populationAffected),
+            source: 'Failed',
+          },
+        };
+
+        const [primaryWays, secondaryWays, outerWays] = await Promise.all([
+          fetchBuildingsInRadius(lat, lon, base.primaryRadiusKm),
+          fetchBuildingsInRadius(lat, lon, base.secondaryRadiusKm),
+          fetchBuildingsInRadius(lat, lon, base.feltRadiusKm),
+        ]);
+
+        const primaryCount = primaryWays.length;
+        const secondaryCount = Math.max(0, secondaryWays.length - primaryWays.length);
+        const outerCount = Math.max(0, outerWays.length - secondaryWays.length);
+        const totalBuildings = primaryCount + secondaryCount + outerCount;
+
+        return {
+          ...base,
+          ...populationValues,
+          populationComparison: populationValues.populationComparison,
+          buildingsAffected: totalBuildings,
+          totalInfra: {
+            ...base.totalInfra,
+            buildings: totalBuildings,
+          },
+          impactBreakdown: {
+            primary: { buildingCount: primaryCount, population: populationValues.primaryPopulation },
+            secondary: { buildingCount: secondaryCount, population: populationValues.secondaryPopulation },
+            outer: { buildingCount: outerCount, population: populationValues.feltPopulation },
+          },
+          buildingSource: eqT('buildingSourceLong'),
+        };
+      }
+
+      function updateFormulaModal(assessment) {
+        const areaValue = document.getElementById('formulaAreaValue');
+        const buildingDensityValue = document.getElementById('formulaBuildingDensityValue');
+        const resultLine = document.getElementById('formulaBuildingResult');
+        const sourceLine = document.getElementById('formulaDensitySource');
+        const populationNote = document.getElementById('formulaPopulationNote');
+        if (!areaValue || !buildingDensityValue || !resultLine || !sourceLine || !populationNote) return;
+
+        if (!assessment) {
+          areaValue.textContent = '--';
+          buildingDensityValue.textContent = '--';
+          resultLine.textContent = eqT('buildingsEq').replace('{n}', '--');
+          sourceLine.textContent = eqT('waitingOsm');
+          populationNote.textContent = eqT('populationComputed');
+          return;
+        }
+
+        const buildings = Number(assessment.buildingsAffected || 0);
+        const population = Number(assessment.populationAffected || 0);
+        const comparison = assessment.populationComparison || null;
+
+        areaValue.textContent = Number(assessment.area || 0).toFixed(1);
+        buildingDensityValue.textContent = assessment.buildingSource || eqT('buildingSourceShort');
+        resultLine.textContent = eqT('buildingsEq').replace('{n}', buildings.toLocaleString());
+        sourceLine.textContent = eqT('primarySecondaryOuter')
+          .replace('{p}', assessment.impactBreakdown?.primary?.buildingCount?.toLocaleString?.() ?? '0')
+          .replace('{s}', assessment.impactBreakdown?.secondary?.buildingCount?.toLocaleString?.() ?? '0')
+          .replace('{o}', assessment.impactBreakdown?.outer?.buildingCount?.toLocaleString?.() ?? '0');
+        const sourceText = comparison
+          ? `Raster ${Number(comparison.raster || 0).toLocaleString()} | Density ${Math.round(population).toLocaleString()} | Diff ${(Number(comparison.difference || 0) >= 0 ? '+' : '') + Number(comparison.difference || 0).toLocaleString()}`
+          : `Density estimate = ${Math.round(population).toLocaleString()}`;
+        populationNote.textContent = sourceText;
+      }
+
+      function hideImpactPopup() {
+        const popup = document.getElementById('impactPopup');
+        if (!popup) return;
+        popup.classList.add('is-hidden');
+      }
+
+      let impactPopupPositionRaf = null;
+      function positionImpactPopup() {
+        if (impactPopupPositionRaf) {
+          window.cancelAnimationFrame(impactPopupPositionRaf);
+        }
+        impactPopupPositionRaf = window.requestAnimationFrame(() => {
+          impactPopupPositionRaf = null;
+          positionImpactPopupNow();
+        });
+      }
+
+      function positionImpactPopupNow() {
+        if (!globe || !selectedImpactEvent) return;
+        const popup = document.getElementById('impactPopup');
+        const host = document.getElementById('globeViz');
+        if (!popup || !host) return;
+
+        const coords = globe.getScreenCoords(selectedImpactEvent.lat, selectedImpactEvent.lng, 0);
+        if (!coords || !Number.isFinite(coords.x) || !Number.isFinite(coords.y)) {
+          hideImpactPopup();
+          return;
+        }
+
+        const hostRect = host.getBoundingClientRect();
+        const wrapRect = host.parentElement?.getBoundingClientRect() || hostRect;
+        let pointX = coords.x;
+        let pointY = coords.y;
+
+        if (pointX < 0 || pointY < 0 || pointX > hostRect.width || pointY > hostRect.height) {
+          pointX = coords.x - hostRect.left;
+          pointY = coords.y - hostRect.top;
+        }
+
+        const popupWidth = popup.offsetWidth || 280;
+        const popupHeight = popup.offsetHeight || 320;
+        const leftMin = 6;
+        const leftMax = Math.max(leftMin, wrapRect.width - popupWidth - 6);
+        const topMin = 6;
+        const topMax = Math.max(topMin, wrapRect.height - popupHeight - 10);
+        const desiredLeft = pointX - popupWidth / 2;
+        const desiredTop = pointY - popupHeight - 14;
+
+        popup.style.left = `${Math.max(leftMin, Math.min(leftMax, desiredLeft))}px`;
+        popup.style.top = `${Math.max(topMin, Math.min(topMax, desiredTop))}px`;
+      }
+
+      async function renderImpactPopup(eventItem) {
+        const popup = document.getElementById('impactPopup');
+        if (!popup || !eventItem) return;
+
+        loadingPopulation = true;
+        const baseAssessment = buildImpactAssessment(eventItem);
+        latestImpactAssessment = baseAssessment;
+        updateFormulaModal(baseAssessment);
+        selectedImpactEvent = eventItem;
+
+        popup.innerHTML = `
+          <div class="impact-title">
+            <h4>Seismic Impact Assessment</h4>
+            <button class="impact-close" id="impactPopupClose" type="button" aria-label="Close impact popup">×</button>
+            <span class="impact-risk" style="background:${riskColor(baseAssessment.risk)}">${baseAssessment.risk}</span>
+          </div>
+          <div class="impact-subtitle">${escapeHtml(eventItem.place || 'Unknown location')} · M ${Number(eventItem.mag || 0).toFixed(1)} · Depth ${Number(eventItem.depthKm || 0).toFixed(1)} km</div>
+          <div class="impact-zone-row">
+            <div class="impact-zone-card primary">
+              <b>Primary Zone</b>
+              <span>Radius: ${baseAssessment.primaryRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(baseAssessment.primaryArea).toLocaleString()} km²</span>
+              <span>Population: ~${baseAssessment.primaryPopulation.toLocaleString()}</span>
+            </div>
+            <div class="impact-zone-card secondary">
+              <b>Secondary Zone</b>
+              <span>Radius: ${baseAssessment.secondaryRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(baseAssessment.secondaryArea).toLocaleString()} km²</span>
+              <span>Population: ~${baseAssessment.secondaryPopulation.toLocaleString()}</span>
+            </div>
+            <div class="impact-zone-card felt">
+              <b>Felt Radius</b>
+              <span>Radius: ${baseAssessment.feltRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(baseAssessment.feltArea).toLocaleString()} km²</span>
+              <span>Population: ~${baseAssessment.totalPopulation.toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="impact-subtitle">Infrastructure in affected area (loading live OSM buildings...)</div>
+          <div class="impact-subtitle">Raster source: <span style="display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(120,180,255,0.45);background:rgba(40,85,150,0.22);color:#cfe8ff;font-weight:700;">Loading...</span></div>
+          <div class="impact-grid">
+            <div class="impact-item"><small>Buildings</small><strong>Loading...</strong></div>
+            <div class="impact-item"><small>Population (Density - Estimated)</small><strong>${baseAssessment.populationAffected.toLocaleString()}</strong></div>
+            <div class="impact-item"><small>Population (Raster - Accurate)</small><strong>${loadingPopulation ? 'Loading...' : '0'}</strong></div>
+            <div class="impact-item"><small>Difference</small><strong>${loadingPopulation ? 'Loading...' : `-${baseAssessment.populationAffected.toLocaleString()}`}</strong></div>
+          </div>
+          <div class="impact-arrow" aria-hidden="true"></div>
+        `;
+
+        popup.classList.remove('is-hidden');
+        positionImpactPopup();
+
+        const earlyCloseBtn = document.getElementById('impactPopupClose');
+        if (earlyCloseBtn) {
+          earlyCloseBtn.addEventListener('click', () => {
+            selectedImpactEvent = null;
+            hideImpactPopup();
+          });
+        }
+
+        const assessment = await analyzeImpact(eventItem);
+        if (!selectedImpactEvent || selectedImpactEvent.id !== eventItem.id) return;
+        latestImpactAssessment = assessment;
+        updateFormulaModal(assessment);
+
+        popup.innerHTML = `
+          <div class="impact-title">
+            <h4>Seismic Impact Assessment</h4>
+            <button class="impact-close" id="impactPopupClose" type="button" aria-label="Close impact popup">×</button>
+            <span class="impact-risk" style="background:${riskColor(assessment.risk)}">${assessment.risk}</span>
+          </div>
+          <div class="impact-subtitle">${escapeHtml(eventItem.place || 'Unknown location')} · M ${Number(eventItem.mag || 0).toFixed(1)} · Depth ${Number(eventItem.depthKm || 0).toFixed(1)} km</div>
+          <div class="impact-zone-row">
+            <div class="impact-zone-card primary">
+              <b>Primary Zone</b>
+              <span>Radius: ${assessment.primaryRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(assessment.primaryArea).toLocaleString()} km²</span>
+              <span>Population: ~${assessment.primaryPopulation.toLocaleString()}</span>
+            </div>
+            <div class="impact-zone-card secondary">
+              <b>Secondary Zone</b>
+              <span>Radius: ${assessment.secondaryRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(assessment.secondaryArea).toLocaleString()} km²</span>
+              <span>Population: ~${assessment.secondaryPopulation.toLocaleString()}</span>
+            </div>
+            <div class="impact-zone-card felt">
+              <b>Felt Radius</b>
+              <span>Radius: ${assessment.feltRadiusKm.toFixed(1)} km</span>
+              <span>Area: ${Math.round(assessment.feltArea).toLocaleString()} km²</span>
+              <span>Population: ~${assessment.totalPopulation.toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="impact-subtitle">Infrastructure in affected area (estimated)</div>
+          <div class="impact-subtitle">Raster source: <span style="display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid rgba(120,180,255,0.45);background:rgba(40,85,150,0.22);color:#cfe8ff;font-weight:700;">${escapeHtml(String(assessment.populationComparison?.source || 'Failed'))}</span></div>
+          <div class="impact-grid">
+            <div class="impact-item"><small>Buildings</small><strong>${assessment.totalInfra.buildings.toLocaleString()}</strong></div>
+            <div class="impact-item"><small>Population (Density - Estimated)</small><strong>${Number(assessment.populationComparison?.density || assessment.populationAffected || 0).toLocaleString()}</strong></div>
+            <div class="impact-item"><small>Population (Raster - Accurate)</small><strong>${Number(assessment.populationComparison?.raster || 0).toLocaleString()}</strong></div>
+            <div class="impact-item"><small>Difference</small><strong>${(Number(assessment.populationComparison?.difference || 0) >= 0 ? '+' : '') + Number(assessment.populationComparison?.difference || 0).toLocaleString()}</strong></div>
+          </div>
+          <div class="impact-arrow" aria-hidden="true"></div>
+        `;
+
+        popup.classList.remove('is-hidden');
+        positionImpactPopup();
+
+        const closeBtn = document.getElementById('impactPopupClose');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', () => {
+            selectedImpactEvent = null;
+            hideImpactPopup();
+          });
+        }
+      }
+
+      function ensureGlobe() {
+        if (globe) return globe;
+        const el = document.getElementById('globeViz');
+        globe = Globe()(el)
+          .width(Math.max(320, Math.floor(el.clientWidth)))
+          .height(Math.max(280, Math.floor(el.clientHeight)))
+          .globeImageUrl(GLOBE_TEXTURES[activeGlobeLayer])
+          .bumpImageUrl('/vendor/earth-topology.png')
+          .backgroundColor('rgba(0,0,0,0)')
+          .showAtmosphere(true)
+          .atmosphereColor('#5ca8ff')
+          .atmosphereAltitude(0.18)
+          .pointLabel((d) => d.label)
+          .onPointClick((d) => selectEvent(d.id))
+          .onGlobeClick(() => clearSelection());
+
+        const controls = globe.controls();
+        globeControls = controls;
+        controls.autoRotate = isAutoRotateEnabled;
+        controls.autoRotateSpeed = 0.35;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        if (typeof controls.addEventListener === 'function') {
+          controls.addEventListener('change', positionImpactPopup);
+        }
+
+        window.addEventListener('resize', resizeGlobeViewport);
+        addDisposeCallback(() => window.removeEventListener('resize', resizeGlobeViewport));
+        window.setTimeout(resizeGlobeViewport, 30);
+        loadPakistanBuildings(globe);
+        return globe;
+      }
+
+      function refreshPointsAppearance() {
+        if (!globe) return;
+
+        const pulseRings = buildPulseRings();
+
+        globe.pointsData([]);
+        globe.ringsData([]);
+
+        globe
+          .pointsData(getVisibleEarthquakes())
+          .pointLat('lat')
+          .pointLng('lng')
+          .pointAltitude(() => 0)
+          .pointRadius((d) => {
+            const base = Math.max(0.038, Math.min(0.074, 0.036 + d.mag * 0.0045));
+            if (d.id === selectedId) {
+              return Math.min(0.11, base + 0.028);
+            }
+            return base;
+          })
+          .pointColor((d) => {
+            if (d.id === selectedId) {
+              return 'rgba(59, 226, 255, 0.98)';
+            }
+            return markerColorForLayer(d.mag);
+          })
+          .ringsData(pulseRings)
+          .ringLat('lat')
+          .ringLng('lng')
+          .ringColor((d) => (t) => {
+            const alpha = Math.max(0, (Number(d.opacity ?? 0.46) || 0.46) * (1 - t));
+            const tone = d.color || '#ff3856';
+            const r = parseInt(tone.slice(1, 3), 16);
+            const g = parseInt(tone.slice(3, 5), 16);
+            const b = parseInt(tone.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
+          })
+          .ringMaxRadius('maxRadius')
+          .ringPropagationSpeed('speed')
+          .ringRepeatPeriod('period');
+      }
+
+      function setAutoRotation(enabled) {
+        isAutoRotateEnabled = Boolean(enabled);
+        const glb = ensureGlobe();
+        const controls = glb.controls();
+        controls.autoRotate = isAutoRotateEnabled;
+
+        const autoRotateBtn = document.getElementById('autoRotateBtn');
+        if (autoRotateBtn) {
+          autoRotateBtn.textContent = isAutoRotateEnabled ? eqT('motionStop') : eqT('motionStart');
+        }
+      }
+
+      function focusOn(id) {
+        if (!globe || !eventsData.length) return;
+        const selected = eventsData.find((item) => item.id === id);
+        const target = selected || eventsData[0];
+        if (!target) return;
+        globe.pointOfView({ lat: target.lat, lng: target.lng, altitude: selected ? 1.5 : 1.7 }, 1000);
+      }
+
+      function selectEvent(id) {
+        const selected = eventsData.find((item) => item.id === id) || null;
+        if (!selected) return;
+
+        if (selectedEarthquake && selectedEarthquake.id === id) {
+          clearSelection();
+          return;
+        }
+
+        setSelectedEarthquake(selected);
+        void renderImpactPopup(selected);
+        focusOn(id);
+      }
+
+      function render(data) {
+        const eventsEl = document.getElementById('events');
+        const statsGrid = document.getElementById('statsGrid');
+        const updatedAt = document.getElementById('updatedAt');
+        const sourceMeta = document.getElementById('sourceMeta');
+        if (!eventsEl || !statsGrid || !updatedAt) return;
+        const glb = ensureGlobe();
+
+        const items = data.slice(0, 200);
+        const globeItems = data;
+        eventsEl.innerHTML = items.map((e) => {
+          const country = countryFromEvent(e);
+          const mag = Number(e.properties.mag || 0);
+          const t = new Date(e.properties.time);
+          const id = String(e.id ?? `${e.geometry.coordinates[1]}-${e.geometry.coordinates[0]}-${e.properties.time}`);
+          return `
+            <button class="event" data-id="${id}">
+              <div class="meta">
+                <div class="flag">${flagFor(country)}</div>
+                <div>
+                  <div class="country">${country}</div>
+                  <div class="place">${e.properties.place || ''}</div>
+                </div>
+              </div>
+              <div class="mag">
+                <span class="mag-badge ${tierClass(mag)}">M ${mag.toFixed(1)}</span>
+                <div class="time">${t.toLocaleTimeString()}</div>
+              </div>
+            </button>
+          `;
+        }).join('');
+
+        quakeRows = Array.from(eventsEl.querySelectorAll('.event'));
+        quakeRows.forEach((row) => row.addEventListener('click', () => selectEvent(row.dataset.id)));
+
+        eventsData = globeItems.map((e) => {
+          const mag = Number(e.properties.mag || 0);
+          const lat = Number(e.geometry.coordinates?.[1]);
+          const lng = Number(e.geometry.coordinates?.[0]);
+          const depthKm = Number(e.geometry.coordinates?.[2] || 0);
+          return {
+            id: String(e.id ?? `${lat}-${lng}-${e.properties.time}`),
+            mag,
+            lat,
+            lng,
+            depthKm,
+            place: String(e.properties.place || eqT('unknownLocation')),
+            time: Number(e.properties.time || Date.now()),
+            label: `<strong>M ${mag.toFixed(1)}</strong><br/>${e.properties.place || eqT('unknown')}<br/>${new Date(e.properties.time).toLocaleString()}`,
+          };
+        }).filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng));
+
+        updateLiveCounts(data);
+
+        glb
+          .pointsData(getVisibleEarthquakes())
+          .pointLat('lat')
+          .pointLng('lng')
+          .pointAltitude(() => 0)
+          .pointRadius((d) => {
+            const base = Math.max(0.038, Math.min(0.074, 0.036 + d.mag * 0.0045));
+            return d.id === selectedId ? Math.min(0.092, base + 0.014) : base;
+          })
+          .pointColor((d) => d.id === selectedId ? '#ff3553' : markerColorForLayer(d.mag));
+
+        refreshPointsAppearance();
+
+        if (sourceMeta) {
+          sourceMeta.textContent = window.__sourceLabel || eqT('sourceLive');
+        }
+
+        const mags = data.map((x) => Number(x.properties.mag || 0));
+        const avg = mags.length ? mags.reduce((a, b) => a + b, 0) / mags.length : 0;
+        const max = mags.length ? Math.max(...mags) : 0;
+        const largestEvent = data.reduce((best, event) => {
+          const mag = Number(event?.properties?.mag || 0);
+          if (!best) return event;
+          const bestMag = Number(best?.properties?.mag || 0);
+          return mag > bestMag ? event : best;
+        }, null);
+        const largestPlace = largestCardPlace(largestEvent?.properties?.place);
+        const countries = locationsData.filter((row) => row.total > 0).length;
+
+        statsGrid.innerHTML = `
+          <div class="stats-item"><small>${eqT('statsTotal')}</small><strong>${data.length}</strong></div>
+          <div class="stats-item"><small>${eqT('statsAvg')}</small><strong>${avg.toFixed(1)}</strong></div>
+          <div class="stats-item"><small>${eqT('statsLargest')}</small><strong>M ${max.toFixed(1)}</strong><span class="stat-subtitle" title="${escapeHtml(largestPlace)}">${escapeHtml(largestPlace)}</span></div>
+          <div class="stats-item"><small>${eqT('statsLocations')}</small><strong>${countries} ${eqT('statsCountries')}</strong></div>
+        `;
+
+        updatedAt.textContent = `${eqT('lastUpdated')} ${new Date().toLocaleTimeString()}`;
+
+        if (selectedEarthquake) {
+          const refreshedSelection = eventsData.find((item) => item.id === selectedEarthquake.id) || null;
+          if (refreshedSelection) {
+            setSelectedEarthquake(refreshedSelection);
+            void renderImpactPopup(refreshedSelection);
+          } else {
+            clearSelection();
+          }
+        } else {
+          refreshPointsAppearance();
+          if (is2DMap) render2DMap();
+        }
+      }
+
+      async function load(reason = 'poll') {
+        if (pageDisposed) return;
+        if (refreshInFlight) {
+          pendingRefreshReason = reason;
+          return;
+        }
+
+        refreshInFlight = true;
+        try {
+          let payload = null;
+          for (let attempt = 0; attempt < MAX_FETCH_RETRIES; attempt += 1) {
+            try {
+              payload = await fetchEarthquakes();
+              break;
+            } catch (error) {
+              if (attempt >= MAX_FETCH_RETRIES - 1) throw error;
+              await new Promise((resolve) => window.setTimeout(resolve, 700 * (attempt + 1)));
+            }
+          }
+
+          const safeFeatures = Array.isArray(payload?.features) ? payload.features : [];
+          const sourceLabel = String(payload?.sourceLabel || eqT('sourceLive'));
+          window.__sourceLabel = sourceLabel;
+          if (pageDisposed) return;
+          render(safeFeatures);
+          if (safeFeatures.length > 0) {
+            lastGoodFeatures = safeFeatures;
+          }
+          consecutiveLoadFailures = 0;
+          await triggerAlertDispatch();
+        } catch (error) {
+          void error;
+          consecutiveLoadFailures += 1;
+          window.__sourceLabel = eqT('sourceUnavailable');
+          if (lastGoodFeatures.length > 0) {
+            if (!pageDisposed) render(lastGoodFeatures);
+          } else {
+            if (!pageDisposed) render([]);
+          }
+
+          if (!refreshRetryTimer) {
+            const retryDelay = Math.min(10000, 1500 * consecutiveLoadFailures);
+            refreshRetryTimer = window.setTimeout(() => {
+              refreshRetryTimer = null;
+              if (!pageDisposed) void load('retry');
+            }, retryDelay);
+          }
+        } finally {
+          refreshInFlight = false;
+          if (pendingRefreshReason) {
+            const nextReason = pendingRefreshReason;
+            pendingRefreshReason = '';
+            void load(nextReason);
+          }
+        }
+      }
+
+      function bindControls() {
+        const backBtn = document.getElementById('backBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const autoRotateBtn = document.getElementById('autoRotateBtn');
+        const emailAlertsBtn = document.getElementById('emailAlertsBtn');
+        const formulaBtn = document.getElementById('formulaBtn');
+        const emailModal = document.getElementById('emailModal');
+        const emailModalCloseBtn = document.getElementById('emailModalCloseBtn');
+        const emailAddBtn = document.getElementById('emailAddBtn');
+        const formulaModal = document.getElementById('formulaModal');
+        const formulaModalCloseBtn = document.getElementById('formulaModalCloseBtn');
+        const emailInput = document.getElementById('emailInput');
+        const tabRecentBtn = document.getElementById('tabRecentBtn');
+        const tabLocationsBtn = document.getElementById('tabLocationsBtn');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const layerToggleBtn = document.getElementById('layerToggleBtn');
+        const mapToggleBtn = document.getElementById('mapToggleBtn');
+        const resetViewBtn = document.getElementById('resetViewBtn');
+        const impactPopupClose = document.getElementById('impactPopupClose');
+
+        const bind = (node, eventName, handler) => {
+          if (!node || typeof node.addEventListener !== 'function') return;
+          node.addEventListener(eventName, handler);
+          addDisposeCallback(() => node.removeEventListener(eventName, handler));
+        };
+
+        bind(backBtn, 'click', () => {
+          if (document.documentElement.classList.contains('eq-embed')) return;
+          if (window.history.length > 1) {
+            window.history.back();
+            return;
+          }
+          window.location.href = './';
+        });
+
+        bind(refreshBtn, 'click', () => {
+          void load('manual');
+        });
+
+        layerToggleController = LayerToggleButton(layerToggleBtn);
+
+        bind(autoRotateBtn, 'click', () => {
+          setAutoRotation(!isAutoRotateEnabled);
+        });
+
+        bind(emailAlertsBtn, 'click', async () => {
+          openEmailModal();
+          await loadSubscribers();
+        });
+
+        bind(emailModalCloseBtn, 'click', () => {
+          closeEmailModal();
+        });
+
+        bind(emailAddBtn, 'click', async () => {
+          await addSubscriberFromInput();
+        });
+
+        bind(emailInput, 'keydown', async (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            await addSubscriberFromInput();
+          }
+        });
+
+        bind(emailModal, 'click', (event) => {
+          if (event.target === emailModal) {
+            closeEmailModal();
+          }
+        });
+
+        bind(formulaBtn, 'click', async () => {
+          let activeAssessment = latestImpactAssessment;
+          if (selectedImpactEvent) {
+            activeAssessment = await analyzeImpact(selectedImpactEvent);
+            latestImpactAssessment = activeAssessment;
+          }
+          updateFormulaModal(activeAssessment || null);
+          formulaModal.classList.add('open');
+        });
+
+        bind(formulaModalCloseBtn, 'click', () => {
+          formulaModal.classList.remove('open');
+        });
+
+        bind(formulaModal, 'click', (event) => {
+          if (event.target === formulaModal) {
+            formulaModal.classList.remove('open');
+          }
+        });
+
+        const onDocKeydown = (event) => {
+          if (event.key === 'Escape' && isEmailModalOpen) {
+            closeEmailModal();
+          }
+          if (event.key === 'Escape' && formulaModal.classList.contains('open')) {
+            formulaModal.classList.remove('open');
+          }
+        };
+        document.addEventListener('keydown', onDocKeydown);
+        addDisposeCallback(() => document.removeEventListener('keydown', onDocKeydown));
+
+        bind(tabRecentBtn, 'click', () => setLeftTab('recent'));
+        bind(tabLocationsBtn, 'click', () => setLeftTab('locations'));
+
+        bind(fullscreenBtn, 'click', async () => {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          } else {
+            await document.documentElement.requestFullscreen();
+          }
+        });
+
+        bind(zoomInBtn, 'click', () => {
+          if (is2DMap && leafletMap) {
+            leafletMap.zoomIn();
+            return;
+          }
+          const glb = ensureGlobe();
+          currentAltitude = Math.max(0.85, currentAltitude - 0.18);
+          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
+        });
+
+        bind(zoomOutBtn, 'click', () => {
+          if (is2DMap && leafletMap) {
+            leafletMap.zoomOut();
+            return;
+          }
+          const glb = ensureGlobe();
+          currentAltitude = Math.min(2.8, currentAltitude + 0.18);
+          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 320);
+        });
+
+        bind(mapToggleBtn, 'click', () => {
+          setIs2DMap(!is2DMap);
+        });
+
+        bind(resetViewBtn, 'click', () => {
+          clearSelection();
+          if (is2DMap) {
+            render2DMap();
+            return;
+          }
+          const glb = ensureGlobe();
+          currentAltitude = 1.7;
+          glb.pointOfView({ ...defaultCenter, altitude: currentAltitude }, 600);
+        });
+
+        if (impactPopupClose) {
+          bind(impactPopupClose, 'click', () => {
+            selectedImpactEvent = null;
+            hideImpactPopup();
+          });
+        }
+
+        setAutoRotation(true);
+        setLeftTab(activeLeftTab);
+        setGlobeLayer('default');
+        setIs2DMap(false);
+      }
+
+      const globeFactory = typeof window.Globe === 'function' ? window.Globe : null;
+      const leafletReady = typeof window.L !== 'undefined';
+
+      if (!globeFactory) {
+        /* noop */
+      } else if (!leafletReady) {
+        /* noop */
+      } else {
+        applyEqStaticLabels();
+        bindControls();
+        window.addEventListener('pagehide', disposeEarthquakePage, { once: true });
+        loadSubscribers();
+        void loadPopulationRaster();
+        void load('initial');
+        refreshTimer = window.setInterval(() => {
+          if (document.hidden) return;
+          void load('poll');
+        }, LIVE_REFRESH_MS);
+      }
+    </script>
+  </body>
+</html>

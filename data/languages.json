@@ -1,0 +1,15 @@
+{
+  "languages": [
+    {
+      "code": "en",
+      "label": "English",
+      "direction": "ltr"
+    },
+    {
+      "code": "ur",
+      "label": "اردو",
+      "direction": "rtl"
+    }
+  ],
+  "default": "en"
+}

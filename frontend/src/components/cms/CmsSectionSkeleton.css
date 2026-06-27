@@ -1,0 +1,36 @@
+.cms-section-skeleton {
+  padding: var(--space-4, 16px) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+
+.cms-section-skeleton__bar {
+  height: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06));
+  background-size: 200% 100%;
+  animation: cms-skel-shimmer 1.1s ease-in-out infinite;
+}
+
+.cms-section-skeleton__bar--title {
+  width: 40%;
+  height: 18px;
+}
+
+@keyframes cms-skel-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-section-skeleton__bar {
+    animation: none;
+    background: rgba(0, 0, 0, 0.08);
+  }
+}

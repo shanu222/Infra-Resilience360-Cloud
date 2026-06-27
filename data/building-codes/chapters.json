@@ -1,0 +1,60 @@
+{
+  "codes": [
+    {
+      "id": "bcp2021",
+      "title": "Building Code of Pakistan",
+      "year": "2021",
+      "hierarchyPath": "/pgbc/bcp2021_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "standardization2021",
+      "title": "Standardization Code",
+      "year": "2021",
+      "hierarchyPath": "/pgbc/standardization2021_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "fire2016",
+      "title": "Fire Safety Code",
+      "year": "2016",
+      "hierarchyPath": "/pgbc/fire2016_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "petsac2014",
+      "title": "PETSAC Code",
+      "year": "2014",
+      "hierarchyPath": "/pgbc/petsac2014_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "gbcp2023",
+      "title": "Green Building Code of Pakistan",
+      "year": "2023",
+      "hierarchyPath": "/pgbc/gbcp2023_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "ecbc2023",
+      "title": "Energy Conservation Building Code",
+      "year": "2023",
+      "hierarchyPath": "/pgbc/ecbc2023_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "bcp2007",
+      "title": "BCP Seismic Provisions",
+      "year": "2007",
+      "hierarchyPath": "/pgbc/bcp2007_seismic_hierarchy.json",
+      "pdfPath": ""
+    },
+    {
+      "id": "bec2011",
+      "title": "Building Energy Code",
+      "year": "2011",
+      "hierarchyPath": "/pgbc/bec2011_hierarchy.json",
+      "pdfPath": ""
+    }
+  ]
+}

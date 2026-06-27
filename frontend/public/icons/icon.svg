@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Resilience360">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2f85be"/>
+      <stop offset="100%" stop-color="#1b6292"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#g)"/>
+  <g fill="#ffffff">
+    <path d="M98 332V148h56c40 0 65 22 65 58 0 26-15 45-39 53l45 73h-42l-40-67h-7v67zm33-96h22c20 0 32-11 32-28s-12-28-32-28h-22z"/>
+    <path d="M246 332V148h118v30h-85v44h72v30h-72v50h88v30z"/>
+    <path d="M390 330c-12 0-22-10-22-22s10-22 22-22 22 10 22 22-10 22-22 22z"/>
+  </g>
+</svg>

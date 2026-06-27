@@ -1,0 +1,35 @@
+{
+  "province": "Balochistan",
+  "city": "Quetta",
+  "source": "Local market baseline 2026",
+  "materialRates": {
+    "brickPerPiece": 17,
+    "cementPerBag": 860,
+    "sandPerCft": 55,
+    "aggregatePerCft": 66,
+    "steelPerKg": 158,
+    "tilePerSqFt": 410,
+    "doorPerSqFt": 700,
+    "windowPerSqFt": 575,
+    "plasterPerSqFt": 69,
+    "woodPerCft": 4400,
+    "beamPerRft": 490,
+    "concretePerCft": 195,
+    "paintPerSqFt": 30,
+    "doorWoodPerUnit": 19200,
+    "windowAluminumPerUnit": 15400,
+    "waterproofPerSqFt": 46,
+    "gaderPerPiece": 5600,
+    "beamConcretePerCft": 238,
+    "columnConcretePerCft": 258
+  },
+  "laborRates": {
+    "dailyWageMason": 2700,
+    "dailyWageHelper": 1900,
+    "workersPer100SqFt": 2.6,
+    "productivitySqFtPerWorkerDay": 10.2
+  },
+  "notes": [
+    "Local JSON source for smart construction rates."
+  ]
+}

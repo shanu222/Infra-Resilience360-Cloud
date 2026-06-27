@@ -1,0 +1,74 @@
+.s3-media-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.s3-media-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, #e2e8f0 8%, #f8fafc 18%, #e2e8f0 33%);
+  background-size: 200% 100%;
+  animation: s3-media-shimmer 1.2s ease-in-out infinite;
+}
+
+.s3-media-skeleton--pdf,
+.s3-media-skeleton--video {
+  border-radius: 0.75rem;
+}
+
+.s3-media-indicator {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #475569;
+  background: rgba(248, 250, 252, 0.92);
+  z-index: 2;
+}
+
+.s3-media-indicator__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #cbd5e1;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+  animation: s3-media-spin 0.7s linear infinite;
+}
+
+.s3-media-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.s3-media-img.is-loading {
+  opacity: 0;
+}
+
+.s3-media-img.is-loaded {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+@keyframes s3-media-shimmer {
+  to {
+    background-position-x: -200%;
+  }
+}
+
+@keyframes s3-media-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

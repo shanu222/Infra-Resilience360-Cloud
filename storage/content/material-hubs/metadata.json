@@ -1,0 +1,32 @@
+{
+  "module": "material-hubs",
+  "version": "1.0",
+  "images": [
+    "images/bamboo-installation-guide.png",
+    "images/Bamboo.jpg",
+    "images/cgi-sheet-roofing.png",
+    "images/CGI-Sheet.jpg",
+    "images/Cotton-Rope.jpg",
+    "images/disaster-resilient-rope-tying-methods.png",
+    "images/durable-wooden-plank-assembly-guide.png",
+    "images/eps-panel-fitting-guide.png",
+    "images/EPS-Panel.jpg",
+    "images/gilgit-hub.jpg",
+    "images/material_hub_bg.png",
+    "images/muzaffargarh-hub.jpg",
+    "images/pakistan-map.png",
+    "images/pallet-handling-and-storage.png",
+    "images/Pallet.jpg",
+    "images/polythene-sheet-installation-guide.png",
+    "images/Polythene-Sheet.jpg",
+    "images/steel-girder-placement-guide.png",
+    "images/Steel-Girder.jpg",
+    "images/sukkur-hub.jpg",
+    "images/Wooden-Plank.jpg",
+    "images/wooden-stick-chick-mat-application.png",
+    "images/Wooden-Stick-Chick-Mat.jpg"
+  ],
+  "videos": [],
+  "pdfs": [],
+  "audio": []
+}

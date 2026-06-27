@@ -1,0 +1,10 @@
+{
+  "module": "live-earthquake-alerts",
+  "version": "1.0",
+  "images": [],
+  "videos": [],
+  "pdfs": [],
+  "audio": [
+    "audio/earthquake-alert.mp3"
+  ]
+}
