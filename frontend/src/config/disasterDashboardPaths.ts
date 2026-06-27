@@ -15,5 +15,5 @@ export function disasterDashboardContentUrl(relativePath: string): string {
 export const s3DisasterDashboardUrl = disasterDashboardContentUrl
 
 export const DISASTER_DASHBOARD_BRAND = {
-  backgroundImageUrl: disasterDashboardContentUrl('images/disaster-dashboard-bg.png'),
+  backgroundImageUrl: disasterDashboardContentUrl('images/disaster_dashboard_bg.png'),
 }

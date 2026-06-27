@@ -1735,7 +1735,9 @@ function App(_props: AppProps = {}) {
         return () => {
           window.removeEventListener('earthquake-alert', handleEarthquakeAlert as EventListener)
         }
-      } catch {}
+      } catch {
+        /* keep app shell stable if push init fails */
+      }
     }
 
     initPushNotifications()

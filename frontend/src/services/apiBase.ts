@@ -71,18 +71,12 @@ export async function fetchApi(input: RequestInfo | URL, init?: RequestInit): Pr
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
       return await fetch(input, { ...init, signal: controller.signal })
-    } catch (err) {
-      throw err
     } finally {
       clearTimeout(timer)
     }
   }
 
-  try {
-    return await fetch(input, init)
-  } catch (err) {
-    throw err
-  }
+  return await fetch(input, init)
 }
 
 /**

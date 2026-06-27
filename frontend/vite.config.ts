@@ -9,7 +9,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const configuredBase = process.env.VITE_BASE_PATH ?? '/'
 const base = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`
-const siteUrl = String(process.env.VITE_SITE_URL ?? 'https://www.infraresilience.org').replace(/\/+$/, '')
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -188,30 +187,9 @@ export default defineConfig(({ mode }) => ({
         background_color: '#f4f7fb',
         display: 'standalone',
         orientation: 'portrait',
-        id: `${siteUrl}${base}`,
-        scope: `${siteUrl}${base}`,
-        start_url: `${siteUrl}${base}`,
-        shortcuts: [
-          {
-            name: 'Learn & Train',
-            short_name: 'Learn',
-            url: `${siteUrl}${base}?view=learn`,
-          },
-          {
-            name: 'Disaster Dashboard',
-            short_name: 'Dashboard',
-            url: `${siteUrl}${base}?view=disasterDashboard`,
-          },
-        ],
-        share_target: {
-          action: `${siteUrl}${base}`,
-          method: 'GET',
-          params: {
-            title: 'title',
-            text: 'text',
-            url: 'url',
-          },
-        },
+        id: base,
+        scope: base,
+        start_url: base,
         icons: [
           {
             src: `${base}icon-192.png`,

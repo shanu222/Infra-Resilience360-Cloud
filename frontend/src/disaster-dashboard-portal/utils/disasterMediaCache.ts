@@ -13,17 +13,6 @@ export function preloadDisasterImageUrl(url: string): void {
   if (!url || typeof window === 'undefined') return
   if (isDisasterImageLoaded(url)) return
 
-  const linkId = `dd-preload-img:${url}`
-  if (!document.getElementById(linkId)) {
-    const link = document.createElement('link')
-    link.id = linkId
-    link.rel = 'preload'
-    link.as = 'image'
-    link.href = url
-    link.crossOrigin = 'anonymous'
-    document.head.appendChild(link)
-  }
-
   const img = new Image()
   img.decoding = 'async'
   img.onload = () => markDisasterImageLoaded(url)

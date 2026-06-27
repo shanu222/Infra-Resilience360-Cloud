@@ -40,7 +40,9 @@ export default function LiveEarthquakeNativePage({ language = 'en' }: { language
         await loadLiveEarthquakeVendorScripts()
         if (disposed) return
         cleanupMonitor = initLiveEarthquakeMonitor(root)
-      } catch {}
+      } catch {
+        /* keep embedded monitor host interactive if vendor init fails */
+      }
     })()
 
     return () => {
