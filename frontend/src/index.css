@@ -3626,6 +3626,55 @@ h4 {
   box-sizing: border-box;
 }
 
+.section-panel.section-smart-construction {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+.section-panel.section-smart-construction > .section-lead,
+.section-panel.section-smart-construction > h2 {
+  position: relative;
+  z-index: 2;
+}
+
+.portal-page-smart-construction.smart-construction-layout {
+  --smart-construction-bg-url: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  isolation: isolate;
+  overflow: visible;
+  background-image: var(--smart-construction-bg-url);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.portal-page-smart-construction.smart-construction-layout::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(3, 10, 24, 0.58) 0%, rgba(6, 15, 33, 0.46) 100%);
+}
+
+.portal-page-smart-construction.smart-construction-layout > * {
+  position: relative;
+  z-index: 1;
+}
+
 /*
   Unified shell scrolling:
   embedded native portals should follow document flow under the shared header,
@@ -3639,6 +3688,35 @@ h4 {
 .portal-page-smart-construction [style*='background-attachment: fixed'],
 .portal-page-retrofit-calculator [style*='background-attachment: fixed'] {
   background-attachment: scroll !important;
+}
+
+.portal-page-smart-construction .smart-construction-portal-frame {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: max(560px, calc(100dvh - 12rem));
+  height: auto;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+
+@media (max-width: 1023px) {
+  .section-panel.section-smart-construction {
+    min-height: auto;
+  }
+
+  .portal-page-smart-construction.smart-construction-layout {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-attachment: scroll;
+  }
+
+  .portal-page-smart-construction .smart-construction-portal-frame {
+    min-height: 100dvh;
+    border-radius: 10px;
+  }
 }
 
 .portal-page-disaster-dashboard--fallback .portal-fallback-card {

@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
+import type { CSSProperties } from 'react'
 import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
+import { getModuleMediaUrl } from '../../utils/mediaUrl'
 
 export function SmartConstructionPage({
   language,
@@ -13,7 +15,8 @@ export function SmartConstructionPage({
   isAdminMode?: boolean
   isEditMode?: boolean
 }) {
-  const iframeRef = useIframeAutoHeight(820)
+  const iframeRef = useIframeAutoHeight(0)
+  const smartConstructionBackgroundUrl = getModuleMediaUrl('smart-construction', 'images', 'smart_construction_bg.png')
 
   useEffect(() => {
     persistLanguage(language)
@@ -23,9 +26,14 @@ export function SmartConstructionPage({
 
   return (
     <div
-      className="portal-page-root portal-page-smart-construction"
+      className="portal-page-root portal-page-smart-construction smart-construction-layout"
       data-admin-mode={isAdminMode ? 'true' : 'false'}
       data-edit-mode={isEditMode ? 'true' : 'false'}
+      style={
+        {
+          '--smart-construction-bg-url': `url("${smartConstructionBackgroundUrl}")`,
+        } as CSSProperties
+      }
     >
       <iframe
         ref={iframeRef}

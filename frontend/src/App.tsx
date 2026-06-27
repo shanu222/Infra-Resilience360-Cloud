@@ -6542,7 +6542,7 @@ function App(_props: AppProps = {}) {
 
     if (section === 'smartConstruction') {
       return (
-        <div className="panel section-panel section-pgbc">
+        <div className="panel section-panel section-pgbc section-smart-construction">
           <CmsSectionHeading fallback={t.sections.smartConstruction} />
           <CmsText id="sectionIntro" fallback={t.homeCards.smartConstruction.subtitle} className="section-lead" />
           <Suspense fallback={null}>
