@@ -134,6 +134,8 @@ export function initLiveEarthquakeMonitor(root) {
           allLabel: 'All',
           mobileRecentEvents: 'Recent Events',
           mobileGlobeView: 'Globe View',
+          recentActivityCollapse: 'Collapse Recent Activity',
+          recentActivityExpand: 'Expand Recent Activity',
           buildingsLoading: 'Buildings: loading',
           buildingsUnavailable: 'Buildings: unavailable',
           buildingsLabel: 'Buildings:',
@@ -195,6 +197,8 @@ export function initLiveEarthquakeMonitor(root) {
           allLabel: 'تمام',
           mobileRecentEvents: 'حالیہ واقعات',
           mobileGlobeView: 'گلوب منظر',
+          recentActivityCollapse: 'حالیہ سرگرمی بند کریں',
+          recentActivityExpand: 'حالیہ سرگرمی کھولیں',
           buildingsLoading: 'عمارتیں: لوڈ',
           buildingsUnavailable: 'عمارتیں: دستیاب نہیں',
           buildingsLabel: 'عمارتیں:',
@@ -284,6 +288,7 @@ export function initLiveEarthquakeMonitor(root) {
         if (displayLabel) displayLabel.textContent = eqT('displayLabel');
         setTxt('mobileEventsViewBtn', eqT('mobileRecentEvents'));
         setTxt('mobileGlobeViewBtn', eqT('mobileGlobeView'));
+        updateRecentActivityToggle();
         const displaySelect = document.getElementById('eventDisplayCountSelect');
         if (displaySelect) {
           Array.from(displaySelect.options || []).forEach((option) => {
@@ -344,6 +349,15 @@ export function initLiveEarthquakeMonitor(root) {
         }
         resizeGlobeViewport();
         if (is2DMap) scheduleLeafletInvalidate();
+      }
+
+      function updateRecentActivityToggle() {
+        const aside = root.querySelector('.left.card');
+        const toggle = document.getElementById('recentActivityToggleBtn');
+        if (!aside || !toggle) return;
+        const collapsed = aside.classList.contains('is-collapsed');
+        toggle.textContent = collapsed ? eqT('recentActivityExpand') : eqT('recentActivityCollapse');
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
       }
 
       function stripTrailingSlash(value) {
@@ -2907,6 +2921,7 @@ export function initLiveEarthquakeMonitor(root) {
         const sortFilterSelect = document.getElementById('sortFilterSelect');
         const eventSearchInput = document.getElementById('eventSearchInput');
         const eventDisplayCountSelect = document.getElementById('eventDisplayCountSelect');
+        const recentActivityToggleBtn = document.getElementById('recentActivityToggleBtn');
         const mobileEventsViewBtn = document.getElementById('mobileEventsViewBtn');
         const mobileGlobeViewBtn = document.getElementById('mobileGlobeViewBtn');
         const zoomInBtn = document.getElementById('zoomInBtn');
@@ -3004,6 +3019,15 @@ export function initLiveEarthquakeMonitor(root) {
           renderRecentActivityList();
         });
 
+        bind(recentActivityToggleBtn, 'click', () => {
+          const aside = root.querySelector('.left.card');
+          if (!aside) return;
+          aside.classList.toggle('is-collapsed');
+          updateRecentActivityToggle();
+          resizeGlobeViewport();
+          if (is2DMap) scheduleLeafletInvalidate();
+        });
+
         bind(mobileEventsViewBtn, 'click', () => {
           setMobilePanelView('events');
         });
@@ -3068,8 +3092,20 @@ export function initLiveEarthquakeMonitor(root) {
         document.addEventListener('fullscreenchange', onFullscreenChange);
         addDisposeCallback(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
         const onViewportResize = () => {
+          const aside = root.querySelector('.left.card');
+          if (aside) {
+            if (window.innerWidth > 1024) {
+              aside.classList.remove('is-collapsed');
+            }
+            updateRecentActivityToggle();
+          }
           setMobilePanelView(mobilePanelView);
         };
+        const aside = root.querySelector('.left.card');
+        if (aside && window.innerWidth <= 1024) {
+          aside.classList.add('is-collapsed');
+          updateRecentActivityToggle();
+        }
         window.addEventListener('resize', onViewportResize);
         addDisposeCallback(() => window.removeEventListener('resize', onViewportResize));
 

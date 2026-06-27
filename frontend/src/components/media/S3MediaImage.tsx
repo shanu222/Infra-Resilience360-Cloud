@@ -35,6 +35,9 @@ export function S3MediaImage({
   }, [candidates.join('|')])
 
   const src = candidates[index] ?? ''
+  const loadingMode = rest.loading ?? 'lazy'
+  const decodingMode = rest.decoding ?? 'async'
+  const fetchPriorityMode = rest.fetchPriority ?? (loadingMode === 'eager' ? 'high' : 'auto')
 
   if (failed || !src) {
     return (
@@ -51,8 +54,9 @@ export function S3MediaImage({
         src={src}
         alt={alt}
         className={`s3-media-img ${className}`.trim()}
-        loading={rest.loading ?? 'eager'}
-        decoding={rest.decoding ?? 'sync'}
+        loading={loadingMode}
+        decoding={decodingMode}
+        fetchPriority={fetchPriorityMode}
         onLoad={(e) => {
           onLoad?.(e)
         }}

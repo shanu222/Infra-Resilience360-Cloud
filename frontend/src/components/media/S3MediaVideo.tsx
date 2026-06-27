@@ -52,7 +52,8 @@ export function S3MediaVideo({
         src={src}
         poster={poster}
         className={className}
-        preload={rest.preload ?? 'auto'}
+        preload={rest.preload ?? 'metadata'}
+        playsInline={rest.playsInline ?? true}
         onLoadedData={(e) => {
           onLoadedData?.(e)
         }}
