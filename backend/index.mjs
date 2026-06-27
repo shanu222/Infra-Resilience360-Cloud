@@ -6069,12 +6069,9 @@ app.use('/api', (req, res) => {
 app.get('/', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.status(200).json({
-    status: 'ok',
-    service: 'resilience360-api',
-    mode: 'api-only',
-    frontend: 'served-by-vercel',
-    mediaProxy: isRemoteMediaMode ? 'remote' : 'local',
-    mediaBaseUrl: isRemoteMediaMode ? MEDIA_BASE_URL : null,
+    service: 'InfraResilience360 Backend',
+    status: 'online',
+    version: process.env.APP_VERSION || 'production',
   })
 })
 

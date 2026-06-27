@@ -6,10 +6,30 @@ import { streamLocalMediaToResponse } from '../services/localMediaResolver.mjs'
 /**
  * Instant probes before CORS / JSON / admin middleware so load balancers always get a response.
  */
+const healthPayload = () => ({
+  status: 'ok',
+  uptime: process.uptime(),
+})
+
+const versionPayload = () => ({
+  service: 'InfraResilience360 Backend',
+  version: process.env.APP_VERSION || 'production',
+})
+
 export function registerInstantProbeRoutes(app) {
+  app.get('/health', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json(healthPayload())
+  })
+
+  app.get('/version', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    res.status(200).json(versionPayload())
+  })
+
   app.get('/api/health', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store')
-    res.status(200).json({ status: 'ok', uptime: process.uptime() })
+    res.status(200).json(healthPayload())
   })
 
   /** GeoTIFF used by live-earthquake / population raster — served from local data/gis/. */

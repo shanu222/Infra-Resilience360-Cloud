@@ -16,6 +16,7 @@
     "server": "node backend/index.mjs",
     "backend": "node backend/index.mjs",
     "build": "vite build --config frontend/vite.config.ts",
+    "build:backend": "node --check backend/index.mjs",
     "build:typecheck": "tsc -b frontend/tsconfig.json",
     "postinstall": "echo Production install completed",
     "media:migrate:enterprise": "node scripts/enterprise-media-migration.mjs",

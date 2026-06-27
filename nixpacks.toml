@@ -1,0 +1,6 @@
+# Railway/Nixpacks: backend API only — do not build the Vite frontend here.
+[phases.build]
+cmds = ["npm run build:backend"]
+
+[start]
+cmd = "npm run server"
