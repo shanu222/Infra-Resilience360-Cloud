@@ -1,4 +1,5 @@
 import type { Language } from '../../types/sectionKeys'
+import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
 
 export function BuildingCodesPage({
   language,
@@ -11,6 +12,7 @@ export function BuildingCodesPage({
 }) {
   const isUrdu = language === 'ur'
   const iframeSrc = `/pgbc/library.html?lang=${isUrdu ? 'ur' : 'en'}`
+  const iframeRef = useIframeAutoHeight(900)
 
   return (
     <div
@@ -20,11 +22,13 @@ export function BuildingCodesPage({
       dir={isUrdu ? 'rtl' : 'ltr'}
     >
       <iframe
+        ref={iframeRef}
         className="r360-embedded-portal-frame pgbc-portal-frame"
         src={iframeSrc}
         title="Building Codes Portal"
         loading="eager"
         referrerPolicy="no-referrer"
+        scrolling="no"
       />
     </div>
   )

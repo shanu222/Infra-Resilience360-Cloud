@@ -160,12 +160,12 @@ body {
 
 /* Global background video (document-flow backdrop; scrolls with page content). */
 .global-bg-root {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -999;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: -100;
   pointer-events: none;
   overflow: hidden;
   transform: translateZ(0);
@@ -173,9 +173,8 @@ body {
 }
 
 .global-bg-video {
-  position: absolute;
-  top: 0;
-  left: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100% !important;
   max-width: none !important;

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
+import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
 
 export function SmartConstructionPage({
   language,
@@ -12,6 +13,8 @@ export function SmartConstructionPage({
   isAdminMode?: boolean
   isEditMode?: boolean
 }) {
+  const iframeRef = useIframeAutoHeight(820)
+
   useEffect(() => {
     persistLanguage(language)
   }, [language])
@@ -25,11 +28,13 @@ export function SmartConstructionPage({
       data-edit-mode={isEditMode ? 'true' : 'false'}
     >
       <iframe
+        ref={iframeRef}
         className="r360-embedded-portal-frame smart-construction-portal-frame"
         src="/smart-construction/index.html"
         title="Smart Construction Portal"
         loading="eager"
         referrerPolicy="no-referrer"
+        scrolling="no"
       />
     </div>
   )
