@@ -188,7 +188,8 @@ const isLikelyMediaUrl = (url: string): boolean => {
   const u = String(url || '').trim()
   if (!u) return false
   if (/^https?:\/\//i.test(u)) return true
-  if (u.startsWith('/api/') || u.startsWith('/storage/content/') || u.startsWith('/media/')) return true
+  const normalized = u.startsWith('/') ? u.slice(1) : u
+  if (normalized.startsWith('api/') || normalized.startsWith('storage/content/') || normalized.startsWith('media/')) return true
   if (u.startsWith('/')) return true
   return false
 }

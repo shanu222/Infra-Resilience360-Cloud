@@ -48,7 +48,7 @@ export function TopBarQuickControls({
   const [useMobileDrawer, setUseMobileDrawer] = useState(false)
   const shellRef = useRef<HTMLDivElement>(null)
   const drawerId = useId()
-  const appVersion = import.meta.env.VITE_APP_VERSION ?? 'Web'
+  const appVersion = 'Web'
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_NAV_MQ)

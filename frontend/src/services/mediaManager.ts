@@ -21,19 +21,14 @@ class MediaManager {
       const windowBase = trimTrailingSlash(
         String(
           (window as Window & { __R360_MEDIA_BASE_URL?: string }).__R360_MEDIA_BASE_URL ??
-            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string; VITE_PUBLIC_MEDIA_BASE_URL?: string } }).__ENV__
-              ?.VITE_MEDIA_BASE_URL ??
-            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string; VITE_PUBLIC_MEDIA_BASE_URL?: string } }).__ENV__
-              ?.VITE_PUBLIC_MEDIA_BASE_URL ??
+            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string } }).__ENV__?.VITE_MEDIA_BASE_URL ??
             '',
         ),
       )
       if (windowBase) return windowBase
     }
 
-    const envBase = trimTrailingSlash(
-      String(import.meta.env.VITE_MEDIA_BASE_URL ?? import.meta.env.VITE_PUBLIC_MEDIA_BASE_URL ?? ''),
-    )
+    const envBase = trimTrailingSlash(String(import.meta.env.VITE_MEDIA_BASE_URL ?? ''))
     return envBase || DEFAULT_R2_MEDIA_BASE_URL
   }
 

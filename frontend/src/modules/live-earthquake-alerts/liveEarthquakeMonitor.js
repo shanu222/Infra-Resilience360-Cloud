@@ -367,11 +367,8 @@ export function initLiveEarthquakeMonitor(root) {
       function resolveApiBaseUrl() {
         const globalBase = stripTrailingSlash(String(window.__R360_API_BASE_URL || window.__API_BASE_URL || ''));
         if (globalBase) return globalBase;
-        const envBase = stripTrailingSlash(String(window.__ENV__?.VITE_API_BASE_URL || window.__ENV__?.VITE_API_URL || ''));
+        const envBase = stripTrailingSlash(String(window.__ENV__?.VITE_API_BASE_URL || ''));
         if (envBase) return envBase;
-        if (window.location.port === '5173') {
-          return `${window.location.protocol}//${window.location.hostname}:10000`;
-        }
         return 'https://infra-resilience360-cloud-production.up.railway.app';
       }
 

@@ -33,11 +33,12 @@ export function localStaticMediaUrl(s3Key: string): string {
 export function rewriteLegacyS3Url(raw: string): string {
   const s = String(raw ?? '').trim()
   if (!s) return s
+  const normalized = s.startsWith('/') ? s.slice(1) : s
   if (s.startsWith('/static/media/local/')) {
     return getMediaUrl(s.replace(/^\/static\/media\/local\//, ''))
   }
-  if (s.startsWith('/storage/content/')) {
-    return getMediaUrl(s.slice('/storage/content/'.length))
+  if (normalized.startsWith('storage/content/')) {
+    return getMediaUrl(normalized.slice('storage/content/'.length))
   }
   if (s.startsWith('/data/')) {
     return s

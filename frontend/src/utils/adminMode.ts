@@ -14,7 +14,7 @@ export function isAdminHtmlRoute(): boolean {
 
 /** Diagnostic only; does not activate the admin shell. */
 export function isAdminServiceEnv(): boolean {
-  return import.meta.env.VITE_ADMIN_SERVICE_MODE === 'true'
+  return false
 }
 
 /** Always false — administrative editing is permanently disabled. */

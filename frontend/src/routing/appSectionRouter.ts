@@ -32,6 +32,7 @@ export const SECTION_VIEW_ALIASES: Record<string, SectionKey> = {
 }
 
 export const HISTORY_APP_SECTION_KEY = 'r360AppSection'
+const URL_FALLBACK_ORIGIN = 'https://infra-resilience360-cloud-production.up.railway.app'
 
 export function normalizeSectionViewSlug(raw: string | null): SectionKey | null {
   if (!raw) return null
@@ -57,7 +58,7 @@ function readViewSlugFromPathname(pathname: string): string | null {
 /** In-portal hash route segment from URLs like `/view/smart-construction/planner`. */
 export function readPortalSubpathFromUrl(href = typeof window !== 'undefined' ? window.location.href : ''): string | null {
   try {
-    const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : URL_FALLBACK_ORIGIN)
     const match = u.pathname.replace(/\/+$/, '').match(/\/view\/[a-z0-9-]+\/(.+)$/i)
     if (!match?.[1]) return null
     const sub = match[1].replace(/^\/+|\/+$/g, '')
@@ -69,7 +70,7 @@ export function readPortalSubpathFromUrl(href = typeof window !== 'undefined' ? 
 
 export function readPublicViewSectionFromUrl(href = typeof window !== 'undefined' ? window.location.href : ''): SectionKey | null {
   try {
-    const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+    const u = new URL(href, typeof window !== 'undefined' ? window.location.origin : URL_FALLBACK_ORIGIN)
     const fromPath = readViewSlugFromPathname(u.pathname)
     if (fromPath) {
       const fromPathSection = normalizeSectionViewSlug(fromPath)
@@ -98,7 +99,7 @@ function stripViewPath(pathname: string): string {
 }
 
 export function buildHrefWithAppSection(currentHref: string, nextSection: SectionKey | null): string {
-  const u = new URL(currentHref, typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+  const u = new URL(currentHref, typeof window !== 'undefined' ? window.location.origin : URL_FALLBACK_ORIGIN)
   u.searchParams.delete('view')
   u.searchParams.delete('section')
   u.searchParams.delete('adminEdit')

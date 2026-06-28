@@ -80,7 +80,7 @@ async function setupServiceWorkerBootstrap() {
   if (!('serviceWorker' in navigator)) return
 
   // Local bootstrap should never be blocked by stale SW caches.
-  if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  if (import.meta.env.DEV) {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations()
       await Promise.all(registrations.map((registration) => registration.unregister()))

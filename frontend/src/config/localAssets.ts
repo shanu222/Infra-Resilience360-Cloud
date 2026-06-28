@@ -1,6 +1,6 @@
 /**
  * Bundled application shell assets (logos, icons, backgrounds).
- * Module media lives under /storage/content/; GIS under /data/gis/.
+ * Module media is served from Cloudflare R2 content keys; GIS stays under /data/gis/.
  */
 import ndmaLogoUrl from '../assets/logos/ndma-logo.png'
 import { localContentUrl } from './localContent'

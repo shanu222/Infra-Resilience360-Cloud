@@ -1,10 +1,7 @@
 interface ImportMetaEnv {
   readonly BASE_URL: string
-  /** When "true", client treats builds as admin service (with /admin.html route). */
-  readonly VITE_ADMIN_SERVICE_MODE?: string
-  /** Static site URL for canonical/runtime metadata. */
-  readonly VITE_SITE_URL?: string
-  readonly VITE_ADMIN_API_KEY?: string
+  readonly VITE_API_BASE_URL?: string
+  readonly VITE_MEDIA_BASE_URL?: string
   readonly [key: string]: string | undefined
 }
 

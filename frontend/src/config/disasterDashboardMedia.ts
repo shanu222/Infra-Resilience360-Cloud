@@ -7,7 +7,7 @@ import {
 
 /**
  * Local-first disaster media map under:
- * /storage/content/disaster-dashboard/{images|videos|audio}/{hazard}/
+ * disaster-dashboard/{images|videos|audio}/{hazard}/
  */
 type DisasterMediaSpec = {
   folder: string

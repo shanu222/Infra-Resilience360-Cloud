@@ -1,7 +1,7 @@
 {
   "type": "homepage_config",
-  "backgroundImage": "/storage/content/home/images/home.png",
-  "backgroundVideo": "/storage/content/home/videos/home.mp4",
+  "backgroundImage": "home/images/home.png",
+  "backgroundVideo": "home/videos/home.mp4",
   "isVideoEnabled": true,
   "backgroundScope": "home",
   "colors": {
@@ -201,8 +201,8 @@
   ],
   "updatedAt": "2026-06-01T00:00:00.000Z",
   "backgroundMedia": {
-    "video": "/storage/content/home/videos/home.mp4",
-    "image": "/storage/content/home/images/home.png"
+    "video": "home/videos/home.mp4",
+    "image": "home/images/home.png"
   },
   "mediaLibrary": [],
   "staticSnapshot": {

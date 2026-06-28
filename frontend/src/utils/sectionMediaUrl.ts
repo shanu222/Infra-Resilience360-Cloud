@@ -16,9 +16,7 @@ function s3ObjectKeyFromParsedUrl(parsed: URL): string | null {
   const pathParts = parsed.pathname.replace(/^\/+/, '').split('/').filter(Boolean)
   if (pathParts.length === 0) return null
 
-  const mediaBucket = String(import.meta.env.VITE_S3_MEDIA_BUCKET ?? 'pak-population-data')
-    .trim()
-    .toLowerCase()
+  const mediaBucket = 'pak-population-data'
 
   const isAwsS3Host =
     /(?:^|\.)(?:s3|s3-[a-z0-9-]+)\.[a-z0-9.-]*amazonaws\.com$/i.test(host) || host.endsWith('.amazonaws.com')
@@ -41,13 +39,6 @@ function enforceHttpsOnSecurePage(url: string): string {
   if (typeof window === 'undefined') return raw
   if (window.location.protocol !== 'https:') return raw
   if (!/^http:\/\//i.test(raw)) return raw
-  try {
-    const parsed = new URL(raw)
-    const host = parsed.hostname.toLowerCase()
-    if (host === 'localhost' || host === '127.0.0.1') return raw
-  } catch {
-    return raw
-  }
   return raw.replace(/^http:\/\//i, 'https://')
 }
 
@@ -94,11 +85,12 @@ export function resolveSectionMediaUrl(maybeRelative: string): string {
   if (/^https?:\/\//i.test(u)) {
     try {
       const parsed = new URL(u)
-      if (parsed.pathname.startsWith('/storage/content/')) {
-        return enforceHttpsOnSecurePage(getMediaUrl(parsed.pathname.slice('/storage/content/'.length)))
+      const path = parsed.pathname.replace(/^\/+/, '')
+      if (path.startsWith('storage/content/')) {
+        return enforceHttpsOnSecurePage(getMediaUrl(path.slice('storage/content/'.length)))
       }
-      if (parsed.pathname.startsWith('/content/')) {
-        return enforceHttpsOnSecurePage(getMediaUrl(parsed.pathname.slice('/content/'.length)))
+      if (path.startsWith('content/')) {
+        return enforceHttpsOnSecurePage(getMediaUrl(path.slice('content/'.length)))
       }
     } catch {
       /* keep handling below */

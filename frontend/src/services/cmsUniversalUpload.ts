@@ -7,7 +7,7 @@ import type { MediaType } from '../types/media'
 const API = sameOriginApiBase()
 
 function adminKeyHeader(): Record<string, string> {
-  return { 'x-admin-key': String(import.meta.env.VITE_ADMIN_API_KEY ?? 'secure-key').trim() }
+  return { 'x-admin-key': 'secure-key' }
 }
 
 export type CmsUniversalUploadResult = { url: string; mediaId?: string | null; s3Key?: string }

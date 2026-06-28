@@ -7,6 +7,7 @@ export { MEDIA_UNAVAILABLE_MESSAGE, MEDIA_PLACEHOLDER_DATA_URL } from './content
 import { localStaticMediaUrl, rewriteLegacyS3Url } from '../config/localContent'
 
 const S3_HOST_RE = /(?:^|\.)(?:s3|s3-[a-z0-9-]+)\.[a-z0-9.-]*amazonaws\.com$/i
+const S3_MEDIA_BUCKET = 'pak-population-data'
 
 const AUDITED_LOCAL_ROOTS = [
   'public/pgbc/',
@@ -49,7 +50,7 @@ function extractKeyFromDirectS3Url(url: string): string | null {
     const parsed = new URL(trimmed)
     if (!S3_HOST_RE.test(parsed.hostname)) return null
     const path = parsed.pathname.replace(/^\/+/, '')
-    const bucket = String(import.meta.env.VITE_S3_MEDIA_BUCKET ?? 'pak-population-data').trim().toLowerCase()
+    const bucket = S3_MEDIA_BUCKET
     const parts = path.split('/').filter(Boolean)
     if (bucket && parts[0]?.toLowerCase() === bucket && parts.length > 1) {
       return decodeURIComponent(parts.slice(1).join('/'))
