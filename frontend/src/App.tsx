@@ -5545,13 +5545,6 @@ function App(_props: AppProps = {}) {
                       </div>
                     </>
                   )}
-                  <div className="inline-controls">
-                    <button type="button" onClick={() => { void downloadApplyGuidanceWordReport() }} disabled={isPreparingWordReport}>
-                      {isPreparingWordReport ?
-                        <CmsText as="span" id="block.applyPreparingWordReport" fallback={t.applyRegion.preparingWordReport} />
-                      : <CmsText as="span" id="block.applyDownloadWordReport" fallback={t.applyRegion.downloadWordReport} />}
-                    </button>
-                  </div>
                 </div>
 
               )}
