@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router"
 import { Upload, Camera, MapPin, Zap, Shield, TrendingUp, Clock, Edit2, CheckCircle, AlertCircle, Loader2, Search } from "lucide-react"
 import { motion } from "motion/react"
@@ -6,7 +6,7 @@ import { useAppContext, type CityRateConfiguration } from "../context/AppContext
 import { analyzeBuildingWithVision } from "../services/retrofitApi"
 import { formatApiErrorMessage } from '@resilience/api-base'
 import { getCurrentPosition, getLocationFromIP, getCityRates, pakistaniCities } from "../services/geolocationService"
-import { isLikelyImageUpload, isNativeEmbeddedPortal } from "../services/nativePortalImagePicker"
+import { isLikelyImageUpload, isNativeEmbeddedPortal, requestEmbeddedNativeImagePick } from "../services/nativePortalImagePicker"
 import { normalizeImageFileForUpload } from '@resilience/normalize-image'
 import { useRetrofitStrings } from "../../i18n/retrofitStrings"
 
@@ -148,40 +148,6 @@ export function Dashboard() {
     }
   }
 
-  /**
-   * On native Android the parent (CostEstimatorPage) owns the image picker.
-   * It calls capturePhotoWithCamera() / pickPhotosFromGallery() directly
-   * (identical to Retrofit Guide) and pushes the result here via postMessage.
-   * We just listen for that push and feed the file into the normal flow.
-   */
-  useEffect(() => {
-    if (!isNativeEmbeddedPortal()) return
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as {
-        type?: string
-        base64?: string
-        fileName?: string
-        mimeType?: string
-      } | undefined
-      if (!data || data.type !== 'r360-portal-push-image') return
-      if (!data.base64 || !data.fileName) return
-      try {
-        const binary = atob(data.base64)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        const file = new File([bytes], data.fileName, {
-          type: data.mimeType || 'image/jpeg',
-          lastModified: Date.now(),
-        })
-        void updateSelectedFile(file)
-      } catch {
-        /* ignore malformed push */
-      }
-    }
-    window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const normalizeSeverity = (severity: "low" | "medium" | "high") => {
     if (severity === "high") return "High"
@@ -533,10 +499,30 @@ export function Dashboard() {
                     </div>
                   )}
                   
-                  {/* On native Android the Upload button lives in the parent app shell
-                      (CostEstimatorPage), identical to how Retrofit Guide works.
-                      On web, we use a standard file input. */}
-                  {!isNativeEmbeddedPortal() && (
+                  {/* Native Android: standalone <button> (NOT inside a <label>).
+                      button-inside-label on Android WebView routes the touch to the
+                      hidden file input instead of onClick, causing "does nothing".
+                      The standalone button fires onClick reliably every time. */}
+                  {isNativeEmbeddedPortal() ? (
+                    <motion.button
+                      type="button"
+                      className="mt-6 px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg inline-flex items-center gap-2 shadow-sm transition-all text-[15px] font-medium"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        requestEmbeddedNativeImagePick()
+                          .then((file) => updateSelectedFile(file))
+                          .catch((err: unknown) => {
+                            const msg = err instanceof Error ? err.message : ''
+                            if (msg && !/cancel/i.test(msg)) setAnalysisError(msg)
+                          })
+                      }}
+                    >
+                      <Upload className="w-4 h-4" />
+                      {selectedFile ? r.dash_changeImage : r.dash_selectImage}
+                    </motion.button>
+                  ) : (
+                    /* Web: standard file input inside a label */
                     <label className="inline-block mt-6 cursor-pointer">
                       <input
                         type="file"
