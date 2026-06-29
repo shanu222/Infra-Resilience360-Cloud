@@ -4,7 +4,7 @@ import { persistLanguage } from '../../i18n'
 import type { Language } from '../../types/sectionKeys'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
-import smartConstructionBackground from '../../assets/backgrounds/smart_construction_bg.png'
+import smartConstructionBackground from '../../assets/backgrounds/smart_construction_bg.webp'
 
 export function SmartConstructionPage({
   language,

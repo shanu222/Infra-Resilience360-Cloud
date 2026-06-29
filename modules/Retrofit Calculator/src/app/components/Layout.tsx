@@ -6,7 +6,7 @@ export function Layout() {
     <div 
       className="flex min-h-0 flex-col lg:flex-row bg-cover bg-center bg-no-repeat"
       style={{
-        backgroundImage: 'url(/retrofit-calculator/background.png)',
+        backgroundImage: 'url(/retrofit-calculator/background.webp)',
         backgroundColor: '#F8FAFC'
       }}
     >

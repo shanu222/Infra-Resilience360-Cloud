@@ -30,7 +30,9 @@
     "disaster-dashboard:sync": "node scripts/sync-disaster-dashboard.mjs",
     "disaster-dashboard:rebuild": "npm run disaster-dashboard:sync",
     "disaster-subtitles": "node scripts/generate-disaster-subtitles.mjs",
-    "optimize:hero-webp": "node scripts/encode-hero-webp.mjs"
+    "optimize:hero-webp": "node scripts/encode-hero-webp.mjs",
+    "optimize:release-backgrounds": "node scripts/optimize-release-backgrounds.mjs",
+    "build:debug": "vite build --config frontend/vite.config.ts --mode development"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",

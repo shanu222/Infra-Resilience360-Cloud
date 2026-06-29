@@ -20,7 +20,8 @@ export default defineConfig(({ mode }) => ({
     target: 'es2022',
     cssCodeSplit: true,
     cssMinify: mode === 'production',
-    sourcemap: mode === 'production' ? 'hidden' : true,
+    // Android production APKs must not ship .map files; web debugging can use `npm run build:debug`.
+    sourcemap: mode === 'production' ? false : true,
     minify: 'esbuild',
     chunkSizeWarningLimit: 2048,
     rollupOptions: {

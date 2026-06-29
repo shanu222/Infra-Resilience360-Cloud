@@ -5,7 +5,7 @@ type ModuleBackgroundProps = {
 }
 
 export default function ModuleBackground({ children }: ModuleBackgroundProps) {
-  const imageUrl = `${import.meta.env.BASE_URL}assets/images/smart_construction_bg.png`
+  const imageUrl = `${import.meta.env.BASE_URL}assets/images/smart_construction_bg.webp`
 
   return (
     <div
