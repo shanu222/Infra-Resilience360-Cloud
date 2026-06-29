@@ -2,6 +2,17 @@ import { Capacitor } from '@capacitor/core'
 import { readPortalSubpathFromUrl, buildHrefWithAppSection, historyStateWithAppSection } from '../routing/appSectionRouter'
 import type { SectionKey } from '../types/sectionKeys'
 
+/**
+ * Component-level Android back-button interceptor.
+ * A mounted component (e.g. DisasterDetail) can register a handler that runs
+ * BEFORE the global back-button logic. Return true to stop propagation.
+ */
+let _backInterceptor: (() => boolean) | null = null
+
+export function setAndroidBackInterceptor(fn: (() => boolean) | null): void {
+  _backInterceptor = fn
+}
+
 export type AndroidBackContext = {
   activeSection: SectionKey | null
   hasOpenOverlay: () => boolean
@@ -35,6 +46,9 @@ export function initAndroidBackButton(getContext: () => AndroidBackContext): voi
 
   void import('@capacitor/app').then(({ App }) => {
     void App.addListener('backButton', () => {
+      // Component-level interceptor takes priority (e.g. DisasterDetail in-portal back)
+      if (_backInterceptor && _backInterceptor()) return
+
       const ctx = getContext()
 
       if (ctx.hasOpenOverlay()) {

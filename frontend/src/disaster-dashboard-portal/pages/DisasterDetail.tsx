@@ -19,6 +19,8 @@ import { resolveLucideIcon } from '../utils/lucideIcon'
 import { useDisasterDashboardStrings } from '@/hooks/useDisasterDashboardStrings'
 import { usePortalLanguage } from '@/context/PortalLanguageContext'
 import { resolveDisaster } from '@/i18n/disasterDashboardCatalogI18n'
+import { isCapacitorNativeRuntime } from '@/utils/capacitorRuntime'
+import { setAndroidBackInterceptor } from '@/capacitor/androidBackButton'
 
 function GuidanceList({ items, tone }: { items: string[]; tone: 'before' | 'during' | 'after' }) {
   const dot =
@@ -41,6 +43,7 @@ export function DisasterDetail() {
   const s = useDisasterDashboardStrings()
   const lang = usePortalLanguage()
   const monthNames = s.monthsShort
+  const isNative = isCapacitorNativeRuntime()
   const baseDisaster = DISASTER_DASHBOARD_DISASTERS.find((d) => d.id === id)
   const disaster = baseDisaster ? resolveDisaster(baseDisaster, lang) : undefined
   const media = disaster ? disasterDashboardGuidanceMedia(disaster.id) : null
@@ -49,6 +52,18 @@ export function DisasterDetail() {
   useEffect(() => {
     if (disaster?.id) preloadDisasterMedia(disaster.id)
   }, [disaster?.id])
+
+  // On Android the in-page Back button is hidden (system back gesture is used instead).
+  // Register an interceptor so the Android back button navigates within the MemoryRouter
+  // (back to the disaster grid) rather than navigating the main app to its home section.
+  useEffect(() => {
+    if (!isNative) return
+    setAndroidBackInterceptor(() => {
+      navigate('/')
+      return true
+    })
+    return () => setAndroidBackInterceptor(null)
+  }, [isNative, navigate])
 
   if (!disaster) {
     return (
@@ -70,10 +85,13 @@ export function DisasterDetail() {
     <div className="dd-page dd-page--detail">
       <div className="dd-page__bg" aria-hidden />
       <div className="dd-container dd-container--narrow">
-        <button type="button" onClick={() => navigate('/')} className="dd-back-btn dd-animate-in">
-          <ArrowLeft className="w-5 h-5 shrink-0" aria-hidden />
-          {s.detail.backToDashboard}
-        </button>
+        {/* Back button: visible on web only. On Android the system Back gesture is used. */}
+        {!isNative && (
+          <button type="button" onClick={() => navigate('/')} className="dd-back-btn dd-animate-in">
+            <ArrowLeft className="w-5 h-5 shrink-0" aria-hidden />
+            {s.detail.backToDashboard}
+          </button>
+        )}
 
         <section className="dd-hero-banner dd-glass-panel dd-animate-in" aria-labelledby="dd-disaster-title">
           <div className="dd-hero-banner__media">

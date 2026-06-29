@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router"
 import { Upload, Camera, MapPin, Zap, Shield, TrendingUp, Clock, Edit2, CheckCircle, AlertCircle, Loader2, Search } from "lucide-react"
 import { motion } from "motion/react"
 import { useAppContext, type CityRateConfiguration } from "../context/AppContext"
-import { analyzeBuildingWithVision } from "../services/retrofitApi"
+import { analyzeBuildingWithVision, type VisionAnalysisResult } from "../services/retrofitApi"
 import { formatApiErrorMessage } from '@resilience/api-base'
 import { getCurrentPosition, getLocationFromIP, getCityRates, pakistaniCities } from "../services/geolocationService"
 import { isLikelyImageUpload, isNativeEmbeddedPortal, requestEmbeddedNativeImagePick } from "../services/nativePortalImagePicker"
@@ -154,7 +154,64 @@ export function Dashboard() {
     if (severity === "medium") return "Moderate"
     return "Low"
   }
-  
+
+  /** Shared result handler used by both web (direct call) and Android (postMessage). */
+  const processVisionResult = useCallback((vision: VisionAnalysisResult) => {
+    const primaryDefect = vision.defects[0]
+    setDetectionData({
+      elementType: primaryDefect?.location || "Structural Element",
+      defectType: primaryDefect?.type || "other",
+      severity: normalizeSeverity(primaryDefect?.severity ?? "medium"),
+      confidence: Math.round((primaryDefect?.confidence ?? 0.75) * 100),
+      summary: vision.summary,
+    })
+    setFormData({
+      widthCm: 45,
+      depthCm: 45,
+      heightCm: 300,
+      damageExtent: Math.min(100, Math.max(5, Math.round(vision.costSignals?.estimatedAffectedAreaPercent ?? 25))),
+      materialType: "Reinforced Concrete",
+      floorLevel: "Ground",
+      tightAccess: false,
+      occupied: false,
+      scaffolding: true,
+      retrofitLevel:
+        vision.costSignals?.recommendedScope === "comprehensive"
+          ? "seismic"
+          : vision.costSignals?.recommendedScope === "basic"
+            ? "cosmetic"
+            : "structural",
+    })
+    navigate("/detection")
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setDetectionData, setFormData, navigate])
+
+  /**
+   * On Android, the Retrofit Calculator runs inside an iframe. Same-origin iframes
+   * do NOT inherit the main frame's CapacitorHttp-patched window.fetch. A FormData
+   * POST made from inside the iframe uses native WebView fetch which may hang on
+   * CORS preflight (CapacitorHttp bypass is unavailable in iframes).
+   *
+   * Fix: post the image + params to the parent (CostEstimatorPage), which calls
+   * analyzeBuildingWithVision() in the main-app context where CapacitorHttp IS
+   * available. Result (or error) comes back via r360-retrofit-analyze-result.
+   */
+  useEffect(() => {
+    if (!isNativeEmbeddedPortal()) return
+    const handler = (event: MessageEvent) => {
+      const data = event.data as { type?: string; ok?: boolean; result?: VisionAnalysisResult; error?: string } | undefined
+      if (!data || data.type !== 'r360-retrofit-analyze-result') return
+      setIsAnalyzing(false)
+      if (!data.ok || !data.result) {
+        setAnalysisError(data.error ?? r.dash_errAnalysis)
+        return
+      }
+      processVisionResult(data.result)
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [r.dash_errAnalysis, setIsAnalyzing, setAnalysisError, processVisionResult])
+
   const handleAnalyze = async () => {
     if (!selectedFile) {
       setAnalysisError(r.dash_errUpload)
@@ -164,6 +221,39 @@ export function Dashboard() {
     setIsAnalyzing(true)
     setAnalysisError(null)
 
+    // ── Android native: delegate API call to the parent (CostEstimatorPage) ──
+    // This avoids the iframe fetch→CapacitorHttp bypass gap that causes hangs.
+    if (isNativeEmbeddedPortal()) {
+      try {
+        const reader = new FileReader()
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => {
+            const result = String(reader.result ?? '')
+            const comma = result.indexOf(',')
+            resolve(comma >= 0 ? result.slice(comma + 1) : result)
+          }
+          reader.onerror = () => reject(new Error('Could not read image.'))
+          reader.readAsDataURL(selectedFile)
+        })
+        window.parent.postMessage({
+          type: 'r360-retrofit-analyze-request',
+          base64,
+          fileName: selectedFile.name || 'upload.jpg',
+          mimeType: selectedFile.type || 'image/jpeg',
+          structureType: 'RC Frame',
+          province: 'Punjab',
+          location,
+          riskProfile: 'Urban retrofit assessment',
+        }, window.location.origin)
+        // Spinner stays active until r360-retrofit-analyze-result arrives
+      } catch {
+        setIsAnalyzing(false)
+        setAnalysisError(r.dash_errAnalysis)
+      }
+      return
+    }
+
+    // ── Web: direct API call ─────────────────────────────────────────────────
     try {
       const vision = await analyzeBuildingWithVision({
         image: selectedFile,
@@ -172,36 +262,7 @@ export function Dashboard() {
         location,
         riskProfile: "Urban retrofit assessment",
       })
-
-      const primaryDefect = vision.defects[0]
-
-      setDetectionData({
-        elementType: primaryDefect?.location || "Structural Element",
-        defectType: primaryDefect?.type || "other",
-        severity: normalizeSeverity(primaryDefect?.severity ?? "medium"),
-        confidence: Math.round((primaryDefect?.confidence ?? 0.75) * 100),
-        summary: vision.summary,
-      })
-
-      setFormData({
-        widthCm: 45,
-        depthCm: 45,
-        heightCm: 300,
-        damageExtent: Math.min(100, Math.max(5, Math.round(vision.costSignals?.estimatedAffectedAreaPercent ?? 25))),
-        materialType: "Reinforced Concrete",
-        floorLevel: "Ground",
-        tightAccess: false,
-        occupied: false,
-        scaffolding: true,
-        retrofitLevel:
-          vision.costSignals?.recommendedScope === "comprehensive"
-            ? "seismic"
-            : vision.costSignals?.recommendedScope === "basic"
-              ? "cosmetic"
-              : "structural",
-      })
-
-      navigate("/detection")
+      processVisionResult(vision)
     } catch (error) {
       const message = formatApiErrorMessage(error, r.dash_errAnalysis)
       setAnalysisError(message)

@@ -7,28 +7,41 @@ import { ImageUploadBottomSheet } from '../../components/capacitor/ImageUploadBo
 import { capturePhotoWithCamera, pickPhotosFromGallery } from '../../capacitor/imagePicker'
 import { isCapacitorNativeRuntime } from '../../utils/capacitorRuntime'
 import { normalizeImageFileForUpload } from '../../utils/normalizeImageFile'
+import { analyzeBuildingWithVision } from '../../services/vision'
 
 /**
  * Retrofit Calculator portal — static bundle at `/retrofit-calculator/index.html`.
  *
- * Native Android image-pick flow:
- *   1. iframe (Dashboard.tsx) shows a standalone <button> (NOT inside a <label>).
- *      On Android WebView, button-inside-label causes the touch event to be routed
- *      to the hidden file input instead of onClick — resulting in "does nothing".
- *      The standalone button avoids that entirely.
- *   2. Button calls requestEmbeddedNativeImagePick() which posts
- *      { type: 'r360-native-image-pick-sheet', requestId } to window.parent.
- *   3. THIS component (parent) listens for that message.
- *      Crucially, we do NOT use `event.source instanceof Window` because
- *      on some Android WebView versions WindowProxy instanceof Window is false,
- *      silently dropping the message. Instead we always use
- *      iframeRef.current.contentWindow as the reply target.
- *   4. We open ImageUploadBottomSheet, call capturePhotoWithCamera() /
- *      pickPhotosFromGallery() directly in the native app context, normalise the
- *      file, and post { type: 'r360-native-image-pick-result', requestId, ... }
- *      back to the iframe using iframeRef.current.contentWindow.postMessage().
- *   5. requestEmbeddedNativeImagePick() in the iframe resolves the Promise and
- *      the image flows into updateSelectedFile() normally.
+ * ─── Native Android image-pick flow ────────────────────────────────────────────
+ * iframe Dashboard.tsx shows a standalone <button> (NOT inside a <label>).
+ * button-inside-label on Android WebView routes the touch to the hidden file
+ * input instead of onClick, causing "does nothing". The standalone button fires
+ * onClick reliably every time.
+ *
+ * Button click → requestEmbeddedNativeImagePick() in iframe
+ *   → posts r360-native-image-pick-sheet to parent (this component)
+ *   → parent listener opens ImageUploadBottomSheet
+ *   → capturePhotoWithCamera() / pickPhotosFromGallery() in main-app context
+ *     (CapacitorHttp is guaranteed available here — not inside an iframe)
+ *   → normalise file → read as base64
+ *   → post r360-native-image-pick-result to iframe via iframeRef.current.contentWindow
+ *     (avoids event.source instanceof Window unreliability on some Android WebViews)
+ *   → requestEmbeddedNativeImagePick() resolves → updateSelectedFile() in Dashboard
+ *
+ * ─── Native Android AI analysis flow ──────────────────────────────────────────
+ * The Retrofit Calculator runs inside an iframe. On Android, same-origin iframes
+ * do NOT inherit the main frame's CapacitorHttp-patched window.fetch — they use
+ * the native WebView fetch which may hang on cross-origin POST with FormData
+ * (CORS preflight timeout when CapacitorHttp bypass is unavailable inside iframes).
+ *
+ * Fix: when Analyze Image is tapped on Android, Dashboard.tsx sends the image
+ * as base64 + analysis params to THIS parent (r360-retrofit-analyze-request).
+ * CostEstimatorPage calls analyzeBuildingWithVision() directly in the main-app
+ * context where CapacitorHttp is guaranteed to intercept fetch, then posts the
+ * result back as r360-retrofit-analyze-result.
+ *
+ * Web behaviour: unchanged. Dashboard.tsx calls analyzeBuildingWithVision()
+ * directly from the iframe (regular browser fetch works fine in web context).
  */
 export function CostEstimatorPage({
   language,
@@ -61,6 +74,7 @@ export function CostEstimatorPage({
     }
   }, [isNative])
 
+  // ─── Image pick bridge ────────────────────────────────────────────────────────
   // Listen for r360-native-image-pick-sheet from the iframe.
   // We deliberately skip the `event.source instanceof Window` check because
   // WindowProxy instanceof Window is unreliable on some Android WebView builds.
@@ -77,12 +91,11 @@ export function CostEstimatorPage({
     return () => window.removeEventListener('message', onMessage)
   }, [isNative])
 
-  /** Post a result payload to the iframe using the ref (not event.source). */
-  const postResultToIframe = useCallback(
+  /** Post a payload to the iframe using the ref (avoids event.source unreliability). */
+  const postToIframe = useCallback(
     (payload: Record<string, unknown>) => {
       const target = (iframeRef.current as HTMLIFrameElement | null)?.contentWindow
       if (!target) return
-      // Try same-origin first; fall back to '*' if a WebView quirk blocks same-origin
       try {
         target.postMessage(payload, window.location.origin)
       } catch {
@@ -113,7 +126,7 @@ export function CostEstimatorPage({
         reader.onerror = () => reject(new Error('Could not read the selected image.'))
         reader.readAsDataURL(normalized)
       })
-      postResultToIframe({
+      postToIframe({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: true,
@@ -122,14 +135,14 @@ export function CostEstimatorPage({
         base64,
       })
     } catch (error) {
-      postResultToIframe({
+      postToIframe({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: false,
         error: error instanceof Error ? error.message : 'Camera capture failed.',
       })
     }
-  }, [postResultToIframe])
+  }, [postToIframe])
 
   const handleNativeGalleryPick = useCallback(async () => {
     const requestId = pendingRequestIdRef.current
@@ -139,7 +152,7 @@ export function CostEstimatorPage({
       const files = await pickPhotosFromGallery()
       const file = files[0]
       if (!file) {
-        postResultToIframe({
+        postToIframe({
           type: 'r360-native-image-pick-result',
           requestId,
           ok: false,
@@ -158,7 +171,7 @@ export function CostEstimatorPage({
         reader.onerror = () => reject(new Error('Could not read the selected image.'))
         reader.readAsDataURL(normalized)
       })
-      postResultToIframe({
+      postToIframe({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: true,
@@ -167,14 +180,71 @@ export function CostEstimatorPage({
         base64,
       })
     } catch (error) {
-      postResultToIframe({
+      postToIframe({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: false,
         error: error instanceof Error ? error.message : 'Gallery selection failed.',
       })
     }
-  }, [postResultToIframe])
+  }, [postToIframe])
+
+  // ─── AI analysis bridge ───────────────────────────────────────────────────────
+  // On Android, iframe fetch cannot go through CapacitorHttp (same-origin iframes
+  // don't inherit the patched window.fetch from the main frame). The iframe posts
+  // the image + params here; we call analyzeBuildingWithVision() in the main-app
+  // context where CapacitorHttp IS available, then post the result back.
+  useEffect(() => {
+    if (!isNative) return
+    const onMessage = async (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return
+      const data = event.data as {
+        type?: string
+        base64?: string
+        fileName?: string
+        mimeType?: string
+        structureType?: string
+        province?: string
+        location?: string
+        riskProfile?: string
+      }
+      if (data.type !== 'r360-retrofit-analyze-request') return
+      if (!data.base64 || !data.fileName) {
+        postToIframe({ type: 'r360-retrofit-analyze-result', ok: false, error: 'No image data received.' })
+        return
+      }
+
+      try {
+        // Reconstruct File from base64 (sent by Dashboard.tsx)
+        const binary = atob(data.base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const file = new File([bytes], data.fileName, {
+          type: data.mimeType || 'image/jpeg',
+          lastModified: Date.now(),
+        })
+
+        // Call analyzeBuildingWithVision() in the main-app context — CapacitorHttp guaranteed
+        const result = await analyzeBuildingWithVision({
+          image: file,
+          structureType: data.structureType ?? 'RC Frame',
+          province: data.province ?? 'Punjab',
+          location: data.location ?? '',
+          riskProfile: data.riskProfile ?? 'Urban retrofit assessment',
+        })
+
+        postToIframe({ type: 'r360-retrofit-analyze-result', ok: true, result })
+      } catch (error) {
+        postToIframe({
+          type: 'r360-retrofit-analyze-result',
+          ok: false,
+          error: error instanceof Error ? error.message : 'AI analysis failed. Please try again.',
+        })
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [isNative, postToIframe])
 
   return (
     <div
@@ -207,7 +277,7 @@ export function CostEstimatorPage({
           setUploadSheetOpen(false)
           pendingRequestIdRef.current = null
           if (requestId) {
-            postResultToIframe({
+            postToIframe({
               type: 'r360-native-image-pick-result',
               requestId,
               ok: false,
