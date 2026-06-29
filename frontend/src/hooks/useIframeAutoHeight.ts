@@ -89,8 +89,15 @@ function measureDocumentHeight(doc: Document): number {
     main instanceof HTMLElement ? measureContainerScrollHeight(main) : 0,
   ].filter((value) => value > 0)
 
+  // Allow up to 80px of trailing padding/margin below the last visible element.
+  // The body/root scrollHeight includes the outermost container's bottom padding
+  // (e.g. py-8 = 32px), so it can legitimately exceed contentBottom by 32–64px.
+  // The old threshold of +8 caused body.scrollHeight to be excluded, leaving only
+  // the inflated html.scrollHeight (= current iframe height) which produced hundreds
+  // of pixels of blank white space after step/route changes.
+  const CONTENT_SCROLL_SLACK = 80
   const contentAlignedScroll = scrollCandidates.filter(
-    (value) => contentBottom <= 0 || value <= contentBottom + 8,
+    (value) => contentBottom <= 0 || value <= contentBottom + CONTENT_SCROLL_SLACK,
   )
 
   const measured = Math.max(contentBottom, ...(contentAlignedScroll.length > 0 ? contentAlignedScroll : scrollCandidates))
@@ -106,13 +113,22 @@ function injectHeightNeutralizer(doc: Document): void {
   if (doc.getElementById(HEIGHT_NEUTRALIZER_ID)) return
   const style = doc.createElement('style')
   style.id = HEIGHT_NEUTRALIZER_ID
+  // Override any rule that inflates the document height to a viewport-fraction.
+  // This prevents body.scrollHeight from including phantom viewport-sized space
+  // when the iframe viewport (= iframe height) exceeds the actual content height.
+  // Covers: Tailwind utility classes, custom `section`/`article` selectors with
+  // calc(100vh – n) patterns, and common full-height layout containers.
   style.textContent = `
     html, body, #root, main {
       min-height: 0 !important;
       height: auto !important;
     }
-    .min-h-screen, .min-h-full, .h-screen, .h-full {
-      min-height: auto !important;
+    section {
+      min-height: 0 !important;
+    }
+    .min-h-screen, .min-h-svh, .min-h-dvh, .min-h-full,
+    .h-screen, .h-svh, .h-dvh, .h-full {
+      min-height: 0 !important;
       height: auto !important;
     }
   `
@@ -277,7 +293,14 @@ export function useIframeAutoHeight(_minHeight = 0, options: IframeAutoHeightOpt
 
         if (observeMutations) {
           mutationObserver?.disconnect()
-          mutationObserver = new MutationObserver(scheduleMeasure)
+          // Reset lastAppliedHeight on every DOM mutation so height can freely
+          // shrink (not just grow).  Without this, navigating from a tall step to
+          // a shorter step keeps the old height because the delta check passes but
+          // the measurement itself returns the previous (inflated) value.
+          mutationObserver = new MutationObserver(() => {
+            lastAppliedHeight = 0
+            scheduleMeasure()
+          })
           mutationObserver.observe(root, {
             subtree: true,
             childList: true,

@@ -954,15 +954,18 @@ body,
 }
 
 .home-navbar .hero-subtitle {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(210, 228, 255, 0.68);
 }
 
 /* CMS `colors.text` is dark (card copy); hero sits on the dark brand shell — keep title readable */
-.page-home .home-navbar .app-main-brand .hero-title,
-.page-home .home-navbar .app-main-brand .hero-subtitle {
+.page-home .home-navbar .app-main-brand .hero-title {
   color: #ffffff !important;
   background: transparent !important;
   text-shadow: 0 1px 4px rgba(0, 8, 24, 0.5);
+}
+.page-home .home-navbar .app-main-brand .hero-subtitle {
+  color: rgba(210, 228, 255, 0.68) !important;
+  background: transparent !important;
 }
 
 /* NDMA authority badge — directly under home header, above card grid */
@@ -1218,7 +1221,7 @@ body,
 .hero-title-wrap {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 2px;
   min-width: 0;
   flex: 1 1 auto;
   overflow-wrap: break-word;
@@ -1230,7 +1233,8 @@ body,
 
 .hero-title {
   font-size: clamp(1.5rem, 1.25rem + 0.9vw, 2.05rem) !important;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   color: #d7ef62;
   line-height: 1.08;
   overflow-wrap: break-word;
@@ -1240,15 +1244,16 @@ body,
 }
 
 .hero-subtitle {
-  margin: 0;
-  font-size: clamp(0.9rem, 0.84rem + 0.25vw, 1rem);
-  color: rgba(228, 241, 255, 0.92);
-  font-weight: 500;
+  margin: 2px 0 0;
+  font-size: clamp(0.8rem, 0.74rem + 0.2vw, 0.88rem);
+  color: rgba(210, 228, 255, 0.72);
+  font-weight: 400;
   line-height: 1.35;
   overflow-wrap: break-word;
   word-break: normal;
   white-space: normal;
   writing-mode: horizontal-tb;
+  letter-spacing: 0.005em;
 }
 
 .nav-controls {
@@ -7693,10 +7698,13 @@ progress {
 
   .hero-title {
     font-size: clamp(1.25rem, 1.08rem + 0.7vw, 1.58rem) !important;
+    font-weight: 800 !important;
   }
 
   .hero-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: rgba(205, 224, 255, 0.68) !important;
   }
 
   .app-brand-mark {
@@ -8059,10 +8067,14 @@ progress {
 
   .hero-title {
     font-size: clamp(1.08rem, 4.8vw, 1.28rem) !important;
+    font-weight: 800 !important;
   }
 
   .hero-subtitle {
-    font-size: 0.82rem;
+    font-size: 0.73rem;
+    font-weight: 400;
+    color: rgba(205, 224, 255, 0.68) !important;
+    margin-top: 2px;
   }
 
   .home-card {
@@ -8891,13 +8903,16 @@ p {
   }
 
   .navbar .hero-title {
-    font-size: clamp(1.05rem, 4.2vw, 1.35rem) !important;
-    line-height: 1.2;
+    font-size: clamp(1.25rem, 5.0vw, 1.5rem) !important;
+    font-weight: 800 !important;
+    line-height: 1.12;
   }
 
   .navbar .hero-subtitle {
-    font-size: clamp(0.78rem, 3.2vw, 0.92rem);
+    font-size: clamp(0.7rem, 2.8vw, 0.82rem);
+    font-weight: 400;
     line-height: 1.35;
+    color: rgba(205, 224, 255, 0.68) !important;
   }
 
   body {
@@ -9622,7 +9637,7 @@ embed {
   .navbar .hero-title-wrap {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
   }
 
   .navbar .hero-title,
@@ -9638,13 +9653,18 @@ embed {
   }
 
   .navbar .hero-title {
-    font-size: clamp(1.12rem, 4.6vw, 1.42rem) !important;
-    line-height: 1.15 !important;
+    font-size: clamp(1.3rem, 5.4vw, 1.55rem) !important;
+    font-weight: 800 !important;
+    line-height: 1.12 !important;
+    letter-spacing: -0.025em;
   }
 
   .navbar .hero-subtitle {
-    font-size: clamp(0.78rem, 3.2vw, 0.92rem) !important;
+    font-size: clamp(0.72rem, 2.9vw, 0.84rem) !important;
+    font-weight: 400 !important;
     line-height: 1.35 !important;
+    color: rgba(205, 224, 255, 0.68) !important;
+    margin-top: 3px;
   }
 
   /* Row 4: centered Home button */
@@ -10076,8 +10096,9 @@ embed {
 
 .navbar--web-single-row .navbar-top-strip__brand .hero-subtitle {
   font-size: clamp(0.82rem, 0.78rem + 0.18vw, 0.94rem);
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.35;
+  color: rgba(205, 224, 255, 0.68);
 }
 
 /* Tablet + mobile: enterprise two-row header
@@ -10189,7 +10210,7 @@ embed {
 
   .navbar--web-single-row .navbar-top-strip__brand .hero-title-wrap {
     padding: 0;
-    gap: 4px;
+    gap: 2px;
     min-width: 0;
     background: transparent;
     border: none;
@@ -10206,8 +10227,8 @@ embed {
   .navbar--web-single-row .navbar-top-strip__brand .hero-subtitle {
     font-size: clamp(0.78rem, 2.85vw, 0.92rem) !important;
     line-height: 1.33 !important;
-    font-weight: 500 !important;
-    opacity: 0.94;
+    font-weight: 400 !important;
+    color: rgba(205, 224, 255, 0.68) !important;
   }
 }
 
@@ -10323,7 +10344,7 @@ embed {
   .navbar--web-single-row .navbar-top-strip__brand .hero-subtitle {
     font-size: clamp(0.82rem, 0.74rem + 0.16vw, 0.95rem);
     line-height: 1.35;
-    font-weight: 500;
+    font-weight: 400;
   }
 }
 
