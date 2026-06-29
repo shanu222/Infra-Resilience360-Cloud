@@ -214,7 +214,7 @@ export function Dashboard() {
   if (!cityRates || !cityRates.isConfirmed) {
     return (
       <div 
-        className="min-h-screen bg-transparent relative"
+        className="min-h-0 bg-transparent relative"
         style={{
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -414,7 +414,7 @@ export function Dashboard() {
 
   // STAGE 2: Image Upload (after rates confirmed)
   return (
-    <div className="min-h-screen bg-transparent relative">
+    <div className="min-h-0 bg-transparent relative">
       <div className="absolute inset-0 bg-black/5 backdrop-blur-[1px]" style={{ zIndex: 0 }} />
       
       <div className="relative" style={{ zIndex: 1 }}>

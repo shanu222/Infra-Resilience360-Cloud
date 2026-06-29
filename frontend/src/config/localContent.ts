@@ -1,4 +1,5 @@
 import { getMediaUrl } from '../utils/mediaUrl'
+import { BUNDLED_BACKGROUND_VIDEO_URL } from './localAssets'
 
 /** Local content URL builders for filesystem-backed runtime media. */
 
@@ -55,6 +56,6 @@ export function rewriteLegacyS3Url(raw: string): string {
   return s
 }
 
-export const LOCAL_BACKGROUND_VIDEO_URL = localContentUrl('home', 'videos', 'home.mp4')
+export const LOCAL_BACKGROUND_VIDEO_URL = BUNDLED_BACKGROUND_VIDEO_URL
 export const LOCAL_BACKGROUND_IMAGE_URL = localContentUrl('home', 'images', 'home.png')
 

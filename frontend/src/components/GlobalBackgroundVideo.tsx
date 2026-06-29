@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { localContentUrl } from '../config/localContent'
+import { BUNDLED_BACKGROUND_VIDEO_URL } from '../config/localAssets'
 
-const LOCAL_BACKGROUND_VIDEO_URL = localContentUrl('home', 'videos', 'home.mp4')
+const LOCAL_BACKGROUND_VIDEO_URL = BUNDLED_BACKGROUND_VIDEO_URL
 
 export function GlobalBackgroundVideo() {
   const videoRef = useRef<HTMLVideoElement | null>(null)

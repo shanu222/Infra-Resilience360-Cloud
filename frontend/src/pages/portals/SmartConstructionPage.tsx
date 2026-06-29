@@ -15,7 +15,11 @@ export function SmartConstructionPage({
   isAdminMode?: boolean
   isEditMode?: boolean
 }) {
-  const iframeRef = useIframeAutoHeight(0)
+  const iframeRef = useIframeAutoHeight(0, {
+    observeResize: false,
+    observeMutations: false,
+    pollIntervalMs: 0,
+  })
   const [isFrameReady, setIsFrameReady] = useState(false)
 
   useEffect(() => {

@@ -3,11 +3,14 @@
  * Module media is served from Cloudflare R2 content keys; GIS stays under /data/gis/.
  */
 import ndmaLogoUrl from '../assets/logos/ndma-logo.png'
-import { localContentUrl } from './localContent'
+
+/** Bundled shell background video (shipped inside APK; no R2 fetch). */
+export const BUNDLED_BACKGROUND_VIDEO_URL = '/assets/backgrounds/background-video.mp4'
 
 export const LOCAL_NDMA_LOGO_URL = ndmaLogoUrl
 export const LOCAL_APP_LOGO_URL = '/assets/branding/app-logo.png'
-export const LOCAL_BACKGROUND_VIDEO_URL = localContentUrl('home', 'videos', 'home.mp4')
+/** @deprecated Use BUNDLED_BACKGROUND_VIDEO_URL for shell background playback. */
+export const LOCAL_BACKGROUND_VIDEO_URL = BUNDLED_BACKGROUND_VIDEO_URL
 
 export const LOCAL_APP_LOGO_CANDIDATES = [LOCAL_APP_LOGO_URL] as const
 

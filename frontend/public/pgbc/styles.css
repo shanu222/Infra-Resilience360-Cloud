@@ -1992,3 +1992,21 @@ button:hover {
         font-size: 1.08rem;
     }
 }
+
+/* Embedded in Resilience360 shell iframe — content height only, no duplicate header logos */
+html.pgbc-embedded section,
+html.pgbc-embedded .hero-panel,
+html.pgbc-embedded .library-shell,
+html.pgbc-embedded .viewer-page,
+html.pgbc-embedded .auth-shell {
+    min-height: auto !important;
+}
+
+html.pgbc-embedded .header-logo-wrap {
+    display: none !important;
+}
+
+html.pgbc-embedded .header-title-wrap--solo {
+    width: 100%;
+    text-align: center;
+}

@@ -32,10 +32,12 @@
     "disaster-subtitles": "node scripts/generate-disaster-subtitles.mjs",
     "optimize:hero-webp": "node scripts/encode-hero-webp.mjs",
     "optimize:release-backgrounds": "node scripts/optimize-release-backgrounds.mjs",
+    "android:icons": "node scripts/generate-android-icons.mjs",
     "build:debug": "vite build --config frontend/vite.config.ts --mode development"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1075.0",
+    "@capacitor/app": "^8.0.0",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/vite": "^4.1.12",
     "@turf/boolean-point-in-polygon": "^7.3.4",

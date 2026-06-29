@@ -7,7 +7,7 @@ export default function Home() {
   const t = useSmartConstructionStrings();
   return (
     <ModuleBackground>
-    <div className="min-h-screen">
+    <div className="min-h-0">
       <div className="max-w-6xl mx-auto px-4 py-8 md:py-16">
         {/* Header */}
         <div className="text-center mb-12">

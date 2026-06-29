@@ -286,7 +286,7 @@ export function ElementCostBreakdown() {
   
   return (
     <div 
-      className="min-h-screen bg-transparent relative"
+      className="min-h-0 bg-transparent relative"
       style={{
         backgroundSize: 'cover',
         backgroundPosition: 'center',

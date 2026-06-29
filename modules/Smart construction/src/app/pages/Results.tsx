@@ -19,7 +19,7 @@ function NoData({
 }) {
   return (
     <ModuleBackground>
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-0 flex items-center justify-center p-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">{title}</h2>
           <p className="text-gray-600 mb-6">{message}</p>
@@ -184,7 +184,7 @@ export default function Results() {
 
   return (
     <ModuleBackground>
-    <div className="min-h-screen">
+    <div className="min-h-0">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

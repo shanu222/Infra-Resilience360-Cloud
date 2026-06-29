@@ -9,6 +9,12 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     captureInput: true,
   },
+  plugins: {
+    // Native HTTP bypasses WebView CORS — required for Railway API from Capacitor (https://localhost origin).
+    CapacitorHttp: {
+      enabled: true,
+    },
+  },
 }
 
 export default config

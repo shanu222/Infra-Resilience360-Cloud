@@ -14,7 +14,7 @@ import { ensureUrduPdfFont, pdfTx, setPdfBodyFont, setPdfBoldFont } from './util
 import { buildUrduAdvisoryAnswerElement, buildUrduRetrofitEstimateElement } from './utils/urduMainAppPdfHtml'
 import ResponsiveQa from './components/ResponsiveQa'
 import { fetchLiveAlerts, type LiveAlert } from './services/alerts'
-import { buildApiTargets } from './services/apiBase'
+import type { AndroidBackContext } from './capacitor/androidBackButton'
 import { mediaManager } from './services/mediaManager'
 import { formatApiErrorMessage } from './utils/apiErrorMessage'
 import { loadSharedAppState, saveSharedAppState } from './services/appStateSync'
@@ -1784,6 +1784,39 @@ function App(_props: AppProps = {}) {
     },
     [activeSection, isAdminMode, isEditMode],
   )
+
+  const androidBackContextRef = useRef<AndroidBackContext>({
+    activeSection: null,
+    hasOpenOverlay: () => false,
+    closeTopOverlay: () => {},
+    navigateToSection: () => {},
+  })
+
+  androidBackContextRef.current = {
+    activeSection,
+    hasOpenOverlay: () =>
+      Boolean(
+        bestPracticeImageLightbox ||
+          showReadinessLogicModal ||
+          showFireSafetyLogicModal ||
+          showEarthquakeNotifyPrompt ||
+          isLearnVideoVisible,
+      ),
+    closeTopOverlay: () => {
+      if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
+      else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
+      else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
+      else if (showEarthquakeNotifyPrompt) setShowEarthquakeNotifyPrompt(false)
+      else if (isLearnVideoVisible) closeLearnVideoModal()
+    },
+    navigateToSection,
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    ;(window as Window & { __R360_ANDROID_BACK__?: () => AndroidBackContext }).__R360_ANDROID_BACK__ = () =>
+      androidBackContextRef.current
+  }, [])
 
   useEffect(() => {
     preloadSectionModules()

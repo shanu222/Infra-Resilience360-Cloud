@@ -7,7 +7,7 @@ export default function NotFound() {
   const t = useSmartConstructionStrings();
   return (
     <ModuleBackground>
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-0 flex items-center justify-center p-4">
       <div className="text-center">
         <h1 className="text-6xl font-bold text-gray-900 mb-4">{t.notFound.code}</h1>
         <h2 className="text-2xl font-semibold text-gray-700 mb-4">{t.notFound.title}</h2>

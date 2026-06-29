@@ -17,7 +17,7 @@ export function BuildingCodesPage({
     observeResize: false,
     observeMutations: false,
     pollIntervalMs: 0,
-    maxHeightPx: 12000,
+    maxHeightPx: 16000,
   })
   const [isFrameReady, setIsFrameReady] = useState(false)
 

@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
 import { mediaManager } from './services/mediaManager'
+import { initAndroidBackButton } from './capacitor/androidBackButton'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
@@ -28,6 +29,25 @@ function ensureMediaPreconnect() {
     document.head.appendChild(preconnect)
   } catch {
     /* ignore malformed media base URL */
+  }
+}
+
+function ensureApiPreconnect() {
+  if (typeof document === 'undefined' || !API_BASE_URL) return
+  try {
+    const origin = new URL(API_BASE_URL).origin
+    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return
+    const preconnect = document.createElement('link')
+    preconnect.rel = 'preconnect'
+    preconnect.href = origin
+    preconnect.crossOrigin = 'anonymous'
+    document.head.appendChild(preconnect)
+    const dnsPrefetch = document.createElement('link')
+    dnsPrefetch.rel = 'dns-prefetch'
+    dnsPrefetch.href = origin
+    document.head.appendChild(dnsPrefetch)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -110,8 +130,20 @@ async function setupServiceWorkerBootstrap() {
 }
 
 void setupServiceWorkerBootstrap()
+ensureApiPreconnect()
 ensureMediaPreconnect()
 ensureMediaDnsPrefetch()
+
+// Android hardware back — registered from App via context ref; bootstrap native listener once.
+initAndroidBackButton(() => {
+  const bridge = (window as Window & { __R360_ANDROID_BACK__?: () => import('./capacitor/androidBackButton').AndroidBackContext }).__R360_ANDROID_BACK__
+  return bridge?.() ?? {
+    activeSection: null,
+    hasOpenOverlay: () => false,
+    closeTopOverlay: () => {},
+    navigateToSection: () => {},
+  }
+})
 
 root.render(
   <LanguageProvider>

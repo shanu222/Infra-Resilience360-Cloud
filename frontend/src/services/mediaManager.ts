@@ -82,12 +82,18 @@ class MediaManager {
       const img = new Image()
       img.decoding = 'async'
       img.loading = 'lazy'
+      img.fetchPriority = 'low'
       img.onload = () => resolve()
       img.onerror = () => resolve()
       img.src = resolved
     })
     this.imageWarmCache.set(resolved, promise)
     return promise
+  }
+
+  preloadImages(urls: string[]): Promise<void> {
+    const unique = [...new Set(urls.map((u) => String(u ?? '').trim()).filter(Boolean))]
+    return Promise.all(unique.map((url) => this.preloadImage(url))).then(() => undefined)
   }
 
   preloadVideoMetadata(url: string): Promise<void> {

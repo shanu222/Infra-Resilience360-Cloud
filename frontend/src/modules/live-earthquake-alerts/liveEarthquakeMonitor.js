@@ -2926,7 +2926,10 @@ export function initLiveEarthquakeMonitor(root) {
           }
           void error;
           consecutiveLoadFailures += 1;
-          sourceLabelText = eqT('sourceUnavailable');
+          sourceLabelText =
+            lastGoodFeatures.length > 0
+              ? `${eqT('sourceLive')} — ${eqT('justNow')}`
+              : eqT('sourceUnavailable');
           if (lastGoodFeatures.length > 0) {
             if (!pageDisposed) render(lastGoodFeatures);
           } else {
