@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 type PdfFullscreenViewerProps = {
   src: string
@@ -21,6 +22,17 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  useEffect(() => {
+    if (!open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    ;(window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ = onClose
+    return () => {
+      document.body.style.overflow = previousOverflow
+      delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+    }
   }, [open, onClose])
 
   useEffect(() => {
@@ -67,21 +79,7 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
         }
 
         host.appendChild(fragment)
-        if (!cancelled) {
-          setIsLoading(false)
-          const scroll = host.closest('.infra-pdf-fullscreen-scroll') as HTMLElement | null
-          if (scroll && stageRef.current) {
-            window.requestAnimationFrame(() => {
-              const contentHeight = stageRef.current?.offsetHeight ?? 0
-              if (contentHeight > 0) {
-                scroll.style.flex = '0 0 auto'
-                scroll.style.height = `${contentHeight}px`
-                scroll.style.maxHeight = `calc(100dvh - 56px)`
-                scroll.style.overflow = 'auto'
-              }
-            })
-          }
-        }
+        if (!cancelled) setIsLoading(false)
       } catch {
         if (!cancelled) setIsLoading(false)
       }
@@ -143,10 +141,10 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
 
   if (!open) return null
 
-  return (
-    <div className="infra-pdf-fullscreen-overlay r360-fullscreen-overlay" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="infra-pdf-fullscreen-toolbar r360-fullscreen-overlay__panel">
-        <p className="infra-pdf-fullscreen-title r360-fullscreen-overlay__title">{title}</p>
+  return createPortal(
+    <div className="infra-pdf-fullscreen-overlay" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="infra-pdf-fullscreen-toolbar">
+        <p className="infra-pdf-fullscreen-title">{title}</p>
         <button type="button" className="infra-pdf-fullscreen-close" onClick={onClose}>
           Close
         </button>
@@ -158,9 +156,10 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
           </div>
         : null}
         <div ref={stageRef} className="infra-pdf-fullscreen-stage">
-          <div ref={hostRef} className="infra-model-pdf-canvas-pages" />
+          <div ref={hostRef} className="infra-model-pdf-canvas-pages infra-pdf-fullscreen-pages" />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

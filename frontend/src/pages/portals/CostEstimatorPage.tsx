@@ -7,6 +7,7 @@ import { ImageUploadBottomSheet } from '../../components/capacitor/ImageUploadBo
 import { capturePhotoWithCamera, pickPhotosFromGallery } from '../../capacitor/imagePicker'
 import { installPortalImagePickerBridge, postPortalImagePickResult } from '../../capacitor/portalImagePickerBridge'
 import { isCapacitorNativeRuntime } from '../../utils/capacitorRuntime'
+import { normalizeImageFileForUpload } from '../../utils/normalizeImageFile'
 
 /** Retrofit calculator portal — static bundle at `/retrofit-calculator/index.html`. */
 export function CostEstimatorPage({
@@ -61,6 +62,7 @@ export function CostEstimatorPage({
         })
         return
       }
+      const normalized = await normalizeImageFileForUpload(file, file.name || 'upload.jpg')
       const reader = new FileReader()
       const base64 = await new Promise<string>((resolve, reject) => {
         reader.onload = () => {
@@ -69,14 +71,14 @@ export function CostEstimatorPage({
           resolve(comma >= 0 ? result.slice(comma + 1) : result)
         }
         reader.onerror = () => reject(new Error('Could not read the selected image.'))
-        reader.readAsDataURL(file)
+        reader.readAsDataURL(normalized)
       })
       postPortalImagePickResult(target, {
         type: 'r360-native-image-pick-result',
         requestId,
         ok: true,
-        fileName: file.name,
-        mimeType: file.type || 'image/jpeg',
+        fileName: normalized.name,
+        mimeType: normalized.type || 'image/jpeg',
         base64,
       })
     } catch (error) {

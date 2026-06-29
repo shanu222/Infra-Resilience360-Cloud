@@ -7,6 +7,7 @@ import { analyzeBuildingWithVision } from "../services/retrofitApi"
 import { formatApiErrorMessage } from '@resilience/api-base'
 import { getCurrentPosition, getLocationFromIP, getCityRates, pakistaniCities } from "../services/geolocationService"
 import { isLikelyImageUpload, isNativeEmbeddedPortal, requestEmbeddedNativeImagePick } from "../services/nativePortalImagePicker"
+import { normalizeImageFileForUpload } from '@resilience/normalize-image'
 import { useRetrofitStrings } from "../../i18n/retrofitStrings"
 
 export function Dashboard() {
@@ -107,22 +108,28 @@ export function Dashboard() {
     }
   }
 
-  const updateSelectedFile = (file: File) => {
+  const updateSelectedFile = async (file: File) => {
     if (!isLikelyImageUpload(file)) {
       setAnalysisError(r.dash_errImage)
       return
     }
 
-    setAnalysisError(null)
-    setSelectedFile(file)
-    setActiveEstimate(null)
-    setManualAnnotation(null)
+    try {
+      const normalized = await normalizeImageFileForUpload(file, file.name || 'upload.jpg')
+      setAnalysisError(null)
+      setSelectedFile(normalized)
+      setActiveEstimate(null)
+      setManualAnnotation(null)
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+      }
+      reader.readAsDataURL(normalized)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : r.dash_errImage
+      setAnalysisError(message)
     }
-    reader.readAsDataURL(file)
   }
   
   const handleDrop = (e: React.DragEvent) => {

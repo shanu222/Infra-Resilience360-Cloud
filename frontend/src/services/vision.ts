@@ -172,12 +172,14 @@ export const analyzeBuildingWithVision = async (payload: {
         }
 
         if (!response.ok) {
+          const errorBody = body as { error?: string; message?: string; temporary?: boolean }
           const apiError = resolveAiUserMessage(
-            { error: (body as { error?: string }).error },
+            { error: errorBody.message ?? errorBody.error },
             AI_USER_MESSAGES.unavailable,
           )
           const isRateLimit = response.status === 429
-          const isTemporary = response.status === 503 || response.status === 502 || response.status === 504
+          const isTemporary =
+            Boolean(errorBody.temporary) || response.status === 503 || response.status === 502 || response.status === 504
 
           if ((isRateLimit || isTemporary) && attempt < maxAttemptsPerTarget) {
             await wait(isTemporary ? 2000 : 800 * attempt)
@@ -192,6 +194,10 @@ export const analyzeBuildingWithVision = async (payload: {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(AI_USER_MESSAGES.generic)
 
+        if (/timed out after/i.test(lastError.message)) {
+          break
+        }
+
         const isNetworkError = /failed to fetch|network|timeout/i.test(lastError.message)
         if (attempt < maxAttemptsPerTarget && isNetworkError) {
           await wait(600 * attempt)
@@ -201,5 +207,5 @@ export const analyzeBuildingWithVision = async (payload: {
     }
   }
 
-  throw new Error(resolveAiUserMessage(lastError, AI_USER_MESSAGES.unavailable))
+  throw lastError ?? new Error(AI_USER_MESSAGES.unavailable)
 }

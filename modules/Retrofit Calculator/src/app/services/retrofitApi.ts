@@ -37,7 +37,7 @@ export type MlRetrofitEstimate = {
   guidance: string[]
 }
 
-import { buildApiTargets, fetchApi, fetchVisionApi, formatApiErrorMessage, AI_ANALYSIS_UNAVAILABLE } from '@resilience/api-base'
+import { buildApiTargets, fetchApi, fetchVisionApi, AI_ANALYSIS_UNAVAILABLE } from '@resilience/api-base'
 import { normalizeImageFileForUpload } from '@resilience/normalize-image'
 
 const R360_DEBUG = typeof window !== 'undefined' && (window as any).__R360_DEBUG === true
@@ -152,6 +152,10 @@ export const analyzeBuildingWithVision = async (payload: {
         lastError = message ? new Error(message) : new Error(AI_ANALYSIS_UNAVAILABLE)
         debugLog('request failed', { target, attempt, durationMs, error: lastError.message })
 
+        if (/timed out after/i.test(lastError.message)) {
+          break
+        }
+
         const isNetworkError = /failed to fetch|network|timeout|cors|aborted|econnrefused|enotfound|502|503|504/i.test(lastError.message)
         if (attempt < maxAttemptsPerTarget && isNetworkError) {
           await wait(600 * attempt)
@@ -171,7 +175,7 @@ export const analyzeBuildingWithVision = async (payload: {
     debugLog('analysis unavailable: unknown failure')
   }
 
-  throw new Error(formatApiErrorMessage(lastError, AI_ANALYSIS_UNAVAILABLE))
+  throw lastError ?? new Error(AI_ANALYSIS_UNAVAILABLE)
 }
 
 export const getMlRetrofitEstimate = async (payload: {

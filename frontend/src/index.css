@@ -4399,28 +4399,45 @@ h4 {
 
 .infra-pdf-fullscreen-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 12000;
-  background: rgba(3, 10, 24, 0.96);
+  background: #030a18;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .infra-pdf-fullscreen-toolbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-left: calc(14px + env(safe-area-inset-left, 0px));
+  padding-right: calc(14px + env(safe-area-inset-right, 0px));
 }
 
 .infra-pdf-fullscreen-title {
   margin: 0;
   color: #e2eaf7;
   font-size: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .infra-pdf-fullscreen-close {
+  flex: 0 0 auto;
   border: 1px solid rgba(148, 163, 184, 0.45);
   background: rgba(15, 23, 42, 0.85);
   color: #e2eaf7;
@@ -4429,19 +4446,43 @@ h4 {
 }
 
 .infra-pdf-fullscreen-scroll {
-  flex: 0 1 auto;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 0 12px 16px;
-  align-self: flex-start;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-height: calc(100dvh - 56px);
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 12px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .infra-pdf-fullscreen-stage {
+  flex: 0 0 auto;
+  align-self: center;
+  width: max-content;
+  max-width: 100%;
   transform-origin: top center;
   touch-action: pinch-zoom;
-  width: fit-content;
+}
+
+.infra-pdf-fullscreen-pages.infra-model-pdf-canvas-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  max-width: 100%;
+}
+
+.infra-pdf-fullscreen-overlay .infra-model-pdf-page-canvas {
+  display: block;
+  width: auto;
+  height: auto;
   max-width: 100%;
   margin: 0 auto;
 }
@@ -4517,20 +4558,6 @@ h4 {
   gap: 10px;
   color: #e2e8f0;
   font-size: 0.95rem;
-}
-
-html.capacitor-native .home-card-grid,
-html.capacitor-native .card-grid {
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-html.capacitor-native .page-home .app-shell.home-shell > main {
-  gap: var(--space-2);
-}
-
-html.capacitor-native .page-home .home-bottom-strip {
-  margin-top: var(--space-2);
 }
 
 .r360-image-upload-sheet-overlay {
@@ -5478,7 +5505,7 @@ html.capacitor-native .page-home .home-bottom-strip {
 
 .home-settings-strip {
   width: 100%;
-  margin: 0.2rem 0 1rem;
+  margin: 0.15rem 0 0.65rem;
   padding: clamp(0.95rem, 0.7rem + 0.8vw, 1.35rem);
   border-radius: 16px;
   border: 1px solid rgba(120, 175, 245, 0.35);
@@ -8253,7 +8280,7 @@ video.learn-training-video {
 
 /* Universal CMS lead line under section h2 (`data-cms-id="sectionIntro"`) */
 .section-panel .section-lead {
-  margin: 0.35rem 0 1rem;
+  margin: 0.35rem 0 0.65rem;
   opacity: 0.92;
   line-height: 1.45;
 }
@@ -9235,7 +9262,8 @@ embed {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
+    gap: 6px;
+    margin-bottom: var(--space-2);
     padding-left: calc(10px + env(safe-area-inset-left, 0px));
     padding-right: calc(10px + env(safe-area-inset-right, 0px));
   }
@@ -9560,7 +9588,7 @@ embed {
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    gap: clamp(16px, 1.25vw, 20px);
+    gap: 12px;
   }
 
   .navbar .app-main-brand__icon {
@@ -9620,7 +9648,7 @@ embed {
     justify-content: center;
     align-items: center;
     width: 100%;
-    margin: 10px 0 4px;
+    margin: 6px 0 2px;
     padding: 0 clamp(12px, 4vw, 20px);
     box-sizing: border-box;
   }
@@ -9653,8 +9681,8 @@ embed {
 
   .page-home .home-card-grid,
   .home-card-grid {
-    gap: 12px !important;
-    margin-top: 12px !important;
+    gap: 10px !important;
+    margin-top: 10px !important;
   }
 
   @media (min-width: 768px) {
@@ -10755,6 +10783,55 @@ body,
   .navbar--web-single-row .navbar-top-strip__brand .hero-subtitle {
     font-size: clamp(0.7rem, 0.8vw + 0.58rem, 0.8rem) !important;
     line-height: 1.34 !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mobile spacing restoration (visual only — cards/typography unchanged)      */
+/* -------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .page-home .app-shell.home-shell > main {
+    gap: var(--space-2);
+  }
+
+  .page-home .home-bottom-strip {
+    margin-top: var(--space-2);
+  }
+
+  .card-grid,
+  .design-toolkit-grid,
+  .learn-video-grid,
+  .retrofit-upload-grid,
+  .retrofit-insights-grid,
+  .warning-toolkit-grid,
+  .best-practices-grid,
+  .infra-models-grid {
+    gap: 10px !important;
+    margin-top: 10px !important;
+  }
+
+  .panel,
+  .panel.section-panel {
+    margin-top: var(--space-2);
+  }
+
+  .inline-controls,
+  .context-split-layout {
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .home-navbar {
+    margin-bottom: var(--space-2);
+  }
+
+  .navbar-top-strip {
+    margin-bottom: 6px;
+    padding-bottom: 8px;
+  }
+
+  .content-layer .section-panel {
+    padding: clamp(0.75rem, 1.6vw, 1.05rem);
   }
 }
 

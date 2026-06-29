@@ -73,6 +73,25 @@ export function resolveAiTimeoutMs(): number {
   }
 }
 
+/**
+ * Vision POST client budget: allow backend provider fallback chain (OpenAI → Gemini → OpenRouter)
+ * to complete before aborting, matching web behaviour of waiting for the full orchestration.
+ */
+export function resolveAiVisionClientTimeoutMs(): number {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}
+    const explicit = Number(env.VITE_AI_VISION_CLIENT_TIMEOUT_MS ?? 0)
+    if (explicit > 0) return explicit
+
+    const base = resolveAiTimeoutMs()
+    const order = String(env.VITE_AI_PROVIDER_ORDER ?? 'openai,gemini,openrouter')
+    const providers = Math.max(1, order.split(',').map((item) => item.trim()).filter(Boolean).length)
+    return Math.min(300_000, base * providers + 15_000)
+  } catch {
+    return resolveAiTimeoutMs() * 3
+  }
+}
+
 async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
   if (!init?.body || !(init.body instanceof FormData) || !isCapacitorNativeRuntime()) {
     return init
@@ -81,7 +100,7 @@ async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): P
   const { body, contentType } = await formDataToMultipartBlob(init.body)
   const headers = new Headers(init.headers ?? {})
   headers.set('Content-Type', contentType)
-  return { ...init, body, headers }
+  return { ...init, body: body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength), headers }
 }
 
 /**
@@ -89,7 +108,7 @@ async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): P
  * Prevents infinite spinners when CapacitorHttp or the network stalls.
  */
 export async function fetchVisionApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const timeoutMs = resolveAiTimeoutMs()
+  const timeoutMs = resolveAiVisionClientTimeoutMs()
   if (init?.signal) {
     return fetchApi(input, init)
   }
