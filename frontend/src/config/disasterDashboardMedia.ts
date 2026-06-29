@@ -23,83 +23,75 @@ type DisasterMediaSpec = {
   audioFallbackFolders?: string[]
 }
 
+/**
+ * Media is resolved ONLY by slug-keyed folder paths:
+ *   images/{id}/image.png
+ *   videos/{id}/video.mp4
+ *   audio/{id}/audio.aac
+ *
+ * The previous flat (index-based) files like images/image.png,
+ * images/image-1.png … images/image-9.png have been removed because they
+ * were numbered by array position and caused cross-loading (e.g. Flood showed
+ * Cold Wave media when image.png on R2 contained the wrong content).
+ * Resolving by slug is the only safe approach.
+ */
 export const DISASTER_DASHBOARD_MEDIA_SPECS: Record<string, DisasterMediaSpec> = {
   flood: {
     folder: 'flood',
-    flatImageFile: 'image.png',
-    flatVideoFile: 'video.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   earthquake: {
     folder: 'earthquake',
-    flatImageFile: 'image-1.png',
-    flatVideoFile: 'video-1.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   'urban-fire': {
     folder: 'urban-fire',
-    flatImageFile: 'image-2.png',
-    flatVideoFile: 'video-2.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   'crop-fire': {
     folder: 'crop-fire',
-    flatImageFile: 'image-3.png',
-    flatVideoFile: 'video-3.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   heatwave: {
     folder: 'heatwave',
-    flatImageFile: 'image-4.png',
-    flatVideoFile: 'video-4.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   'load-shedding': {
     folder: 'load-shedding',
-    flatImageFile: 'image-5.png',
-    flatVideoFile: 'video-5.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   'storm-cyclone': {
     folder: 'storm-cyclone',
-    flatImageFile: 'image-6.png',
-    flatVideoFile: 'video-6.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   landslide: {
     folder: 'landslide',
-    flatImageFile: 'image-7.png',
-    flatVideoFile: 'video-7.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   'cold-wave': {
     folder: 'cold-wave',
-    flatImageFile: 'image-8.png',
-    flatVideoFile: 'video-8.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
   },
   smog: {
     folder: 'smog',
-    flatImageFile: 'image-9.png',
-    flatVideoFile: 'video-9.mp4',
     image: 'image.png',
     video: 'video.mp4',
     audio: 'audio.aac',
