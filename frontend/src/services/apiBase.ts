@@ -100,7 +100,7 @@ async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): P
   const { body, contentType } = await formDataToMultipartBlob(init.body)
   const headers = new Headers(init.headers ?? {})
   headers.set('Content-Type', contentType)
-  return { ...init, body: body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength), headers }
+  return { ...init, body, headers }
 }
 
 /**

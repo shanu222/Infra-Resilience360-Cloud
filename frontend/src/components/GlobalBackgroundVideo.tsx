@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { BUNDLED_BACKGROUND_VIDEO_URL } from '../config/localAssets'
+import { isCapacitorNativeRuntime } from '../utils/capacitorRuntime'
 
+/** Shell background video — always bundled locally (never R2 / remote CMS URLs). */
 const LOCAL_BACKGROUND_VIDEO_URL = BUNDLED_BACKGROUND_VIDEO_URL
 
 export function GlobalBackgroundVideo() {
@@ -28,8 +30,15 @@ export function GlobalBackgroundVideo() {
     document.addEventListener('visibilitychange', onVisibility)
     return () => {
       document.removeEventListener('visibilitychange', onVisibility)
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
     }
   }, [])
+
+  if (isCapacitorNativeRuntime() && !LOCAL_BACKGROUND_VIDEO_URL) {
+    return null
+  }
 
   return (
     <div className="global-bg-root" aria-hidden>

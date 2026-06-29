@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { PDFDocumentProxy } from 'pdfjs-dist'
 
 type PdfFullscreenViewerProps = {
   src: string
@@ -11,6 +12,7 @@ type PdfFullscreenViewerProps = {
 export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreenViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
+  const pdfRef = useRef<PDFDocumentProxy | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const scaleRef = useRef(1)
   const pinchRef = useRef<{ startDistance: number; startScale: number } | null>(null)
@@ -56,10 +58,14 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
         ).toString()
 
         const pdf = await pdfjs.getDocument({ url: src, withCredentials: false }).promise
-        if (cancelled) return
+        if (cancelled) {
+          void pdf.destroy()
+          return
+        }
+        pdfRef.current = pdf
 
         const fragment = document.createDocumentFragment()
-        const containerWidth = Math.max(window.innerWidth - 32, 320)
+        const containerWidth = Math.max(Math.min(window.innerWidth, document.documentElement.clientWidth) - 24, 280)
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           const page = await pdf.getPage(pageNumber)
@@ -88,6 +94,10 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
     void render()
     return () => {
       cancelled = true
+      const pdf = pdfRef.current
+      pdfRef.current = null
+      if (pdf) void pdf.destroy()
+      host.replaceChildren()
     }
   }, [open, src])
 

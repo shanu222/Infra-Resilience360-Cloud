@@ -64,5 +64,10 @@ export async function normalizeImageFileForUpload(
   const safeName = sourceName.trim() || fallbackName
   const mime = resolveMimeType(source instanceof File ? source : new File([], safeName), safeName)
   const bytes = await readFileBytes(source instanceof File ? source : new File([source], safeName, { type: mime }))
-  return new File([bytes], safeName, { type: mime, lastModified: Date.now() })
+  const normalizedName = /\.[a-z0-9]+$/i.test(safeName)
+    ? safeName
+    : mime === 'image/jpeg'
+      ? `${safeName.replace(/\.[^.]+$/, '') || 'upload'}.jpg`
+      : safeName
+  return new File([bytes], normalizedName, { type: mime, lastModified: Date.now() })
 }

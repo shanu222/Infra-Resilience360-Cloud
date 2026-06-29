@@ -33,13 +33,19 @@ export function CostEstimatorPage({
 
   useEffect(() => {
     if (!isCapacitorNativeRuntime()) return
-    return installPortalImagePickerBridge({
+    const bridgeFlag = window as Window & { __R360_NATIVE_PORTAL_BRIDGE__?: boolean }
+    bridgeFlag.__R360_NATIVE_PORTAL_BRIDGE__ = true
+    const uninstall = installPortalImagePickerBridge({
       onSheetRequest: (requestId, source) => {
         portalPickRequestIdRef.current = requestId
         portalPickSourceRef.current = source
         setPortalUploadSheetOpen(true)
       },
     })
+    return () => {
+      delete bridgeFlag.__R360_NATIVE_PORTAL_BRIDGE__
+      uninstall()
+    }
   }, [])
 
   const respondToPortalPick = async (source: 'camera' | 'gallery') => {

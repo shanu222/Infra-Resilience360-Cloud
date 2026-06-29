@@ -16,9 +16,10 @@ type PortalImagePickResponse = {
 }
 
 export function isNativeEmbeddedPortal(): boolean {
+  if (window.parent === window) return false
   try {
-    const topWindow = window.top as Window & { Capacitor?: { isNativePlatform?: () => boolean } }
-    return Boolean(window.top !== window && topWindow?.Capacitor?.isNativePlatform?.())
+    const parent = window.parent as Window & { __R360_NATIVE_PORTAL_BRIDGE__?: boolean }
+    return Boolean(parent.__R360_NATIVE_PORTAL_BRIDGE__)
   } catch {
     return false
   }
