@@ -1,4 +1,4 @@
-import { buildApiTargets, fetchApi, resolveAiUserMessage, assertProductionVisionResult, AI_USER_MESSAGES } from './apiBase'
+import { buildApiTargets, fetchVisionApi, resolveAiUserMessage, assertProductionVisionResult, AI_USER_MESSAGES } from './apiBase'
 import { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 
 const wait = (ms: number) => new Promise<void>((resolve) => {
@@ -11,7 +11,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => {
  * analyses are cancelled client-side with "signal is aborted without reason".
  */
 const fetchVisionRequest = async (input: RequestInfo | URL, init: RequestInit): Promise<Response> =>
-  fetchApi(input, init)
+  fetchVisionApi(input, init)
 
 export type DefectDetection = {
   type: 'crack' | 'spalling' | 'corrosion' | 'moisture' | 'deformation' | 'other'

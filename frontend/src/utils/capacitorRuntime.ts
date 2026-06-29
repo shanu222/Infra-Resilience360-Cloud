@@ -2,7 +2,16 @@ import { Capacitor } from '@capacitor/core'
 
 /** True when running inside the Capacitor Android/iOS shell (not the web browser). */
 export function isCapacitorNativeRuntime(): boolean {
-  return Capacitor.isNativePlatform()
+  try {
+    if (Capacitor.isNativePlatform()) return true
+    if (typeof window !== 'undefined' && window.top !== window) {
+      const top = window.top as Window & { Capacitor?: Pick<typeof Capacitor, 'isNativePlatform'> }
+      return Boolean(top?.Capacitor?.isNativePlatform?.())
+    }
+  } catch {
+    /* embedded cross-origin frame */
+  }
+  return false
 }
 
 /** Settings drawer label — never show "Web" on native builds. */

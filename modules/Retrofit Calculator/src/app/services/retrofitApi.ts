@@ -37,7 +37,7 @@ export type MlRetrofitEstimate = {
   guidance: string[]
 }
 
-import { buildApiTargets, fetchApi, formatApiErrorMessage, AI_ANALYSIS_UNAVAILABLE } from '@resilience/api-base'
+import { buildApiTargets, fetchApi, fetchVisionApi, formatApiErrorMessage, AI_ANALYSIS_UNAVAILABLE } from '@resilience/api-base'
 import { normalizeImageFileForUpload } from '@resilience/normalize-image'
 
 const R360_DEBUG = typeof window !== 'undefined' && (window as any).__R360_DEBUG === true
@@ -100,7 +100,7 @@ export const analyzeBuildingWithVision = async (payload: {
       try {
         debugLog('request init', requestInit)
 
-        const response = await fetchApi(target, requestInit)
+        const response = await fetchVisionApi(target, requestInit)
         const durationMs = Date.now() - requestStart
         const raw = await response.text()
         const headers = formatResponseHeaders(response.headers)
@@ -148,7 +148,8 @@ export const analyzeBuildingWithVision = async (payload: {
         return normalized
       } catch (error) {
         const durationMs = Date.now() - requestStart
-        lastError = error instanceof Error ? error : new Error('Vision API request failed')
+        const message = error instanceof Error ? error.message : String(error ?? '')
+        lastError = message ? new Error(message) : new Error(AI_ANALYSIS_UNAVAILABLE)
         debugLog('request failed', { target, attempt, durationMs, error: lastError.message })
 
         const isNetworkError = /failed to fetch|network|timeout|cors|aborted|econnrefused|enotfound|502|503|504/i.test(lastError.message)

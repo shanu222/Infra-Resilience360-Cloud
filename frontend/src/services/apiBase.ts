@@ -1,6 +1,6 @@
-import { Capacitor } from '@capacitor/core'
 import { API_BASE_URL as CONFIGURED_API_BASE_URL } from '../config/apiBase'
 import { formDataToMultipartBlob } from './nativeMultipart'
+import { isCapacitorNativeRuntime } from '../utils/capacitorRuntime'
 export { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 import {
   AI_ANALYSIS_UNAVAILABLE,
@@ -63,8 +63,18 @@ export const buildApiUrl = (path: string): string => {
 /**
  * Logs transport failures (TLS, DNS, offline) then rethrows so callers keep their control flow.
  */
+/** Matches backend `AI_TIMEOUT_MS` default; override with `VITE_AI_TIMEOUT_MS`. */
+export function resolveAiTimeoutMs(): number {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}
+    return Math.max(5_000, Number(env.VITE_AI_TIMEOUT_MS ?? 45_000) || 45_000)
+  } catch {
+    return 45_000
+  }
+}
+
 async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
-  if (!init?.body || !(init.body instanceof FormData) || !Capacitor.isNativePlatform()) {
+  if (!init?.body || !(init.body instanceof FormData) || !isCapacitorNativeRuntime()) {
     return init
   }
 
@@ -72,6 +82,30 @@ async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): P
   const headers = new Headers(init.headers ?? {})
   headers.set('Content-Type', contentType)
   return { ...init, body, headers }
+}
+
+/**
+ * Vision multipart POST with client timeout aligned to backend AI_TIMEOUT_MS.
+ * Prevents infinite spinners when CapacitorHttp or the network stalls.
+ */
+export async function fetchVisionApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeoutMs = resolveAiTimeoutMs()
+  if (init?.signal) {
+    return fetchApi(input, init)
+  }
+
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetchApi(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`AI analysis timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timer)
+  }
 }
 
 export async function fetchApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
