@@ -2394,7 +2394,7 @@ function App(_props: AppProps = {}) {
     setIsGeneratingGuidance(true)
 
     try {
-      const { generateConstructionGuidance, generateGuidanceStepImages } = await loadConstructionGuidanceService()
+      const { generateConstructionGuidance } = await loadConstructionGuidanceService()
       const selectedBestPracticeName = bestPracticeNameOverride ?? applyBestPracticeTitle
 
       const guidance = await generateConstructionGuidance({
@@ -2406,29 +2406,6 @@ function App(_props: AppProps = {}) {
       })
 
       setConstructionGuidance(guidance)
-
-      setIsGeneratingStepImages(true)
-
-      try {
-        const stepsForImages = isUrdu ? guidance.stepsUrdu : guidance.steps
-        const imageResult = await generateGuidanceStepImages({
-          province: applyProvince,
-          city: applyCity,
-          hazard: applyHazard,
-          structureType,
-          bestPracticeName: selectedBestPracticeName,
-          steps: stepsForImages,
-        })
-
-        if (imageResult.images.length < guidance.steps.length) {
-          throw new Error('AI image generation returned incomplete step visuals. Please try again.')
-        }
-        setGuidanceStepImages(imageResult.images)
-      } catch (error) {
-        setGuidanceError(error instanceof Error ? error.message : 'Step image generation failed.')
-      } finally {
-        setIsGeneratingStepImages(false)
-      }
     } catch (error) {
       setGuidanceError(error instanceof Error ? error.message : 'Guidance generation failed.')
     } finally {
@@ -2442,158 +2419,164 @@ function App(_props: AppProps = {}) {
     setIsPreparingWordReport(true)
 
     try {
-      const { generateGuidanceStepImages } = await loadConstructionGuidanceService()
-      const reportLanguage = isUrdu ? 'urdu' : 'english'
-      let reportImages = guidanceStepImages
-      const isEnglishReport = reportLanguage === 'english'
+      const { AlignmentType, BorderStyle, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = await import('docx')
+
+      const isEnglishReport = !isUrdu
+      const reportLanguage = isEnglishReport ? 'english' : 'urdu'
       const reportSteps = isEnglishReport ? constructionGuidance.steps : constructionGuidance.stepsUrdu
-
-      if (reportImages.length < reportSteps.length) {
-        try {
-          const imageResult = await generateGuidanceStepImages({
-            province: applyProvince,
-            city: applyCity,
-            hazard: applyHazard,
-            structureType,
-            bestPracticeName: applyBestPracticeTitle,
-            steps: reportSteps,
-          })
-
-          if (imageResult.images.length < reportSteps.length) {
-            setGuidanceError(t.applyRegion.guidanceReportBlocked)
-            return
-          }
-
-          reportImages = imageResult.images
-          setGuidanceStepImages(imageResult.images)
-        } catch (error) {
-          setGuidanceError(error instanceof Error ? error.message : t.applyRegion.guidanceReportImageFailed)
-          return
-        }
-      }
-
-      const toImageBytes = (dataUrl: string): Uint8Array => {
-      const base64 = dataUrl.split(',')[1] ?? ''
-      const binary = window.atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index)
-      }
-      return bytes
-    }
-
-      const getImageSize = (dataUrl: string): Promise<{ width: number; height: number }> =>
-      new Promise((resolve) => {
-        const img = new window.Image()
-        img.onload = () => {
-          const maxWidth = 560
-          const naturalWidth = img.naturalWidth || 1024
-          const naturalHeight = img.naturalHeight || 768
-          const ratio = naturalHeight / naturalWidth
-          const width = Math.min(maxWidth, naturalWidth)
-          const height = Math.max(220, Math.round(width * ratio))
-          resolve({ width, height })
-        }
-        img.onerror = () => resolve({ width: 520, height: 320 })
-        img.src = dataUrl
-      })
-
-      const { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } = await import('docx')
-
-      const renderedAt = new Date().toLocaleString()
-      const reportTitle = isEnglishReport ? t.applyRegion.wordReportTitleEnglish : t.applyRegion.wordReportTitleUrdu
-      const areaLabel = isEnglishReport ? 'Area' : 'علاقہ'
-      const hazardLabel = isEnglishReport ? 'Hazard' : 'خطرہ'
-      const bestPracticeLabel = isEnglishReport ? 'Best Practice' : 'بہترین طریقہ کار'
-      const generatedLabel = isEnglishReport ? 'Generated' : 'تیار کردہ وقت'
-      const summaryHeading = isEnglishReport ? 'Executive Summary' : 'خلاصہ'
-      const materialsHeading = isEnglishReport ? 'Recommended Materials' : 'تجویز کردہ مواد'
-      const safetyHeading = isEnglishReport ? 'Safety Requirements' : 'حفاظتی ہدایات'
-      const stepLabel = isEnglishReport ? 'Step' : 'مرحلہ'
-      const keyChecksHeading = isEnglishReport ? 'Key Checks' : 'اہم جانچ نکات'
-      const stepVisualCaption = isEnglishReport ? 'Step visual' : 'مرحلے کی تصویر'
       const reportSummary = isEnglishReport ? constructionGuidance.summary : constructionGuidance.summaryUrdu
       const reportMaterials = isEnglishReport ? constructionGuidance.materials : constructionGuidance.materialsUrdu
       const reportSafety = isEnglishReport ? constructionGuidance.safety : constructionGuidance.safetyUrdu
+
+      const renderedAt = new Date().toLocaleString('en-PK', { dateStyle: 'long', timeStyle: 'short' })
+      const reportTitle = isEnglishReport ? t.applyRegion.wordReportTitleEnglish : t.applyRegion.wordReportTitleUrdu
+      const stepLabel = isEnglishReport ? 'Step' : 'مرحلہ'
+      const keyChecksHeading = isEnglishReport ? 'Quality Checks & Inspection Points' : 'اہم جانچ نکات'
+
+      const hr = () => new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1a3a6e', space: 6 } }, text: '', spacing: { after: 0 } })
+      const spacer = (after = 160) => new Paragraph({ text: '', spacing: { after } })
+
       const docChildren = [
-      new Paragraph({
-        heading: HeadingLevel.TITLE,
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: reportTitle, bold: true, size: 34 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 260 },
-        children: [
-          new TextRun({
-            text: `${areaLabel}: ${applyCity}, ${applyProvince}   |   ${hazardLabel}: ${applyHazard}   |   ${bestPracticeLabel}: ${applyBestPracticeTitle}   |   ${generatedLabel}: ${renderedAt}`,
-            size: 20,
-          }),
-        ],
-      }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: summaryHeading }),
-      new Paragraph({ text: reportSummary, spacing: { after: 220 } }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: materialsHeading }),
-      ...reportMaterials.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      new Paragraph({ text: '', spacing: { after: 120 } }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: safetyHeading }),
-      ...reportSafety.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      new Paragraph({ text: '', spacing: { after: 140 } }),
-    ]
+        // ── Cover ────────────────────────────────────────────────────────────
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 60 },
+          children: [new TextRun({ text: 'INFRA RESILIENCE360', bold: true, size: 52, color: '0d2b6b', allCaps: true })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 40 },
+          children: [new TextRun({ text: 'National Disaster Management Authority (NDMA)', size: 26, color: '2a5298', bold: true })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 180 },
+          children: [new TextRun({ text: 'Infrastructure Safety & Disaster Engineering Toolkit', italics: true, size: 22, color: '475569' })],
+        }),
+        hr(),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 180, after: 80 },
+          children: [new TextRun({ text: reportTitle, bold: true, size: 36, color: '1a3a6e' })],
+        }),
+        // ── Metadata table ──────────────────────────────────────────────────
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: { top: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, bottom: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, left: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, right: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, insideH: { style: BorderStyle.SINGLE, size: 2, color: 'dce8f8' }, insideV: { style: BorderStyle.SINGLE, size: 2, color: 'dce8f8' } },
+          rows: [
+            new TableRow({ children: [
+              new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Region / District' : 'علاقہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: `${applyCity}, ${applyProvince}, Pakistan`, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Primary Hazard' : 'بنیادی خطرہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: applyHazard, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Construction Practice' : 'تعمیراتی طریقہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: applyBestPracticeTitle, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Report Generated' : 'تیار کردہ وقت', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: renderedAt, size: 20 })] })] }),
+            ] }),
+          ],
+        }),
+        spacer(240),
+
+        // ── Executive Summary ────────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '1. Executive Summary' : '۱. خلاصہ', spacing: { before: 200, after: 100 } }),
+        new Paragraph({ text: reportSummary, spacing: { after: 200 }, indent: { left: 240 } }),
+
+        // ── Recommended Materials ────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '2. Recommended Construction Materials' : '۲. تجویز کردہ تعمیراتی مواد', spacing: { before: 200, after: 100 } }),
+        ...reportMaterials.map((item) => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 60 }, indent: { left: 240 } })),
+        spacer(120),
+
+        // ── Safety Requirements ──────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '3. Safety Requirements & Engineering Precautions' : '۳. حفاظتی ہدایات', spacing: { before: 200, after: 100 } }),
+        ...reportSafety.map((item) => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 60 }, indent: { left: 240 } })),
+        spacer(120),
+
+        // ── Implementation Steps ─────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '4. Construction Sequence & Implementation Steps' : '۴. تعمیراتی مراحل', spacing: { before: 200, after: 140 } }),
+      ]
 
       for (const [index, step] of reportSteps.entries()) {
-        const image = isEnglishReport
-          ? reportImages.find((item) => item.stepTitle === step.title) ?? reportImages[index]
-          : reportImages[index]
-
         docChildren.push(
-        new Paragraph({ heading: HeadingLevel.HEADING_2, text: `${stepLabel} ${index + 1}: ${step.title}`, spacing: { before: 240, after: 80 } }),
-        new Paragraph({ text: step.description, spacing: { after: 100 } }),
-        new Paragraph({ text: keyChecksHeading, heading: HeadingLevel.HEADING_3 }),
-        ...step.keyChecks.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      )
-
-        if (image?.imageDataUrl) {
-          const imageBytes = toImageBytes(image.imageDataUrl)
-          const imageSize = await getImageSize(image.imageDataUrl)
-
-          docChildren.push(
-          new Paragraph({ text: '', spacing: { after: 80 } }),
           new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: imageBytes,
-                type: 'png',
-                transformation: {
-                  width: imageSize.width,
-                  height: imageSize.height,
-                },
-              }),
-            ],
+            heading: HeadingLevel.HEADING_2,
+            text: `${stepLabel} ${index + 1}: ${step.title}`,
+            spacing: { before: 200, after: 80 },
           }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 180 },
-            children: [new TextRun({ text: `${stepLabel} ${index + 1} ${stepVisualCaption}`, italics: true, size: 18 })],
-          }),
+          new Paragraph({ text: step.description, spacing: { after: 100 }, indent: { left: 240 } }),
+          new Paragraph({ heading: HeadingLevel.HEADING_3, text: keyChecksHeading, spacing: { before: 80, after: 60 } }),
+          ...step.keyChecks.map((item) =>
+            new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 50 }, indent: { left: 360 } }),
+          ),
+          spacer(80),
         )
-        }
       }
 
+      // ── Disclaimer ──────────────────────────────────────────────────────────
+      docChildren.push(
+        spacer(200),
+        hr(),
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          text: isEnglishReport ? '5. Disclaimer & Notes' : '۵. اہم نوٹس',
+          spacing: { before: 200, after: 100 },
+        }),
+        new Paragraph({
+          spacing: { after: 120 },
+          indent: { left: 240 },
+          children: [
+            new TextRun({
+              text: isEnglishReport
+                ? 'This guidance report has been generated by Infra Resilience360, a technical toolkit developed under the National Disaster Management Authority (NDMA), Government of Pakistan. The recommendations are based on AI-assisted engineering analysis and regional hazard data. This report is intended to serve as preliminary technical guidance only.'
+                : 'یہ رپورٹ انفرا ریزیلینس 360 کی طرف سے تیار کی گئی ہے، جو قومی ادارہ برائے انتظام آفات (NDMA)، حکومت پاکستان کے تحت تیار کردہ ایک تکنیکی ٹول کٹ ہے۔ سفارشات AI سے معاون انجینئرنگ تجزیے اور علاقائی آفات کے ڈیٹا پر مبنی ہیں۔',
+              size: 18,
+              color: '475569',
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 120 },
+          indent: { left: 240 },
+          children: [
+            new TextRun({
+              text: isEnglishReport
+                ? 'IMPORTANT: All construction activities must be approved and supervised by a licensed structural engineer. This report does not replace mandatory building permits, structural inspections, or compliance with the Pakistan Building Code (PBC) and applicable provincial regulations.'
+                : 'اہم: تمام تعمیراتی کام ایک لائسنس یافتہ سٹرکچرل انجینئر کی منظوری اور نگرانی میں ہونے چاہئیں۔ یہ رپورٹ لازمی بلڈنگ پرمٹ، سٹرکچرل معائنے، یا پاکستان بلڈنگ کوڈ کی تعمیل کا متبادل نہیں ہے۔',
+              size: 18,
+              bold: true,
+              color: 'c0392b',
+            }),
+          ],
+        }),
+        spacer(80),
+        hr(),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 120, after: 60 },
+          children: [
+            new TextRun({ text: 'Infra Resilience360  ·  NDMA Pakistan  ·  Infrastructure Safety & Disaster Engineering Toolkit', size: 16, color: '6b7280', italics: true }),
+          ],
+        }),
+      )
+
       const report = new Document({
-        sections: [
-          {
-            children: docChildren,
-          },
-        ],
+        creator: 'Infra Resilience360 — NDMA Pakistan',
+        title: `${reportTitle} — ${applyCity}, ${applyProvince}`,
+        description: `Construction guidance report for ${applyCity}, ${applyProvince}. Hazard: ${applyHazard}. Practice: ${applyBestPracticeTitle}.`,
+        sections: [{ children: docChildren }],
       })
 
       const blob = await Packer.toBlob(report)
       const url = window.URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `resilience360-guidance-report-${reportLanguage}-${applyProvince}-${applyCity}-${Date.now()}.docx`
+      anchor.download = `R360-guidance-${applyCity}-${applyHazard}-${Date.now()}.docx`
       document.body.appendChild(anchor)
       anchor.click()
       document.body.removeChild(anchor)
@@ -5495,30 +5478,20 @@ function App(_props: AppProps = {}) {
 
                       <CmsText as="h3" id="block.implementationStepsHeading" fallback={t.applyRegion.implementationStepsHeading} />
                       <div className="retrofit-defect-list">
-                        {constructionGuidance.steps.map((step, index) => {
-                          const image = guidanceStepImages.find((item) => item.stepTitle === step.title) ?? guidanceStepImages[index]
-                          return (
+                        {constructionGuidance.steps.map((step, index) => (
                             <article key={`${step.title}-${index}`} className="retrofit-defect-card">
                               <h4>
                                 <CmsText as="span" id="block.applyStepLabelWordEn" fallback={t.applyRegion.stepLabel} /> {index + 1}:{' '}
                                 {step.title}
                               </h4>
                               <p>{step.description}</p>
-                              {image?.imageDataUrl && (
-                                <img
-                                  src={image.imageDataUrl}
-                                  alt={`${step.title} ${t.applyRegion.visualGuideAltSuffix}`}
-                                  className="retrofit-preview"
-                                />
-                              )}
                               <ul>
                                 {step.keyChecks.map((item) => (
                                   <li key={item}>{item}</li>
                                 ))}
                               </ul>
                             </article>
-                          )
-                        })}
+                          ))}
                       </div>
                     </>
                   ) : (
@@ -5555,30 +5528,20 @@ function App(_props: AppProps = {}) {
 
                       <CmsText as="h3" id="block.implementationStepsHeadingUr" fallback={t.applyRegion.stepsUrdu} />
                       <div className="retrofit-defect-list">
-                        {constructionGuidance.stepsUrdu.map((step, index) => {
-                          const image = guidanceStepImages[index]
-                          return (
+                        {constructionGuidance.stepsUrdu.map((step, index) => (
                             <article key={`${step.title}-${index}-urdu`} className="retrofit-defect-card">
                               <h4>
                                 <CmsText as="span" id="block.applyStepLabelWordUr" fallback={t.applyRegion.stepUrdu} /> {index + 1}:{' '}
                                 {step.title}
                               </h4>
                               <p>{step.description}</p>
-                              {image?.imageDataUrl && (
-                                <img
-                                  src={image.imageDataUrl}
-                                  alt={`${step.title} ${t.applyRegion.visualGuideAltSuffix}`}
-                                  className="retrofit-preview"
-                                />
-                              )}
                               <ul>
                                 {step.keyChecks.map((item) => (
                                   <li key={item}>{item}</li>
                                 ))}
                               </ul>
                             </article>
-                          )
-                        })}
+                          ))}
                       </div>
                     </>
                   )}
@@ -5589,7 +5552,6 @@ function App(_props: AppProps = {}) {
                       : <CmsText as="span" id="block.applyDownloadWordReport" fallback={t.applyRegion.downloadWordReport} />}
                     </button>
                   </div>
-                  {isGeneratingStepImages && <p>{t.applyRegion.generatingStepImages}</p>}
                 </div>
 
               )}

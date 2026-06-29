@@ -4429,6 +4429,7 @@ h4 {
 .infra-pdf-fullscreen-toolbar {
   flex: 0 0 auto;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -4438,6 +4439,8 @@ h4 {
   padding-right: calc(14px + env(safe-area-inset-right, 0px));
   background: #030a18;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
 }
 
 .infra-pdf-fullscreen-title {
@@ -4446,6 +4449,12 @@ h4 {
   font-size: 1rem;
   flex: 1 1 auto;
   min-width: 0;
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
 }
 
 .infra-pdf-fullscreen-close {

@@ -148,12 +148,56 @@ export function Dashboard() {
     }
   }
 
+  /** Directly request native camera or gallery without showing the bottom sheet. */
+  const pickNativeImage = (source: 'camera' | 'gallery'): Promise<File> =>
+    new Promise((resolve, reject) => {
+      const requestId = `pick-${source}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      const onMessage = (event: MessageEvent) => {
+        const data = event.data as { type?: string; requestId?: string; ok?: boolean; base64?: string; fileName?: string; mimeType?: string; error?: string } | undefined
+        if (!data || data.type !== 'r360-native-image-pick-result' || data.requestId !== requestId) return
+        window.removeEventListener('message', onMessage)
+        if (!data.ok || !data.base64 || !data.fileName) {
+          reject(new Error(data.error || 'Image selection was cancelled.'))
+          return
+        }
+        const binary = atob(data.base64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        resolve(new File([bytes], data.fileName, { type: data.mimeType || 'image/jpeg', lastModified: Date.now() }))
+      }
+      window.addEventListener('message', onMessage)
+      window.parent.postMessage({ type: 'r360-native-image-pick', requestId, source }, window.location.origin)
+    })
+
+  const handleNativeCameraPick = async () => {
+    try {
+      setAnalysisError(null)
+      const file = await pickNativeImage('camera')
+      await updateSelectedFile(file)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Camera failed.'
+      if (!/cancel/i.test(message)) setAnalysisError(message)
+    }
+  }
+
+  const handleNativeGalleryPick = async () => {
+    try {
+      setAnalysisError(null)
+      const file = await pickNativeImage('gallery')
+      await updateSelectedFile(file)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gallery failed.'
+      if (!/cancel/i.test(message)) setAnalysisError(message)
+    }
+  }
+
   const handleNativeImagePick = async () => {
     try {
+      setAnalysisError(null)
       const file = await requestEmbeddedNativeImagePick()
       updateSelectedFile(file)
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Image selection failed."
+      const message = error instanceof Error ? error.message : 'Image selection failed.'
       if (!/cancel/i.test(message)) {
         setAnalysisError(message)
       }
@@ -510,41 +554,47 @@ export function Dashboard() {
                     </div>
                   )}
                   
-                  <label className="inline-block mt-6">
-                    {!isNativeEmbeddedPortal() ?
+                  {isNativeEmbeddedPortal() ? (
+                    /* Native Android: direct camera and gallery buttons */
+                    <div className="flex gap-3 mt-6 justify-center flex-wrap">
+                      <motion.button
+                        type="button"
+                        className="px-5 py-3 bg-[#2563EB] text-white rounded-lg inline-flex items-center gap-2 shadow-sm text-[15px] font-medium"
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => { void handleNativeCameraPick() }}
+                      >
+                        <Camera className="w-4 h-4" />
+                        {r.dash_takePhoto}
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        className="px-5 py-3 bg-[#0f5da3] text-white rounded-lg inline-flex items-center gap-2 shadow-sm text-[15px] font-medium"
+                        whileTap={{ scale: 0.96 }}
+                        onClick={() => { void handleNativeGalleryPick() }}
+                      >
+                        <Upload className="w-4 h-4" />
+                        {r.dash_chooseGallery}
+                      </motion.button>
+                    </div>
+                  ) : (
+                    /* Web: file input */
+                    <label className="inline-block mt-6 cursor-pointer">
                       <input
                         type="file"
                         className="hidden"
                         accept="image/*"
                         onChange={handleFileChange}
                       />
-                    : null}
-                    <motion.button
-                      type="button"
-                      className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg cursor-pointer inline-flex items-center gap-2 shadow-sm transition-all text-[15px] font-medium"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        if (isNativeEmbeddedPortal()) {
-                          void handleNativeImagePick()
-                          return
-                        }
-                        const input = document.querySelector<HTMLInputElement>('.retrofit-dashboard-file-input')
-                        input?.click()
-                      }}
-                    >
-                      <Upload className="w-4 h-4" />
-                      {selectedFile ? r.dash_changeImage : r.dash_selectImage}
-                    </motion.button>
-                  </label>
-                  {!isNativeEmbeddedPortal() ?
-                    <input
-                      type="file"
-                      className="hidden retrofit-dashboard-file-input"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                  : null}
+                      <motion.span
+                        className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg cursor-pointer inline-flex items-center gap-2 shadow-sm transition-all text-[15px] font-medium"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Upload className="w-4 h-4" />
+                        {selectedFile ? r.dash_changeImage : r.dash_selectImage}
+                      </motion.span>
+                    </label>
+                  )}
                   
                   {selectedFile && (
                     <motion.p 

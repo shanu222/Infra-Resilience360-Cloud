@@ -45,6 +45,8 @@ export type RetrofitPortalStrings = {
   dash_readyAnalyze: string;
   dash_changeImage: string;
   dash_selectImage: string;
+  dash_takePhoto: string;
+  dash_chooseGallery: string;
   dash_projectLoc: string;
   dash_changeLocRates: string;
   dash_locMeta: string;
@@ -376,6 +378,8 @@ export const retrofitPortalByLang: Record<'en' | 'ur', RetrofitPortalStrings> = 
     dash_readyAnalyze: "✓ Ready to analyze",
     dash_changeImage: "Change Image",
     dash_selectImage: "Select Image",
+    dash_takePhoto: "Take Photo",
+    dash_chooseGallery: "Choose from Gallery",
     dash_projectLoc: "Project Location:",
     dash_changeLocRates: "Change Location & Rates",
     dash_locMeta: "Location:",
@@ -716,6 +720,8 @@ export const retrofitPortalByLang: Record<'en' | 'ur', RetrofitPortalStrings> = 
     dash_readyAnalyze: "✓ تجزیے کے لیے تیار",
     dash_changeImage: "تصویر تبدیل کریں",
     dash_selectImage: "تصویر منتخب کریں",
+    dash_takePhoto: "تصویر لیں",
+    dash_chooseGallery: "گیلری سے منتخب کریں",
     dash_projectLoc: "منصوبے کا مقام:",
     dash_changeLocRates: "مقام اور شرحیں تبدیل کریں",
     dash_locMeta: "مقام:",
