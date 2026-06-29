@@ -1,6 +1,4 @@
 import { API_BASE_URL as CONFIGURED_API_BASE_URL } from '../config/apiBase'
-import { formDataToMultipartBlob } from './nativeMultipart'
-import { isCapacitorNativeRuntime } from '../utils/capacitorRuntime'
 export { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 import {
   AI_ANALYSIS_UNAVAILABLE,
@@ -92,15 +90,15 @@ export function resolveAiVisionClientTimeoutMs(): number {
   }
 }
 
-async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
-  if (!init?.body || !(init.body instanceof FormData) || !isCapacitorNativeRuntime()) {
-    return init
-  }
-
-  const { body, contentType } = await formDataToMultipartBlob(init.body)
-  const headers = new Headers(init.headers ?? {})
-  headers.set('Content-Type', contentType)
-  return { ...init, body, headers }
+async function resolveFetchInit(_input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
+  // Do NOT convert FormData to Uint8Array for CapacitorHttp.
+  // Capacitor's native-bridge.js `convertBody` handles `instanceof FormData` correctly:
+  //   → convertFormData() base64-encodes File entries
+  //   → native writeFormDataRequestBody() writes proper multipart with UUID boundary
+  // Passing Uint8Array corrupts binary data: TextDecoder mangles non-UTF-8 bytes and the
+  // exact-match `contentType === 'multipart/form-data'` check fails for boundary-bearing types,
+  // causing the body to be sent as plain text → Railway gets garbage → HTTP 500.
+  return init
 }
 
 /**

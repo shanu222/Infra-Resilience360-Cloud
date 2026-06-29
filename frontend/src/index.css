@@ -4431,6 +4431,8 @@ h4 {
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
   padding-left: calc(14px + env(safe-area-inset-left, 0px));
   padding-right: calc(14px + env(safe-area-inset-right, 0px));
+  background: #030a18;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .infra-pdf-fullscreen-title {

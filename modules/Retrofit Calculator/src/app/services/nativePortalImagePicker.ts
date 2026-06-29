@@ -16,6 +16,15 @@ type PortalImagePickResponse = {
 }
 
 export function isNativeEmbeddedPortal(): boolean {
+  // Primary: URL parameter injected by CostEstimatorPage when running natively.
+  // This is set at iframe load time and requires zero cross-frame property access,
+  // making it reliable on all Android WebView versions.
+  try {
+    if (new URLSearchParams(window.location.search).get('native') === '1') return true
+  } catch {
+    /* ignore */
+  }
+  // Fallback: parent window flag (may not be accessible on some Android WebViews).
   if (window.parent === window) return false
   try {
     const parent = window.parent as Window & { __R360_NATIVE_PORTAL_BRIDGE__?: boolean }

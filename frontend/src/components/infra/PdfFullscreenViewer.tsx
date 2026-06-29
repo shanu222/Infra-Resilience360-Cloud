@@ -28,11 +28,13 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
 
   useEffect(() => {
     if (!open) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    // Register Android back-button handler.
     ;(window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ = onClose
+    // Do NOT set document.body.style.overflow = 'hidden' here.
+    // On Android WebView, overflow:hidden on body breaks position:fixed — the overlay
+    // scrolls with the document instead of staying pinned to the viewport.
+    // The overlay covers 100vw/100vh and has overflow:hidden itself, so body lock is unnecessary.
     return () => {
-      document.body.style.overflow = previousOverflow
       delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
     }
   }, [open, onClose])

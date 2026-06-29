@@ -107,7 +107,7 @@ export function CostEstimatorPage({
       <iframe
         ref={iframeRef}
         className="r360-embedded-portal-frame retrofit-calculator-portal-frame"
-        src="/retrofit-calculator/index.html"
+        src={isCapacitorNativeRuntime() ? '/retrofit-calculator/index.html?native=1' : '/retrofit-calculator/index.html'}
         title="Retrofit Calculator Portal"
         loading="lazy"
         referrerPolicy="no-referrer"
