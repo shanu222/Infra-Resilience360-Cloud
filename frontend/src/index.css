@@ -4429,15 +4429,108 @@ h4 {
 }
 
 .infra-pdf-fullscreen-scroll {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   padding: 0 12px 16px;
+  align-self: flex-start;
+  width: 100%;
+  max-height: calc(100dvh - 56px);
 }
 
 .infra-pdf-fullscreen-stage {
   transform-origin: top center;
   touch-action: pinch-zoom;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.r360-native-permission-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  background: rgba(3, 10, 24, 0.62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.r360-native-permission-dialog {
+  width: min(100%, 420px);
+  background: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 16px;
+  padding: 20px 18px 16px;
+  box-shadow: 0 24px 48px rgba(2, 8, 24, 0.45);
+}
+
+.r360-native-permission-dialog__title {
+  margin: 0 0 10px;
+  color: #f8fafc;
+  font-size: 1.08rem;
+}
+
+.r360-native-permission-dialog__message {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.r360-native-permission-dialog__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.r360-native-permission-dialog__primary,
+.r360-native-permission-dialog__secondary {
+  width: 100%;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.98rem;
+}
+
+.r360-native-permission-dialog__primary {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+}
+
+.r360-native-permission-dialog__secondary {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: #cbd5e1;
+}
+
+.settings-card__threshold-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.settings-card__threshold-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+html.capacitor-native .home-card-grid,
+html.capacitor-native .card-grid {
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+html.capacitor-native .page-home .app-shell.home-shell > main {
+  gap: var(--space-2);
+}
+
+html.capacitor-native .page-home .home-bottom-strip {
+  margin-top: var(--space-2);
 }
 
 .r360-image-upload-sheet-overlay {

@@ -81,10 +81,11 @@ class EarthquakePushNotificationService {
     try {
       const raw = localStorage.getItem(this.settingsKey)
       const parsed = raw ? JSON.parse(raw) : {}
+      const thresholdValue = Number(parsed?.threshold)
       return {
         enabled: parsed?.enabled !== false,
         soundEnabled: parsed?.soundEnabled !== false,
-        threshold: Number.isFinite(Number(parsed?.threshold)) ? Math.max(5, Number(parsed?.threshold)) : 5,
+        threshold: thresholdValue >= 6 ? 6 : 5,
       }
     } catch {
       return { enabled: true, soundEnabled: true, threshold: 5 }
@@ -100,7 +101,12 @@ class EarthquakePushNotificationService {
     const next = {
       enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : current.enabled,
       soundEnabled: patch.soundEnabled !== undefined ? Boolean(patch.soundEnabled) : current.soundEnabled,
-      threshold: patch.threshold !== undefined ? Math.max(5, Number(patch.threshold) || 5) : current.threshold,
+      threshold:
+        patch.threshold !== undefined
+          ? Number(patch.threshold) >= 6
+            ? 6
+            : 5
+          : current.threshold,
     }
     try {
       localStorage.setItem(this.settingsKey, JSON.stringify(next))
@@ -116,13 +122,10 @@ class EarthquakePushNotificationService {
     if (!this.isSupported()) return false
     try {
       const state = String(localStorage.getItem(this.promptKey) || '').trim()
-      if (!state) return true
       if (state === 'accepted' || state === 'declined') return false
-      const lastTs = Number(localStorage.getItem(this.promptTsKey) || 0)
-      const cooldownMs = 24 * 60 * 60 * 1000
-      return !Number.isFinite(lastTs) || Date.now() - lastTs > cooldownMs
+      return state !== 'later'
     } catch {
-      return true
+      return false
     }
   }
 

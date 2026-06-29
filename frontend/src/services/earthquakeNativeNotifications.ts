@@ -107,7 +107,7 @@ export async function ensureEarthquakeNotificationChannel(): Promise<void> {
     await LocalNotifications.createChannel({
       id: 'earthquake-alerts',
       name: 'Earthquake Alerts',
-      description: 'Significant earthquake alerts (Magnitude ≥ 5.0)',
+      description: 'Significant earthquake alerts based on your chosen magnitude threshold',
       importance: 5,
       visibility: 1,
       vibration: true,

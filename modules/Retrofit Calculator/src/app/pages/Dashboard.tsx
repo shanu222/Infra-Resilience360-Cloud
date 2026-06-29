@@ -6,6 +6,7 @@ import { useAppContext, type CityRateConfiguration } from "../context/AppContext
 import { analyzeBuildingWithVision } from "../services/retrofitApi"
 import { formatApiErrorMessage } from '@resilience/api-base'
 import { getCurrentPosition, getLocationFromIP, getCityRates, pakistaniCities } from "../services/geolocationService"
+import { isLikelyImageUpload, isNativeEmbeddedPortal, requestEmbeddedNativeImagePick } from "../services/nativePortalImagePicker"
 import { useRetrofitStrings } from "../../i18n/retrofitStrings"
 
 export function Dashboard() {
@@ -107,7 +108,7 @@ export function Dashboard() {
   }
 
   const updateSelectedFile = (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isLikelyImageUpload(file)) {
       setAnalysisError(r.dash_errImage)
       return
     }
@@ -137,6 +138,18 @@ export function Dashboard() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       updateSelectedFile(e.target.files[0])
+    }
+  }
+
+  const handleNativeImagePick = async () => {
+    try {
+      const file = await requestEmbeddedNativeImagePick()
+      updateSelectedFile(file)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Image selection failed."
+      if (!/cancel/i.test(message)) {
+        setAnalysisError(message)
+      }
     }
   }
 
@@ -491,21 +504,40 @@ export function Dashboard() {
                   )}
                   
                   <label className="inline-block mt-6">
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                    />
-                    <motion.span 
+                    {!isNativeEmbeddedPortal() ?
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                      />
+                    : null}
+                    <motion.button
+                      type="button"
                       className="px-6 py-3 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg cursor-pointer inline-flex items-center gap-2 shadow-sm transition-all text-[15px] font-medium"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        if (isNativeEmbeddedPortal()) {
+                          void handleNativeImagePick()
+                          return
+                        }
+                        const input = document.querySelector<HTMLInputElement>('.retrofit-dashboard-file-input')
+                        input?.click()
+                      }}
                     >
                       <Upload className="w-4 h-4" />
                       {selectedFile ? r.dash_changeImage : r.dash_selectImage}
-                    </motion.span>
+                    </motion.button>
                   </label>
+                  {!isNativeEmbeddedPortal() ?
+                    <input
+                      type="file"
+                      className="hidden retrofit-dashboard-file-input"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                  : null}
                   
                   {selectedFile && (
                     <motion.p 

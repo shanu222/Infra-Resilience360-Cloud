@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client'
+import { Capacitor } from '@capacitor/core'
 import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
@@ -129,7 +130,9 @@ async function setupServiceWorkerBootstrap() {
   setupFastSwUpdateChecks()
 }
 
-void setupServiceWorkerBootstrap()
+if (typeof document !== 'undefined' && Capacitor.isNativePlatform()) {
+  document.documentElement.classList.add('capacitor-native')
+}
 ensureApiPreconnect()
 ensureMediaPreconnect()
 ensureMediaDnsPrefetch()

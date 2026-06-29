@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { API_BASE_URL as CONFIGURED_API_BASE_URL } from '../config/apiBase'
 import { formDataToMultipartBlob } from './nativeMultipart'
+export { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 import {
   AI_ANALYSIS_UNAVAILABLE,
   AI_USER_MESSAGES,

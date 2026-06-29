@@ -6,35 +6,52 @@ function escapeQuoted(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
+function concatBytes(chunks: Uint8Array[]): Uint8Array {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
+  const merged = new Uint8Array(total)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return merged
+}
+
+function encodeText(value: string): Uint8Array {
+  return new TextEncoder().encode(value)
+}
+
 export async function formDataToMultipartBlob(
   formData: FormData,
-): Promise<{ body: Blob; contentType: string }> {
+): Promise<{ body: Uint8Array; contentType: string }> {
   const boundary = `----R360${Date.now().toString(16)}${Math.random().toString(36).slice(2, 12)}`
-  const parts: BlobPart[] = []
+  const chunks: Uint8Array[] = []
 
   for (const [name, value] of formData.entries()) {
-    parts.push(`--${boundary}\r\n`)
+    chunks.push(encodeText(`--${boundary}\r\n`))
     if (value instanceof Blob) {
       const file = value as File
       const filename = escapeQuoted(file.name || (name === 'image' ? 'upload.jpg' : 'file.bin'))
       const mime = file.type || 'application/octet-stream'
-      parts.push(
-        `Content-Disposition: form-data; name="${escapeQuoted(name)}"; filename="${filename}"\r\n`,
+      chunks.push(
+        encodeText(
+          `Content-Disposition: form-data; name="${escapeQuoted(name)}"; filename="${filename}"\r\n`,
+        ),
       )
-      parts.push(`Content-Type: ${mime}\r\n\r\n`)
-      parts.push(await value.arrayBuffer())
-      parts.push('\r\n')
+      chunks.push(encodeText(`Content-Type: ${mime}\r\n\r\n`))
+      chunks.push(new Uint8Array(await value.arrayBuffer()))
+      chunks.push(encodeText('\r\n'))
     } else {
-      parts.push(`Content-Disposition: form-data; name="${escapeQuoted(name)}"\r\n\r\n`)
-      parts.push(String(value))
-      parts.push('\r\n')
+      chunks.push(encodeText(`Content-Disposition: form-data; name="${escapeQuoted(name)}"\r\n\r\n`))
+      chunks.push(encodeText(String(value)))
+      chunks.push(encodeText('\r\n'))
     }
   }
 
-  parts.push(`--${boundary}--\r\n`)
+  chunks.push(encodeText(`--${boundary}--\r\n`))
 
   return {
-    body: new Blob(parts),
+    body: concatBytes(chunks),
     contentType: `multipart/form-data; boundary=${boundary}`,
   }
 }

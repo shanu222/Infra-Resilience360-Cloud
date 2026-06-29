@@ -85,7 +85,9 @@ import { MEDIA_UNAVAILABLE_MESSAGE } from './utils/contentMediaConstants'
 import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
 import { isLikelyImageFile, normalizeImageFileForUpload } from './utils/normalizeImageFile'
 import { ImageUploadBottomSheet } from './components/capacitor/ImageUploadBottomSheet'
+import { NativeAlertDialog } from './components/capacitor/NativeAlertDialog'
 import { capturePhotoWithCamera, pickPhotosFromGallery } from './capacitor/imagePicker'
+import { getNativeCurrentPosition, requestNativeLocationPermission } from './capacitor/nativeLocation'
 import { startNativeEarthquakeAlertMonitor } from './services/earthquakeAlertMonitor'
 import { PdfFullscreenViewer } from './components/infra/PdfFullscreenViewer'
 import { inferVideoMime } from './utils/mediaMime'
@@ -1248,7 +1250,8 @@ function App(_props: AppProps = {}) {
   const appStateSyncHydratedRef = useRef(false)
   const appStateSyncTimerRef = useRef<number | null>(null)
   const [isQaRoute, setIsQaRoute] = useState<boolean>(() => window.location.hash === '#qa-responsive')
-  const [showEarthquakeNotifyPrompt, setShowEarthquakeNotifyPrompt] = useState(false)
+  const [showNotificationPermissionDialog, setShowNotificationPermissionDialog] = useState(false)
+  const [showLocationPermissionDialog, setShowLocationPermissionDialog] = useState(false)
   const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<
     NotificationPermission | 'unsupported' | 'prompt'
   >('default')
@@ -1294,7 +1297,6 @@ function App(_props: AppProps = {}) {
   const [locationAccessMsg, setLocationAccessMsg] = useState<string | null>(null)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [detectedUserLocation, setDetectedUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [hasTriedApplyAutoLocation, setHasTriedApplyAutoLocation] = useState(false)
   const [riskActionProgress, setRiskActionProgress] = useState(0)
   const [advisoryQuestion, setAdvisoryQuestion] = useState('')
   const [advisoryMessages, setAdvisoryMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([])
@@ -1869,7 +1871,8 @@ function App(_props: AppProps = {}) {
         bestPracticeImageLightbox ||
           showReadinessLogicModal ||
           showFireSafetyLogicModal ||
-          showEarthquakeNotifyPrompt ||
+          showNotificationPermissionDialog ||
+          showLocationPermissionDialog ||
           isLearnVideoVisible ||
           isInfraModelCatalogOpen ||
           typeof (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ ===
@@ -1885,7 +1888,8 @@ function App(_props: AppProps = {}) {
       if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
       else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
       else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
-      else if (showEarthquakeNotifyPrompt) setShowEarthquakeNotifyPrompt(false)
+      else if (showNotificationPermissionDialog) setShowNotificationPermissionDialog(false)
+      else if (showLocationPermissionDialog) setShowLocationPermissionDialog(false)
       else if (isLearnVideoVisible) closeLearnVideoModal()
       else if (isInfraModelCatalogOpen) setIsInfraModelCatalogOpen(false)
     },
@@ -2031,31 +2035,15 @@ function App(_props: AppProps = {}) {
 
   useEffect(() => {
     if (!isCapacitorNativeRuntime()) return
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        const permission = await earthquakePushNotificationService.refreshPermissionState()
-        setEarthquakeNotifyPermission(permission)
-        if (permission === 'prompt' && earthquakePushNotificationService.shouldShowPrompt()) {
-          setShowEarthquakeNotifyPrompt(true)
-        }
-      })()
-    }, 1200)
-    return () => window.clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    if (isCapacitorNativeRuntime()) return
-    const timer = window.setTimeout(() => {
-      try {
-        if (earthquakePushNotificationService.shouldShowPrompt()) {
-          setShowEarthquakeNotifyPrompt(true)
-        }
-      } catch {
-        /* ignore prompt-check failures */
+    if (activeSection !== 'settings') return
+    void (async () => {
+      const permission = await earthquakePushNotificationService.refreshPermissionState()
+      setEarthquakeNotifyPermission(permission)
+      if (permission === 'prompt' && earthquakePushNotificationService.shouldShowPrompt()) {
+        setShowNotificationPermissionDialog(true)
       }
-    }, 1600)
-    return () => window.clearTimeout(timer)
-  }, [])
+    })()
+  }, [activeSection])
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
@@ -2087,21 +2075,29 @@ function App(_props: AppProps = {}) {
     setEarthquakeNotifyPermission(permission)
     if (permission === 'granted') {
       setEarthquakeNotifyStatusMsg(isCapacitorNativeRuntime() ? 'Android notification permission granted.' : 'Permission granted.')
-      setShowEarthquakeNotifyPrompt(false)
+      setShowNotificationPermissionDialog(false)
       return
     }
     setEarthquakeNotifyStatusMsg(
       isCapacitorNativeRuntime()
-        ? 'Android notification permission was not granted.'
+        ? 'Android notification permission was not granted. You can enable alerts later from Settings.'
         : 'Notifications were not enabled by the browser.',
     )
-    setShowEarthquakeNotifyPrompt(false)
+    setShowNotificationPermissionDialog(false)
   }, [])
 
-  const maybeLaterEarthquakeNotifications = useCallback(() => {
+  const dismissNotificationPermissionDialog = useCallback(() => {
     earthquakePushNotificationService.markPromptLater()
-    setShowEarthquakeNotifyPrompt(false)
+    setShowNotificationPermissionDialog(false)
   }, [])
+
+  const promptForNotificationPermission = useCallback(() => {
+    if (!isCapacitorNativeRuntime()) {
+      void enableEarthquakeBrowserNotifications()
+      return
+    }
+    setShowNotificationPermissionDialog(true)
+  }, [enableEarthquakeBrowserNotifications])
 
   const updateEarthquakeNotifySettings = useCallback(
     (patch: Partial<{ enabled: boolean; soundEnabled: boolean; threshold: number }>) => {
@@ -2132,12 +2128,12 @@ function App(_props: AppProps = {}) {
   const toggleBrowserNotificationPreference = useCallback(
     (enabled: boolean) => {
       if (enabled) {
-        void enableEarthquakeBrowserNotifications()
+        promptForNotificationPermission()
         return
       }
       setEarthquakeNotifyStatusMsg('Browser notification permission can be changed from browser site settings.')
     },
-    [enableEarthquakeBrowserNotifications],
+    [promptForNotificationPermission],
   )
 
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
@@ -3758,7 +3754,161 @@ function App(_props: AppProps = {}) {
     }
   }
 
-  const requestCurrentUserLocation = useCallback(() => {
+  const applyDetectedCoordinates = useCallback(
+    async (rawLat: number, rawLng: number) => {
+      const lat = rawLat.toFixed(6)
+      const lng = rawLng.toFixed(6)
+      const gpsText = `${lat}, ${lng}`
+      setRetrofitAutoLocationPermissionGranted(true)
+      setDetectedUserLocation({ lat: rawLat, lng: rawLng })
+      const nearestDistrict = findNearestCenterName({ lat: rawLat, lng: rawLng }, effectiveDistrictCenters)
+      const nearestProvince = getProvinceForDistrict(nearestDistrict) || findNearestCenterName({ lat: rawLat, lng: rawLng }, provinceCenters)
+      const nearestDistrictsInProvince = nearestProvince ? listDistrictsByProvince(nearestProvince) : []
+      const hasDistrictInDropdown = nearestDistrictsInProvince.includes(nearestDistrict)
+      const nearestProvinceCities = nearestProvince ? (pakistanCitiesByProvince[nearestProvince] ?? []) : []
+
+      let resolvedProvince = nearestProvince || 'Punjab'
+      let resolvedCity = hasDistrictInDropdown
+        ? nearestDistrict
+        : nearestProvinceCities[0] || pakistanCitiesByProvince[resolvedProvince]?.[0] || 'Lahore'
+      let reverseReadableLocation = ''
+
+      setStructureReviewGps(gpsText)
+
+      if (nearestProvince) {
+        setSelectedProvince(nearestProvince)
+        setApplyProvince(nearestProvince)
+        setDesignProvince(nearestProvince)
+      }
+
+      if (nearestDistrict && hasDistrictInDropdown) {
+        setSelectedDistrict(nearestDistrict)
+        setApplyCity(nearestDistrict)
+      } else {
+        setSelectedDistrict(null)
+        if (nearestProvinceCities.length > 0) {
+          setApplyCity(nearestProvinceCities[0])
+        }
+      }
+
+      const districtProfileForHazard = nearestProvince
+        ? findDistrictRiskProfile(nearestProvince, hasDistrictInDropdown ? nearestDistrict : null)
+        : null
+      const provinceProfileForHazard = nearestProvince ? effectiveProvinceRisk[nearestProvince] : null
+      const districtFlood = districtProfileForHazard?.flood === 'Very High' || districtProfileForHazard?.flood === 'High'
+      const districtEarthquake =
+        districtProfileForHazard?.earthquake === 'Very High' || districtProfileForHazard?.earthquake === 'High'
+      const provinceFlood = provinceProfileForHazard?.flood === 'Very High' || provinceProfileForHazard?.flood === 'High'
+      const provinceEarthquake =
+        provinceProfileForHazard?.earthquake === 'Very High' || provinceProfileForHazard?.earthquake === 'High'
+
+      if ((districtFlood && !districtEarthquake) || (provinceFlood && !provinceEarthquake)) {
+        setApplyHazard('flood')
+      } else if ((districtEarthquake && !districtFlood) || (provinceEarthquake && !provinceFlood)) {
+        setApplyHazard('earthquake')
+      }
+
+      try {
+        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+        const reverseResponse = await fetch(reverseUrl, {
+          headers: { 'Accept-Language': 'en' },
+        })
+
+        if (reverseResponse.ok) {
+          const reverseData = (await reverseResponse.json()) as {
+            display_name?: string
+            address?: {
+              city?: string
+              town?: string
+              village?: string
+              county?: string
+              state?: string
+              province?: string
+            }
+          }
+
+          const address = reverseData.address ?? {}
+          const reverseProvince = resolveProvinceFromText(address.state) || resolveProvinceFromText(address.province)
+          const reverseCityCandidate = address.city || address.town || address.village || address.county
+
+          if (reverseProvince) {
+            resolvedProvince = reverseProvince
+            resolvedCity = resolveCityFromProvince(reverseProvince, reverseCityCandidate || nearestDistrict)
+          }
+
+          if (reverseData.display_name) {
+            reverseReadableLocation = reverseData.display_name
+            setLocationText(`${reverseData.display_name} (${gpsText})`)
+          } else {
+            setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+          }
+        } else {
+          setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+        }
+      } catch {
+        setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+      }
+
+      setRetrofitAutoLocation({
+        province: resolvedProvince,
+        city: resolvedCity,
+        lat: rawLat,
+        lng: rawLng,
+      })
+
+      if (resolvedProvince) {
+        setRetrofitCity(resolveCityFromProvince(resolvedProvince, resolvedCity))
+      }
+
+      if (reverseReadableLocation) {
+        setLocationAccessMsg(
+          t.errors.geolocationAutoDetected
+            .replace('{city}', resolvedCity)
+            .replace('{province}', resolvedProvince)
+            .replace('{gps}', toGpsLabel(rawLat, rawLng)),
+        )
+      }
+
+      if (nearestProvince && nearestDistrict && hasDistrictInDropdown) {
+        setLocationAccessMsg(
+          t.errors.geolocationMappedDistrict.replace('{district}', nearestDistrict).replace('{province}', nearestProvince),
+        )
+      } else if (nearestProvince) {
+        setLocationAccessMsg(t.errors.geolocationMappedProvince.replace('{province}', nearestProvince))
+      } else {
+        setLocationAccessMsg(t.errors.geolocationExactSuccess)
+      }
+    },
+    [effectiveDistrictCenters, effectiveProvinceRisk, t.errors],
+  )
+
+  const executeLocationRequest = useCallback(async () => {
+    if (isCapacitorNativeRuntime()) {
+      setIsDetectingLocation(true)
+      setLocationAccessMsg(t.errors.geolocationRequesting)
+      try {
+        const permission = await requestNativeLocationPermission()
+        if (permission !== 'granted') {
+          setRetrofitAutoLocationPermissionGranted(false)
+          setLocationAccessMsg(t.errors.geolocationDenied)
+          setRetrofitLocationMode('manual')
+          window.setTimeout(() => setLocationAccessMsg(null), 3500)
+          return
+        }
+        const coords = await getNativeCurrentPosition()
+        await applyDetectedCoordinates(coords.latitude, coords.longitude)
+      } catch {
+        setRetrofitAutoLocationPermissionGranted(false)
+        setLocationAccessMsg(t.errors.geolocationUnable)
+        setRetrofitLocationMode('manual')
+        window.setTimeout(() => setLocationAccessMsg(null), 3500)
+      } finally {
+        setIsDetectingLocation(false)
+        window.setTimeout(() => setLocationAccessMsg(null), 3000)
+      }
+      return
+    }
+
     if (!('geolocation' in navigator)) {
       setRetrofitAutoLocationPermissionGranted(false)
       setLocationAccessMsg(t.errors.geolocationUnsupported)
@@ -3771,130 +3921,7 @@ function App(_props: AppProps = {}) {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const rawLat = position.coords.latitude
-        const rawLng = position.coords.longitude
-        const lat = rawLat.toFixed(6)
-        const lng = rawLng.toFixed(6)
-        const gpsText = `${lat}, ${lng}`
-        setRetrofitAutoLocationPermissionGranted(true)
-        setDetectedUserLocation({ lat: rawLat, lng: rawLng })
-        const nearestDistrict = findNearestCenterName({ lat: rawLat, lng: rawLng }, effectiveDistrictCenters)
-        const nearestProvince = getProvinceForDistrict(nearestDistrict) || findNearestCenterName({ lat: rawLat, lng: rawLng }, provinceCenters)
-        const nearestDistrictsInProvince = nearestProvince ? listDistrictsByProvince(nearestProvince) : []
-        const hasDistrictInDropdown = nearestDistrictsInProvince.includes(nearestDistrict)
-        const nearestProvinceCities = nearestProvince ? (pakistanCitiesByProvince[nearestProvince] ?? []) : []
-
-        let resolvedProvince = nearestProvince || 'Punjab'
-        let resolvedCity = hasDistrictInDropdown
-          ? nearestDistrict
-          : nearestProvinceCities[0] || pakistanCitiesByProvince[resolvedProvince]?.[0] || 'Lahore'
-        let reverseReadableLocation = ''
-
-        setStructureReviewGps(gpsText)
-
-        if (nearestProvince) {
-          setSelectedProvince(nearestProvince)
-          setApplyProvince(nearestProvince)
-          setDesignProvince(nearestProvince)
-        }
-
-        if (nearestDistrict && hasDistrictInDropdown) {
-          setSelectedDistrict(nearestDistrict)
-          setApplyCity(nearestDistrict)
-        } else {
-          setSelectedDistrict(null)
-          if (nearestProvinceCities.length > 0) {
-            setApplyCity(nearestProvinceCities[0])
-          }
-        }
-
-        const districtProfileForHazard = nearestProvince
-          ? findDistrictRiskProfile(nearestProvince, hasDistrictInDropdown ? nearestDistrict : null)
-          : null
-        const provinceProfileForHazard = nearestProvince ? effectiveProvinceRisk[nearestProvince] : null
-        const districtFlood = districtProfileForHazard?.flood === 'Very High' || districtProfileForHazard?.flood === 'High'
-        const districtEarthquake =
-          districtProfileForHazard?.earthquake === 'Very High' || districtProfileForHazard?.earthquake === 'High'
-        const provinceFlood = provinceProfileForHazard?.flood === 'Very High' || provinceProfileForHazard?.flood === 'High'
-        const provinceEarthquake =
-          provinceProfileForHazard?.earthquake === 'Very High' || provinceProfileForHazard?.earthquake === 'High'
-
-        if ((districtFlood && !districtEarthquake) || (provinceFlood && !provinceEarthquake)) {
-          setApplyHazard('flood')
-        } else if ((districtEarthquake && !districtFlood) || (provinceEarthquake && !provinceFlood)) {
-          setApplyHazard('earthquake')
-        }
-
-        try {
-          const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-          const reverseResponse = await fetch(reverseUrl, {
-            headers: { 'Accept-Language': 'en' },
-          })
-
-          if (reverseResponse.ok) {
-            const reverseData = (await reverseResponse.json()) as {
-              display_name?: string
-              address?: {
-                city?: string
-                town?: string
-                village?: string
-                county?: string
-                state?: string
-                province?: string
-              }
-            }
-
-            const address = reverseData.address ?? {}
-            const reverseProvince = resolveProvinceFromText(address.state) || resolveProvinceFromText(address.province)
-            const reverseCityCandidate = address.city || address.town || address.village || address.county
-
-            if (reverseProvince) {
-              resolvedProvince = reverseProvince
-              resolvedCity = resolveCityFromProvince(reverseProvince, reverseCityCandidate || nearestDistrict)
-            }
-
-            if (reverseData.display_name) {
-              reverseReadableLocation = reverseData.display_name
-              setLocationText(`${reverseData.display_name} (${gpsText})`)
-            } else {
-              setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-            }
-          } else {
-            setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-          }
-        } catch {
-          setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-        }
-
-        setRetrofitAutoLocation({
-          province: resolvedProvince,
-          city: resolvedCity,
-          lat: rawLat,
-          lng: rawLng,
-        })
-
-        if (resolvedProvince) {
-          setRetrofitCity(resolveCityFromProvince(resolvedProvince, resolvedCity))
-        }
-
-        if (reverseReadableLocation) {
-          setLocationAccessMsg(
-            t.errors.geolocationAutoDetected
-              .replace('{city}', resolvedCity)
-              .replace('{province}', resolvedProvince)
-              .replace('{gps}', toGpsLabel(rawLat, rawLng)),
-          )
-        }
-
-        if (nearestProvince && nearestDistrict && hasDistrictInDropdown) {
-          setLocationAccessMsg(
-            t.errors.geolocationMappedDistrict.replace('{district}', nearestDistrict).replace('{province}', nearestProvince),
-          )
-        } else if (nearestProvince) {
-          setLocationAccessMsg(t.errors.geolocationMappedProvince.replace('{province}', nearestProvince))
-        } else {
-          setLocationAccessMsg(t.errors.geolocationExactSuccess)
-        }
+        await applyDetectedCoordinates(position.coords.latitude, position.coords.longitude)
         setIsDetectingLocation(false)
         window.setTimeout(() => setLocationAccessMsg(null), 3000)
       },
@@ -3906,6 +3933,7 @@ function App(_props: AppProps = {}) {
         if (error.code === error.TIMEOUT) message = t.errors.geolocationTimeout
 
         setLocationAccessMsg(message)
+        setRetrofitLocationMode('manual')
         setIsDetectingLocation(false)
         window.setTimeout(() => setLocationAccessMsg(null), 3500)
       },
@@ -3915,21 +3943,17 @@ function App(_props: AppProps = {}) {
         maximumAge: 0,
       },
     )
-  }, [effectiveDistrictCenters, effectiveProvinceRisk, t.errors])
+  }, [applyDetectedCoordinates, t.errors])
 
-  useEffect(() => {
-    if (activeSection !== 'applyRegion') {
-      setHasTriedApplyAutoLocation(false)
+  const beginLocationRequest = useCallback(() => {
+    if (isCapacitorNativeRuntime()) {
+      setShowLocationPermissionDialog(true)
       return
     }
+    void executeLocationRequest()
+  }, [executeLocationRequest])
 
-    if (hasTriedApplyAutoLocation) return
-    setHasTriedApplyAutoLocation(true)
-
-    if (!detectedUserLocation) {
-      requestCurrentUserLocation()
-    }
-  }, [activeSection, detectedUserLocation, hasTriedApplyAutoLocation, requestCurrentUserLocation])
+  const requestCurrentUserLocation = beginLocationRequest
 
   const submitStructureRiskReview = async () => {
     if (!structureReviewFile) {
@@ -4231,11 +4255,31 @@ function App(_props: AppProps = {}) {
         : null}
         {isCapacitorNativeRuntime() ?
           <div className="settings-card__actions">
-            <button type="button" onClick={() => void enableEarthquakeBrowserNotifications()}>
+            <button type="button" onClick={promptForNotificationPermission}>
               Allow Android Notifications
             </button>
           </div>
         : null}
+        <div className="settings-card__threshold-group" role="radiogroup" aria-label="Earthquake magnitude threshold">
+          <label className="settings-card__threshold-option">
+            <input
+              type="radio"
+              name="earthquake-threshold"
+              checked={earthquakeNotifySettings.threshold === 5}
+              onChange={() => updateEarthquakeNotifySettings({ threshold: 5 })}
+            />
+            <span>Notify for Magnitude ≥ 5.0</span>
+          </label>
+          <label className="settings-card__threshold-option">
+            <input
+              type="radio"
+              name="earthquake-threshold"
+              checked={earthquakeNotifySettings.threshold === 6}
+              onChange={() => updateEarthquakeNotifySettings({ threshold: 6 })}
+            />
+            <span>Notify for Magnitude ≥ 6.0</span>
+          </label>
+        </div>
         <label className="switch-row">
           <span className="settings-card__switch-label">
             <span className="settings-card__icon" aria-hidden>
@@ -6259,7 +6303,7 @@ function App(_props: AppProps = {}) {
                   {...rf('main', 'useMyLocation')}
                   onClick={() => {
                     setRetrofitLocationMode('auto')
-                    requestCurrentUserLocation()
+                    beginLocationRequest()
                   }}
                   disabled={isDetectingLocation}
                 >
@@ -7218,39 +7262,33 @@ function App(_props: AppProps = {}) {
   return (
     <PageConfigElementsProvider value={pageConfigContextValue}>
     <>
-    {showEarthquakeNotifyPrompt ?
-      createPortal(
-        <div className="learn-video-modal-overlay" role="dialog" aria-modal="true" aria-label="Enable notifications">
-          <div className="learn-video-modal-dialog" style={{ maxWidth: 520 }}>
-            <div className="learn-video-modal-header">
-              <h3 style={{ margin: 0 }}>Stay informed with real-time earthquake alerts.</h3>
-              <button
-                type="button"
-                className="learn-video-modal-close"
-                onClick={maybeLaterEarthquakeNotifications}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="section-lead" style={{ marginTop: 6 }}>
-              {isCapacitorNativeRuntime()
-                ? 'Allow Android notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).'
-                : 'Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).'}
-            </p>
-            <div className="inline-controls" style={{ marginTop: 12 }}>
-              <button type="button" onClick={() => void enableEarthquakeBrowserNotifications()}>
-                {isCapacitorNativeRuntime() ? 'Allow Android Notifications' : 'Enable Notifications'}
-              </button>
-              <button type="button" onClick={maybeLaterEarthquakeNotifications}>
-                Maybe Later
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null}
+    <NativeAlertDialog
+      open={showNotificationPermissionDialog}
+      title="Enable earthquake alerts"
+      message="Infra Resilience360 can send native Android notifications when significant earthquakes occur near Pakistan. Alerts use your chosen magnitude threshold and run in the background while the app is installed."
+      primaryLabel="Allow Notifications"
+      secondaryLabel="Not Now"
+      onPrimary={() => void enableEarthquakeBrowserNotifications()}
+      onSecondary={dismissNotificationPermissionDialog}
+      onClose={dismissNotificationPermissionDialog}
+    />
+    <NativeAlertDialog
+      open={showLocationPermissionDialog}
+      title="Use your location"
+      message="Location access is used only when you choose Use My Location. It helps detect your city and province so retrofit rates and guidance can be loaded automatically."
+      primaryLabel="Allow Location"
+      secondaryLabel="Enter Manually"
+      onPrimary={() => {
+        setShowLocationPermissionDialog(false)
+        setRetrofitLocationMode('auto')
+        void executeLocationRequest()
+      }}
+      onSecondary={() => {
+        setShowLocationPermissionDialog(false)
+        setRetrofitLocationMode('manual')
+      }}
+      onClose={() => setShowLocationPermissionDialog(false)}
+    />
     <GlobalBackgroundVideo />
     <div className="r360-app-stack">
     <div

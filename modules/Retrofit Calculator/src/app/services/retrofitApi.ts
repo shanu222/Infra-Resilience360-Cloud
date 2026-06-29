@@ -38,6 +38,7 @@ export type MlRetrofitEstimate = {
 }
 
 import { buildApiTargets, fetchApi, formatApiErrorMessage, AI_ANALYSIS_UNAVAILABLE } from '@resilience/api-base'
+import { normalizeImageFileForUpload } from '@resilience/normalize-image'
 
 const R360_DEBUG = typeof window !== 'undefined' && (window as any).__R360_DEBUG === true
 
@@ -54,15 +55,16 @@ const formatResponseHeaders = (headers: Headers): Record<string, string> => {
   return Object.fromEntries([...headers.entries()].map(([key, value]) => [key.toLowerCase(), value]))
 }
 
-const buildVisionFormData = (payload: {
+const buildVisionFormData = async (payload: {
   image: File
   structureType: string
   province: string
   location: string
   riskProfile: string
 }) => {
+  const normalizedImage = await normalizeImageFileForUpload(payload.image, payload.image.name || 'upload.jpg')
   const fd = new FormData()
-  fd.append('image', payload.image)
+  fd.append('image', normalizedImage, normalizedImage.name)
   fd.append('structureType', payload.structureType)
   fd.append('province', payload.province)
   fd.append('location', payload.location)
@@ -85,7 +87,7 @@ export const analyzeBuildingWithVision = async (payload: {
 
   for (const target of targets) {
     for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
-      const formData = buildVisionFormData(payload)
+      const formData = await buildVisionFormData(payload)
       const requestInit: RequestInit = {
         method: 'POST',
         body: formData,
