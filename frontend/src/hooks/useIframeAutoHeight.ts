@@ -6,20 +6,26 @@ type IframeAutoHeightOptions = {
   observeResize?: boolean
   observeMutations?: boolean
   pollIntervalMs?: number
-  stopWhenStableTicks?: number
   maxHeightPx?: number
 }
 
 function measureDocumentHeight(doc: Document): number {
   const body = doc.body
   const root = doc.documentElement
-  return Math.max(
+  let measured = Math.max(
     body?.scrollHeight ?? 0,
     body?.offsetHeight ?? 0,
     root?.scrollHeight ?? 0,
     root?.offsetHeight ?? 0,
-    root?.clientHeight ?? 0,
   )
+
+  const appRoot =
+    doc.getElementById('root') ?? doc.querySelector('main') ?? (body?.firstElementChild as HTMLElement | null)
+  if (appRoot instanceof HTMLElement) {
+    measured = Math.max(measured, appRoot.scrollHeight, appRoot.offsetHeight)
+  }
+
+  return measured
 }
 
 export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: IframeAutoHeightOptions = {}) {
@@ -33,11 +39,9 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
     let interval: number | null = null
     let resizeObserver: ResizeObserver | null = null
     let mutationObserver: MutationObserver | null = null
-    let unchangedTicks = 0
     const observeResize = options.observeResize !== false
     const observeMutations = options.observeMutations !== false
-    const pollIntervalMs = options.pollIntervalMs ?? 5000
-    const stopWhenStableTicks = options.stopWhenStableTicks ?? 8
+    const pollIntervalMs = options.pollIntervalMs ?? 2500
     const maxHeightPx = options.maxHeightPx && options.maxHeightPx > 0 ? options.maxHeightPx : Number.POSITIVE_INFINITY
 
     const applyHeight = (): boolean => {
@@ -49,12 +53,10 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
         const measured = measureDocumentHeight(doc)
         const next = Math.min(maxHeightPx, Math.max(minHeight, measured))
         const prev = Number.parseInt(node.style.height || '0', 10) || 0
-        if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 4) {
-          unchangedTicks += 1
+        if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 2) {
           return false
         }
         node.style.height = `${next}px`
-        unchangedTicks = 0
         return true
       } catch {
         // Cross-origin or transient loading; keep fallback min-height.
@@ -98,10 +100,6 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
           interval = window.setInterval(() => {
             if (document.visibilityState === 'hidden') return
             scheduleMeasure()
-            if (unchangedTicks >= stopWhenStableTicks && interval !== null) {
-              window.clearInterval(interval)
-              interval = null
-            }
           }, pollIntervalMs)
         }
       } catch {
@@ -110,15 +108,15 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
     }
 
     const onLoad = () => {
-      unchangedTicks = 0
       scheduleMeasure()
       attachObservers()
       window.setTimeout(scheduleMeasure, 160)
       window.setTimeout(scheduleMeasure, 700)
+      window.setTimeout(scheduleMeasure, 1800)
     }
 
     iframe.style.minHeight = `${minHeight}px`
-    iframe.setAttribute('scrolling', 'no')
+    iframe.setAttribute('scrolling', 'auto')
     iframe.addEventListener('load', onLoad)
     onLoad()
 
@@ -129,7 +127,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
       mutationObserver?.disconnect()
       iframe.removeEventListener('load', onLoad)
     }
-  }, [minHeight, options.maxHeightPx, options.observeMutations, options.observeResize, options.pollIntervalMs, options.stopWhenStableTicks])
+  }, [minHeight, options.maxHeightPx, options.observeMutations, options.observeResize, options.pollIntervalMs])
 
   return iframeRef
 }

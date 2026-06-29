@@ -4371,6 +4371,28 @@ h4 {
   margin-bottom: 8px;
 }
 
+.infra-model-pdf-canvas-host {
+  position: relative;
+  width: 100%;
+  min-height: min(360px, 52vh);
+}
+
+.infra-model-pdf-canvas-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.infra-model-pdf-page-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: #fff;
+}
+
 .infra-model-board-pdf-wrap {
   position: relative;
   display: flex;

@@ -1,6 +1,8 @@
 import {
   Fragment,
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -13,6 +15,10 @@ import { createPortal } from 'react-dom'
 import { ensureUrduPdfFont, pdfTx, setPdfBodyFont, setPdfBoldFont } from './utils/urduPdfSupport'
 import { buildUrduAdvisoryAnswerElement, buildUrduRetrofitEstimateElement } from './utils/urduMainAppPdfHtml'
 import ResponsiveQa from './components/ResponsiveQa'
+
+const NativePdfCanvas = lazy(() =>
+  import('./components/infra/NativePdfCanvas').then((mod) => ({ default: mod.NativePdfCanvas })),
+)
 import { fetchLiveAlerts, type LiveAlert } from './services/alerts'
 import type { AndroidBackContext } from './capacitor/androidBackButton'
 import { mediaManager } from './services/mediaManager'
@@ -194,9 +200,16 @@ function preloadInfraPdf(url: string) {
   const src = String(url ?? '').trim()
   if (!src || infraPdfSessionCache.has(src)) return
   infraPdfSessionCache.add(src)
-  void fetch(src, { cache: 'force-cache' }).catch(() => {
-    /* ignore preload failures */
-  })
+  const prefetch = () => {
+    void fetch(src, { cache: 'force-cache', mode: 'cors' }).catch(() => {
+      /* ignore preload failures */
+    })
+  }
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(prefetch, { timeout: 2000 })
+  } else {
+    prefetch()
+  }
 }
 
 function preloadInfraVideo(url: string) {
@@ -220,10 +233,15 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const [hasPdfError, setHasPdfError] = useState(false)
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
   const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
+  const [useNativePdfRenderer, setUseNativePdfRenderer] = useState(false)
+
   useEffect(() => {
     setHasPdfError(false)
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
+    void import('@capacitor/core').then(({ Capacitor }) => {
+      setUseNativePdfRenderer(Capacitor.isNativePlatform())
+    })
   }, [embedKey])
 
   const src = String(pdfCandidates[0] ?? '').trim()
@@ -272,6 +290,30 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   }
 
   const pdfSrc = src.includes('#') ? src : `${src}#view=FitH`
+
+  if (useNativePdfRenderer) {
+    return (
+      <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
+        {shouldRenderPdf ?
+          <Suspense
+            fallback={
+              <div className="infra-model-media-skeleton infra-model-pdf-skeleton" role="status" aria-live="polite">
+                Loading model board…
+              </div>
+            }
+          >
+            <NativePdfCanvas
+              key={`${embedKey}-pdf-native`}
+              src={src}
+              className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+              onLoaded={() => setIsPdfLoaded(true)}
+              onError={() => setHasPdfError(true)}
+            />
+          </Suspense>
+        : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+      </div>
+    )
+  }
 
   return (
     <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
@@ -1800,7 +1842,8 @@ function App(_props: AppProps = {}) {
           showReadinessLogicModal ||
           showFireSafetyLogicModal ||
           showEarthquakeNotifyPrompt ||
-          isLearnVideoVisible,
+          isLearnVideoVisible ||
+          isInfraModelCatalogOpen,
       ),
     closeTopOverlay: () => {
       if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
@@ -1808,6 +1851,7 @@ function App(_props: AppProps = {}) {
       else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
       else if (showEarthquakeNotifyPrompt) setShowEarthquakeNotifyPrompt(false)
       else if (isLearnVideoVisible) closeLearnVideoModal()
+      else if (isInfraModelCatalogOpen) setIsInfraModelCatalogOpen(false)
     },
     navigateToSection,
   }

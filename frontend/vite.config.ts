@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
           if (norm.includes('react-globe') || norm.includes('/three/') || norm.includes('three-globe')) return 'vendor-globe'
           if (norm.includes('geotiff')) return 'vendor-pdf'
           if (norm.includes('jspdf') || norm.includes('html2canvas')) return 'vendor-pdf'
+          if (norm.includes('pdfjs-dist')) return 'vendor-pdf'
           if (norm.includes('docx') || norm.includes('exceljs') || norm.includes('mammoth')) return 'vendor-office'
           if (norm.includes('lucide-react')) return 'vendor-icons'
           if (norm.includes('@turf/')) return 'vendor-turf'

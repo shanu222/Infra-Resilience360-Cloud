@@ -1,4 +1,6 @@
+import { Capacitor } from '@capacitor/core'
 import { API_BASE_URL as CONFIGURED_API_BASE_URL } from '../config/apiBase'
+import { formDataToMultipartBlob } from './nativeMultipart'
 import {
   AI_ANALYSIS_UNAVAILABLE,
   AI_USER_MESSAGES,
@@ -60,23 +62,35 @@ export const buildApiUrl = (path: string): string => {
 /**
  * Logs transport failures (TLS, DNS, offline) then rethrows so callers keep their control flow.
  */
+async function resolveFetchInit(input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
+  if (!init?.body || !(init.body instanceof FormData) || !Capacitor.isNativePlatform()) {
+    return init
+  }
+
+  const { body, contentType } = await formDataToMultipartBlob(init.body)
+  const headers = new Headers(init.headers ?? {})
+  headers.set('Content-Type', contentType)
+  return { ...init, body, headers }
+}
+
 export async function fetchApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const method = String(init?.method ?? 'GET').toUpperCase()
-  const hasBody = init?.body !== undefined && init?.body !== null
-  const shouldTimeoutReadOnly = !init?.signal && !hasBody && (method === 'GET' || method === 'HEAD')
+  const resolvedInit = await resolveFetchInit(input, init)
+  const hasBody = resolvedInit?.body !== undefined && resolvedInit?.body !== null
+  const shouldTimeoutReadOnly = !resolvedInit?.signal && !hasBody && (method === 'GET' || method === 'HEAD')
 
   if (shouldTimeoutReadOnly) {
     const controller = new AbortController()
     const timeoutMs = 12_000
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      return await fetch(input, { ...init, signal: controller.signal })
+      return await fetch(input, { ...resolvedInit, signal: controller.signal })
     } finally {
       clearTimeout(timer)
     }
   }
 
-  return await fetch(input, init)
+  return await fetch(input, resolvedInit)
 }
 
 /**

@@ -63,7 +63,7 @@ export function initAndroidBackButton(getContext: () => AndroidBackContext): voi
         return
       }
 
-      void App.exitApp()
+      // Home is the application root — do not exit or minimize.
     })
   })
 }

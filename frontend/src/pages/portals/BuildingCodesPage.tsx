@@ -13,12 +13,7 @@ export function BuildingCodesPage({
 }) {
   const isUrdu = language === 'ur'
   const iframeSrc = `/pgbc/library.html?lang=${isUrdu ? 'ur' : 'en'}`
-  const iframeRef = useIframeAutoHeight(0, {
-    observeResize: false,
-    observeMutations: false,
-    pollIntervalMs: 0,
-    maxHeightPx: 16000,
-  })
+  const iframeRef = useIframeAutoHeight(0)
   const [isFrameReady, setIsFrameReady] = useState(false)
 
   return (
@@ -36,7 +31,6 @@ export function BuildingCodesPage({
         title="Building Codes Portal"
         loading="eager"
         referrerPolicy="no-referrer"
-        scrolling="no"
         onLoad={() => setIsFrameReady(true)}
         style={{ opacity: isFrameReady ? 1 : 0.01, transition: 'opacity 180ms ease' }}
       />

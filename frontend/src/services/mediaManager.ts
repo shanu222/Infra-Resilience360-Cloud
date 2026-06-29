@@ -93,7 +93,15 @@ class MediaManager {
 
   preloadImages(urls: string[]): Promise<void> {
     const unique = [...new Set(urls.map((u) => String(u ?? '').trim()).filter(Boolean))]
-    return Promise.all(unique.map((url) => this.preloadImage(url))).then(() => undefined)
+    const run = () => Promise.all(unique.map((url) => this.preloadImage(url))).then(() => undefined)
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      return new Promise((resolve) => {
+        window.requestIdleCallback(() => {
+          void run().then(resolve)
+        }, { timeout: 2500 })
+      })
+    }
+    return run()
   }
 
   preloadVideoMetadata(url: string): Promise<void> {

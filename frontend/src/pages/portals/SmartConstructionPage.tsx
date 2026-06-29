@@ -15,11 +15,7 @@ export function SmartConstructionPage({
   isAdminMode?: boolean
   isEditMode?: boolean
 }) {
-  const iframeRef = useIframeAutoHeight(0, {
-    observeResize: false,
-    observeMutations: false,
-    pollIntervalMs: 0,
-  })
+  const iframeRef = useIframeAutoHeight(0)
   const [isFrameReady, setIsFrameReady] = useState(false)
 
   useEffect(() => {
@@ -47,7 +43,6 @@ export function SmartConstructionPage({
         title="Smart Construction Portal"
         loading="lazy"
         referrerPolicy="no-referrer"
-        scrolling="no"
         onLoad={() => setIsFrameReady(true)}
         style={{ opacity: isFrameReady ? 1 : 0.01, transition: 'opacity 180ms ease' }}
       />
