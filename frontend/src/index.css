@@ -4374,7 +4374,139 @@ h4 {
 .infra-model-pdf-canvas-host {
   position: relative;
   width: 100%;
-  min-height: min(360px, 52vh);
+  min-height: 0;
+}
+
+.infra-model-pdf-canvas-host .infra-model-pdf-skeleton.is-compact {
+  min-height: 120px;
+  height: 120px;
+}
+
+.infra-model-pdf-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.infra-model-pdf-fullscreen-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2eaf7;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.infra-pdf-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: rgba(3, 10, 24, 0.96);
+  display: flex;
+  flex-direction: column;
+}
+
+.infra-pdf-fullscreen-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.infra-pdf-fullscreen-title {
+  margin: 0;
+  color: #e2eaf7;
+  font-size: 1rem;
+}
+
+.infra-pdf-fullscreen-close {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.85);
+  color: #e2eaf7;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.infra-pdf-fullscreen-scroll {
+  flex: 1 1 auto;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 12px 16px;
+}
+
+.infra-pdf-fullscreen-stage {
+  transform-origin: top center;
+  touch-action: pinch-zoom;
+}
+
+.r360-image-upload-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+  background: rgba(3, 10, 24, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.r360-image-upload-sheet {
+  width: min(100%, 480px);
+  background: #0f172a;
+  border-radius: 16px 16px 0 0;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.r360-image-upload-sheet__action,
+.r360-image-upload-sheet__cancel {
+  width: 100%;
+  border-radius: 10px;
+  padding: 14px 12px;
+  font-size: 1rem;
+}
+
+.r360-image-upload-sheet__action {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(30, 41, 59, 0.95);
+  color: #e2eaf7;
+}
+
+.r360-image-upload-sheet__cancel {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.retrofit-upload-native-btn {
+  display: inline-flex;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2eaf7;
+  padding: 8px 14px;
+}
+
+.retrofit-upload-label:has(.retrofit-upload-native-btn) .retrofit-upload-input {
+  display: none;
+}
+
+.infra-model-board-pdf-wrap:has(.infra-model-pdf-canvas-host) {
+  min-height: 0;
+}
+
+.infra-model-board-pdf-wrap:has(.infra-model-pdf-canvas-host) .infra-model-pdf-skeleton,
+.infra-model-board-pdf-wrap:has(.infra-model-pdf-canvas-host) .infra-model-media-placeholder {
+  min-height: 120px;
+  height: auto;
+}
+
+.infra-model-pdf-canvas-host {
+  position: relative;
+  width: 100%;
+  min-height: 0;
 }
 
 .infra-model-pdf-canvas-pages {

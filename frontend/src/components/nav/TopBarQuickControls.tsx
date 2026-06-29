@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { AppLocaleStrings } from '../../i18n/appLocale'
 import type { Language } from '../../types/sectionKeys'
 import { roleOptions } from '../../constants/homepageGrid'
+import { getAppVersionDisplay } from '../../utils/capacitorRuntime'
 
 export type ToolbarRole = (typeof roleOptions)[number]
 
@@ -48,7 +49,7 @@ export function TopBarQuickControls({
   const [useMobileDrawer, setUseMobileDrawer] = useState(false)
   const shellRef = useRef<HTMLDivElement>(null)
   const drawerId = useId()
-  const appVersion = 'Web'
+  const appVersion = getAppVersionDisplay()
 
   useEffect(() => {
     const mq = window.matchMedia(MOBILE_NAV_MQ)

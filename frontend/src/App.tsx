@@ -83,6 +83,11 @@ import { isExcludedLearnCatalogRow } from './utils/learnCatalogExclude'
 import { isAwsPresignedUrl } from './utils/videoSourceValidation'
 import { MEDIA_UNAVAILABLE_MESSAGE } from './utils/contentMediaConstants'
 import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
+import { isLikelyImageFile, normalizeImageFileForUpload } from './utils/normalizeImageFile'
+import { ImageUploadBottomSheet } from './components/capacitor/ImageUploadBottomSheet'
+import { capturePhotoWithCamera, pickPhotosFromGallery } from './capacitor/imagePicker'
+import { startNativeEarthquakeAlertMonitor } from './services/earthquakeAlertMonitor'
+import { PdfFullscreenViewer } from './components/infra/PdfFullscreenViewer'
 import { inferVideoMime } from './utils/mediaMime'
 import {
   APP_BRAND_ICON_URL,
@@ -234,15 +239,29 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
   const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
   const [useNativePdfRenderer, setUseNativePdfRenderer] = useState(false)
+  const [pdfFullscreenOpen, setPdfFullscreenOpen] = useState(false)
 
   useEffect(() => {
     setHasPdfError(false)
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
+    setPdfFullscreenOpen(false)
     void import('@capacitor/core').then(({ Capacitor }) => {
       setUseNativePdfRenderer(Capacitor.isNativePlatform())
     })
   }, [embedKey])
+
+  useEffect(() => {
+    if (!pdfFullscreenOpen) {
+      delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+      return
+    }
+    ;(window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ = () =>
+      setPdfFullscreenOpen(false)
+    return () => {
+      delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+    }
+  }, [pdfFullscreenOpen])
 
   const src = String(pdfCandidates[0] ?? '').trim()
   useEffect(() => {
@@ -308,9 +327,16 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
               className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
               onLoaded={() => setIsPdfLoaded(true)}
               onError={() => setHasPdfError(true)}
+              onFullscreen={() => setPdfFullscreenOpen(true)}
             />
           </Suspense>
         : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+        <PdfFullscreenViewer
+          src={src}
+          title="Resilience Model Board"
+          open={pdfFullscreenOpen}
+          onClose={() => setPdfFullscreenOpen(false)}
+        />
       </div>
     )
   }
@@ -1223,9 +1249,9 @@ function App(_props: AppProps = {}) {
   const appStateSyncTimerRef = useRef<number | null>(null)
   const [isQaRoute, setIsQaRoute] = useState<boolean>(() => window.location.hash === '#qa-responsive')
   const [showEarthquakeNotifyPrompt, setShowEarthquakeNotifyPrompt] = useState(false)
-  const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<NotificationPermission | 'unsupported'>(
-    () => earthquakePushNotificationService.getPermissionState(),
-  )
+  const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<
+    NotificationPermission | 'unsupported' | 'prompt'
+  >('default')
   const [earthquakeNotifySettings, setEarthquakeNotifySettings] = useState(() =>
     earthquakePushNotificationService.getSettings(),
   )
@@ -1342,6 +1368,8 @@ function App(_props: AppProps = {}) {
   const [guidanceError, setGuidanceError] = useState<string | null>(null)
   const [isPreparingWordReport, setIsPreparingWordReport] = useState(false)
   const retrofitUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const [retrofitUploadSheetOpen, setRetrofitUploadSheetOpen] = useState(false)
+  const [isRetrofitUploadBusy, setIsRetrofitUploadBusy] = useState(false)
   const [infraModelsError] = useState<string | null>(null)
   const [infraMediaByModelId, setInfraMediaByModelId] = useState<Record<string, { image?: string; pdf?: string }>>({})
   const [selectedInfraModelId, setSelectedInfraModelId] = useState<string | null>(null)
@@ -1843,9 +1871,17 @@ function App(_props: AppProps = {}) {
           showFireSafetyLogicModal ||
           showEarthquakeNotifyPrompt ||
           isLearnVideoVisible ||
-          isInfraModelCatalogOpen,
+          isInfraModelCatalogOpen ||
+          typeof (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ ===
+            'function',
       ),
     closeTopOverlay: () => {
+      const closePdfFullscreen = (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void })
+        .__R360_PDF_FULLSCREEN_CLOSE__
+      if (closePdfFullscreen) {
+        closePdfFullscreen()
+        return
+      }
       if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
       else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
       else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
@@ -1972,16 +2008,43 @@ function App(_props: AppProps = {}) {
 
   // Initialize push notifications for earthquake alerts
   useEffect(() => {
-    try {
-      void earthquakePushNotificationService.initialize()
-      setEarthquakeNotifyPermission(earthquakePushNotificationService.getPermissionState())
-      setEarthquakeNotifySettings(earthquakePushNotificationService.getSettings())
-    } catch {
-      /* keep app shell stable if push init fails */
+    let stopMonitor: (() => void) | undefined
+    void (async () => {
+      try {
+        await earthquakePushNotificationService.initialize()
+        const permission = isCapacitorNativeRuntime()
+          ? await earthquakePushNotificationService.refreshPermissionState()
+          : earthquakePushNotificationService.getPermissionState()
+        setEarthquakeNotifyPermission(permission)
+        setEarthquakeNotifySettings(earthquakePushNotificationService.getSettings())
+        if (isCapacitorNativeRuntime()) {
+          stopMonitor = startNativeEarthquakeAlertMonitor()
+        }
+      } catch {
+        /* keep app shell stable if push init fails */
+      }
+    })()
+    return () => {
+      stopMonitor?.()
     }
   }, [])
 
   useEffect(() => {
+    if (!isCapacitorNativeRuntime()) return
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const permission = await earthquakePushNotificationService.refreshPermissionState()
+        setEarthquakeNotifyPermission(permission)
+        if (permission === 'prompt' && earthquakePushNotificationService.shouldShowPrompt()) {
+          setShowEarthquakeNotifyPrompt(true)
+        }
+      })()
+    }, 1200)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (isCapacitorNativeRuntime()) return
     const timer = window.setTimeout(() => {
       try {
         if (earthquakePushNotificationService.shouldShowPrompt()) {
@@ -2023,11 +2086,15 @@ function App(_props: AppProps = {}) {
     const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
     setEarthquakeNotifyPermission(permission)
     if (permission === 'granted') {
-      setEarthquakeNotifyStatusMsg('Permission granted.')
+      setEarthquakeNotifyStatusMsg(isCapacitorNativeRuntime() ? 'Android notification permission granted.' : 'Permission granted.')
       setShowEarthquakeNotifyPrompt(false)
       return
     }
-    setEarthquakeNotifyStatusMsg('Notifications were not enabled by the browser.')
+    setEarthquakeNotifyStatusMsg(
+      isCapacitorNativeRuntime()
+        ? 'Android notification permission was not granted.'
+        : 'Notifications were not enabled by the browser.',
+    )
     setShowEarthquakeNotifyPrompt(false)
   }, [])
 
@@ -2046,7 +2113,15 @@ function App(_props: AppProps = {}) {
 
   const sendEarthquakeNotificationTest = useCallback(async () => {
     const ok = await earthquakePushNotificationService.showTestNotification()
-    setEarthquakeNotifyStatusMsg(ok ? 'Test alert delivered.' : 'Test alert failed. Grant browser permission first.')
+    setEarthquakeNotifyStatusMsg(
+      ok
+        ? isCapacitorNativeRuntime()
+          ? 'Android test alert delivered.'
+          : 'Test alert delivered.'
+        : isCapacitorNativeRuntime()
+          ? 'Test alert failed. Allow Android notifications first.'
+          : 'Test alert failed. Grant browser permission first.',
+    )
   }, [])
 
   const sendEarthquakeSoundTest = useCallback(async () => {
@@ -2835,26 +2910,65 @@ function App(_props: AppProps = {}) {
     [],
   )
 
-  const handleRetrofitSeriesUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) {
-      return
+  const addRetrofitUploadFiles = async (incomingFiles: File[]) => {
+    if (incomingFiles.length === 0) return
+
+    const candidates = incomingFiles.filter((file) => isLikelyImageFile(file, file.name))
+    if (candidates.length === 0) return
+
+    setIsRetrofitUploadBusy(true)
+    try {
+      const normalizedFiles = await Promise.all(
+        candidates.map((file, index) => normalizeImageFileForUpload(file, file.name || `upload-${index + 1}.jpg`)),
+      )
+      setRetrofitImageSeriesFiles((prev) => [...prev, ...normalizedFiles])
+      setRetrofitImageSeriesPreviewUrls((prev) => [
+        ...prev,
+        ...normalizedFiles.map((file) => URL.createObjectURL(file)),
+      ])
+      setRetrofitImageSeriesResults([])
+      setRetrofitGuidanceResults([])
+      setRetrofitFinalEstimate(null)
+      setRetrofitError(null)
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'The requested file could not be read. Please choose another image.'))
+    } finally {
+      setIsRetrofitUploadBusy(false)
     }
-
-    const incomingFiles = Array.from(files).filter((file) => file.type.startsWith('image/'))
-    if (incomingFiles.length === 0) {
-      return
-    }
-
-    const nextFiles = [...retrofitImageSeriesFiles, ...incomingFiles]
-    const nextPreviews = [...retrofitImageSeriesPreviewUrls, ...incomingFiles.map((file) => URL.createObjectURL(file))]
-
-    setRetrofitImageSeriesFiles(nextFiles)
-    setRetrofitImageSeriesPreviewUrls(nextPreviews)
-    setRetrofitImageSeriesResults([])
-    setRetrofitGuidanceResults([])
-    setRetrofitFinalEstimate(null)
-    setRetrofitError(null)
   }
+
+  const handleRetrofitSeriesUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    await addRetrofitUploadFiles(Array.from(files))
+  }
+
+  const openRetrofitUploadPicker = useCallback(() => {
+    if (isCapacitorNativeRuntime()) {
+      setRetrofitUploadSheetOpen(true)
+      return
+    }
+    retrofitUploadInputRef.current?.click()
+  }, [])
+
+  const handleRetrofitCameraCapture = useCallback(async () => {
+    setRetrofitUploadSheetOpen(false)
+    try {
+      const file = await capturePhotoWithCamera()
+      await addRetrofitUploadFiles([file])
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'Camera capture failed. Please try again.'))
+    }
+  }, [])
+
+  const handleRetrofitGalleryPick = useCallback(async () => {
+    setRetrofitUploadSheetOpen(false)
+    try {
+      const files = await pickPhotosFromGallery()
+      await addRetrofitUploadFiles(files)
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'Gallery selection failed. Please try again.'))
+    }
+  }, [])
 
   const openRetrofitCalculatorPage = useCallback(() => {
     setRetrofitError(null)
@@ -4075,12 +4189,13 @@ function App(_props: AppProps = {}) {
   const notificationPermissionLabel =
     earthquakeNotifyPermission === 'granted' ? 'Granted'
     : earthquakeNotifyPermission === 'denied' ? 'Denied'
+    : isCapacitorNativeRuntime() ? 'Not Requested'
     : earthquakeNotifyPermission === 'unsupported' ? 'Unsupported'
     : 'Not Requested'
   const notificationPermissionTone =
     earthquakeNotifyPermission === 'granted' ? 'is-granted'
     : earthquakeNotifyPermission === 'denied' ? 'is-denied'
-    : earthquakeNotifyPermission === 'unsupported' ? 'is-unsupported'
+    : earthquakeNotifyPermission === 'unsupported' && !isCapacitorNativeRuntime() ? 'is-unsupported'
     : 'is-pending'
 
   const notificationSettingsPanel = (
@@ -4099,19 +4214,28 @@ function App(_props: AppProps = {}) {
             onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
           />
         </label>
-        <label className="switch-row">
-          <span className="settings-card__switch-label">
-            <span className="settings-card__icon" aria-hidden>
-              🔔
+        {!isCapacitorNativeRuntime() ?
+          <label className="switch-row">
+            <span className="settings-card__switch-label">
+              <span className="settings-card__icon" aria-hidden>
+                🔔
+              </span>
+              <span>Enable Browser Notifications</span>
             </span>
-            <span>Enable Browser Notifications</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={earthquakeNotifyPermission === 'granted'}
-            onChange={(event) => toggleBrowserNotificationPreference(event.target.checked)}
-          />
-        </label>
+            <input
+              type="checkbox"
+              checked={earthquakeNotifyPermission === 'granted'}
+              onChange={(event) => toggleBrowserNotificationPreference(event.target.checked)}
+            />
+          </label>
+        : null}
+        {isCapacitorNativeRuntime() ?
+          <div className="settings-card__actions">
+            <button type="button" onClick={() => void enableEarthquakeBrowserNotifications()}>
+              Allow Android Notifications
+            </button>
+          </div>
+        : null}
         <label className="switch-row">
           <span className="settings-card__switch-label">
             <span className="settings-card__icon" aria-hidden>
@@ -6190,6 +6314,16 @@ function App(_props: AppProps = {}) {
 
             <label className="retrofit-upload-label" {...rf('main', 'uploadSeries')}>
               {mergedRetrofit.uploadSeries}
+              {isCapacitorNativeRuntime() ?
+                <button
+                  type="button"
+                  className="retrofit-upload-native-btn"
+                  onClick={openRetrofitUploadPicker}
+                  disabled={isRetrofitUploadBusy}
+                >
+                  {isRetrofitUploadBusy ? 'Loading image…' : 'Upload Image'}
+                </button>
+              : null}
               <input
                 ref={retrofitUploadInputRef}
                 className="retrofit-upload-input"
@@ -6197,11 +6331,17 @@ function App(_props: AppProps = {}) {
                 accept="image/*"
                 multiple
                 onChange={(event) => {
-                  handleRetrofitSeriesUpload(event.target.files)
+                  void handleRetrofitSeriesUpload(event.target.files)
                   event.currentTarget.value = ''
                 }}
               />
             </label>
+            <ImageUploadBottomSheet
+              open={retrofitUploadSheetOpen}
+              onClose={() => setRetrofitUploadSheetOpen(false)}
+              onTakePhoto={() => void handleRetrofitCameraCapture()}
+              onChooseGallery={() => void handleRetrofitGalleryPick()}
+            />
 
             {retrofitImageSeriesFiles.length > 0 && (
               <p className="retrofit-selected-photos" {...rf('main', 'selectedPhotos')}>
@@ -6239,7 +6379,7 @@ function App(_props: AppProps = {}) {
                 <article
                   key={`${preview}-${index}`}
                   className="retrofit-defect-card retrofit-upload-card"
-                  onClick={() => retrofitUploadInputRef.current?.click()}
+                  onClick={() => openRetrofitUploadPicker()}
                 >
                   <h4>
                     {mergedRetrofit.imageN} {index + 1}
@@ -7094,11 +7234,13 @@ function App(_props: AppProps = {}) {
               </button>
             </div>
             <p className="section-lead" style={{ marginTop: 6 }}>
-              Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).
+              {isCapacitorNativeRuntime()
+                ? 'Allow Android notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).'
+                : 'Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).'}
             </p>
             <div className="inline-controls" style={{ marginTop: 12 }}>
-              <button type="button" onClick={enableEarthquakeBrowserNotifications}>
-                Enable Notifications
+              <button type="button" onClick={() => void enableEarthquakeBrowserNotifications()}>
+                {isCapacitorNativeRuntime() ? 'Allow Android Notifications' : 'Enable Notifications'}
               </button>
               <button type="button" onClick={maybeLaterEarthquakeNotifications}>
                 Maybe Later

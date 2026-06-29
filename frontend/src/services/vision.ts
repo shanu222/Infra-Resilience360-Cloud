@@ -1,4 +1,5 @@
 import { buildApiTargets, fetchApi, resolveAiUserMessage, assertProductionVisionResult, AI_USER_MESSAGES } from './apiBase'
+import { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 
 const wait = (ms: number) => new Promise<void>((resolve) => {
   window.setTimeout(resolve, ms)
@@ -21,15 +22,16 @@ export type DefectDetection = {
   retrofitAction: string
 }
 
-const buildVisionFormData = (payload: {
+const buildVisionFormData = async (payload: {
   image: File
   structureType: string
   province: string
   location: string
   riskProfile: string
 }) => {
+  const normalizedImage = await normalizeImageFileForUpload(payload.image, payload.image.name || 'upload.jpg')
   const formData = new FormData()
-  formData.append('image', payload.image)
+  formData.append('image', normalizedImage, normalizedImage.name)
   formData.append('structureType', payload.structureType)
   formData.append('province', payload.province)
   formData.append('location', payload.location)
@@ -140,7 +142,7 @@ export const analyzeBuildingWithVision = async (payload: {
   for (const target of targets) {
     for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
       try {
-        const formData = buildVisionFormData(payload)
+        const formData = await buildVisionFormData(payload)
         const response = await fetchVisionRequest(target, {
           method: 'POST',
           body: formData,

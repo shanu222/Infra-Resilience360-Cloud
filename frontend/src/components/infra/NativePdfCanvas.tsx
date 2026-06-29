@@ -5,9 +5,10 @@ type NativePdfCanvasProps = {
   className?: string
   onLoaded?: () => void
   onError?: () => void
+  onFullscreen?: () => void
 }
 
-export function NativePdfCanvas({ src, className, onLoaded, onError }: NativePdfCanvasProps) {
+export function NativePdfCanvas({ src, className, onLoaded, onError, onFullscreen }: NativePdfCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [isRendering, setIsRendering] = useState(true)
   const [renderError, setRenderError] = useState(false)
@@ -88,8 +89,15 @@ export function NativePdfCanvas({ src, className, onLoaded, onError }: NativePdf
 
   return (
     <div className={`infra-model-pdf-canvas-host ${className ?? ''}`.trim()}>
+      {onFullscreen ?
+        <div className="infra-model-pdf-toolbar">
+          <button type="button" className="infra-model-pdf-fullscreen-btn" onClick={onFullscreen}>
+            Full Screen
+          </button>
+        </div>
+      : null}
       {isRendering ?
-        <div className="infra-model-media-skeleton infra-model-pdf-skeleton" role="status" aria-live="polite">
+        <div className="infra-model-media-skeleton infra-model-pdf-skeleton is-compact" role="status" aria-live="polite">
           Loading model board…
         </div>
       : null}
