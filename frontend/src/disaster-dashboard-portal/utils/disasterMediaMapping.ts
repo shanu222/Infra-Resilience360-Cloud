@@ -115,6 +115,7 @@ function mergeIntoCache(hazards: Record<string, HazardResolved>, aliasesFromApi?
     if (!canonical) continue
     const row = toFolderRow(hazard)
     next[canonical] = row
+    devLog('generated R2 URLs', { hazardId: canonical, ...row })
 
     const aliases = [
       ...(Array.isArray(aliasesFromApi?.[rawKey]) ? aliasesFromApi![rawKey] : []),
@@ -202,13 +203,15 @@ export function resolveDisasterMediaCandidates(disasterId: string): {
   for (const slug of slugCandidates) {
     const row = disasterFolderCache?.[slug]
     if (!row) continue
-    devLog('resolved hazard mapping', { disasterId, slug, row })
+    const hasAnyMedia =
+      row.imageCandidates.length > 0 || row.videoCandidates.length > 0 || row.audioCandidates.length > 0
+    devLog(hasAnyMedia ? 'media loading success' : 'media loading failure', { disasterId, slug, row })
     return {
       imageCandidates: [...row.imageCandidates],
       videoCandidates: [...row.videoCandidates],
       audioCandidates: [...row.audioCandidates],
     }
   }
-  devLog('resolved hazard mapping missing', { disasterId, slugCandidates })
+  devLog('media loading failure', { disasterId, slugCandidates, reason: 'no hazard mapping found' })
   return { imageCandidates: [], videoCandidates: [], audioCandidates: [] }
 }
