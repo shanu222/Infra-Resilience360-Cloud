@@ -1188,12 +1188,6 @@ function App(_props: AppProps = {}) {
     earthquakePushNotificationService.getSettings(),
   )
   const [earthquakeNotifyStatusMsg, setEarthquakeNotifyStatusMsg] = useState<string | null>(null)
-  const [isSettingsCardViewport, setIsSettingsCardViewport] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-    return window.matchMedia('(min-width: 1025px)').matches
-  })
-  const [isHomeSettingsPanelOpen, setIsHomeSettingsPanelOpen] = useState(false)
-  const [hasHomeSettingsPanelOpened, setHasHomeSettingsPanelOpened] = useState(false)
   const { language, setLanguage, t, isUrdu } = useLanguage()
   const [activeSection, setActiveSection] = useState<SectionKey | null>(() => readInitialSectionFromUrl())
   const [visitedSections, setVisitedSections] = useState<Set<SectionKey>>(() => {
@@ -1917,30 +1911,6 @@ function App(_props: AppProps = {}) {
     return () => window.clearTimeout(timer)
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-    const media = window.matchMedia('(min-width: 1025px)')
-    const onChange = () => setIsSettingsCardViewport(media.matches)
-    onChange()
-    media.addEventListener('change', onChange)
-    return () => media.removeEventListener('change', onChange)
-  }, [])
-
-  useEffect(() => {
-    if (activeSection !== null || !isSettingsCardViewport) {
-      setIsHomeSettingsPanelOpen(false)
-    }
-  }, [activeSection, isSettingsCardViewport])
-
-  useEffect(() => {
-    if (!isHomeSettingsPanelOpen) return
-    const onEsc = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      setIsHomeSettingsPanelOpen(false)
-    }
-    window.addEventListener('keydown', onEsc)
-    return () => window.removeEventListener('keydown', onEsc)
-  }, [isHomeSettingsPanelOpen])
 
   const enableEarthquakeBrowserNotifications = useCallback(async () => {
     const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
@@ -6883,46 +6853,6 @@ function App(_props: AppProps = {}) {
   }
 
   const useWebSingleRowHeader = !isCapacitorNativeRuntime()
-  const showDesktopSettingsCard = isHomeView && isSettingsCardViewport
-  const homeSettingsPanelId = 'homeSettingsNotificationPanel'
-  const toggleHomeSettingsPanel = () => {
-    setIsHomeSettingsPanelOpen((previous) => {
-      const next = !previous
-      if (next) setHasHomeSettingsPanelOpened(true)
-      return next
-    })
-  }
-  const desktopHomeSettingsCard =
-    showDesktopSettingsCard ?
-      <section className="home-settings-strip settings-card" aria-label="Settings">
-        <div className="home-settings-strip__summary">
-          <h3 className="settings-card__title">⚙ Settings</h3>
-          <p className="settings-card__subtitle">Manage Notification Preferences</p>
-        </div>
-        <div className="home-settings-strip__actions">
-          <button
-            type="button"
-            className="home-settings-strip__open-btn"
-            aria-expanded={isHomeSettingsPanelOpen}
-            aria-controls={homeSettingsPanelId}
-            onClick={toggleHomeSettingsPanel}
-          >
-            {isHomeSettingsPanelOpen ? 'Close Settings' : 'Open Settings'}
-          </button>
-        </div>
-        <div
-          id={homeSettingsPanelId}
-          className={`home-settings-drawer ${isHomeSettingsPanelOpen ? 'is-open' : ''}`}
-          role="region"
-          aria-label="Notification preferences"
-          aria-hidden={isHomeSettingsPanelOpen ? 'false' : 'true'}
-        >
-          <div className="home-settings-drawer__content">
-            {hasHomeSettingsPanelOpened ? notificationSettingsPanel : null}
-          </div>
-        </div>
-      </section>
-    : null
 
   const navbarBrandContent = (
     <div className="brand">
@@ -6976,7 +6906,7 @@ function App(_props: AppProps = {}) {
       language={language}
       setLanguage={setLanguage}
       showLanguageToggle={true}
-      showSettingsToggle={!isSettingsCardViewport}
+      showSettingsToggle={true}
       selectedRole={selectedRole}
       setSelectedRole={setSelectedRole}
       interfaceToggleLabel={interfaceToggleLabel}
@@ -7108,7 +7038,7 @@ function App(_props: AppProps = {}) {
               onAdminFooterClick={undefined}
               footerCms={homepageConfig.footer}
               showSettingsButton={isCapacitorNativeRuntime()}
-              desktopSettingsCard={desktopHomeSettingsCard}
+              desktopSettingsCard={null}
             />
           : <HomePageHomeBody
             t={t}
@@ -7120,7 +7050,7 @@ function App(_props: AppProps = {}) {
             onAdminFooterClick={undefined}
             footerCms={homepageConfig.footer}
             showSettingsButton={isCapacitorNativeRuntime()}
-            desktopSettingsCard={desktopHomeSettingsCard}
+            desktopSettingsCard={null}
           />)}
         {visitedSections.size > 0 ?
           <PersistentSectionHost

@@ -257,6 +257,11 @@ export function TopBarQuickControls({
             {interfaceToggleLabel}
           </button>
         : null}
+        {showSettingsToggle ?
+          <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onSettings}>
+            {settingsLabel}
+          </button>
+        : null}
         <button type="button" className="nav-toolbar-home-btn" onClick={onHome}>
           {homeLabel}
         </button>
