@@ -6933,28 +6933,28 @@ function App(_props: AppProps = {}) {
     <>
     {showEarthquakeNotifyPrompt ?
       createPortal(
-        <div className="learn-video-modal-overlay" role="dialog" aria-modal="true" aria-label="Enable notifications">
-          <div className="learn-video-modal-dialog" style={{ maxWidth: 520 }}>
-            <div className="learn-video-modal-header">
-              <h3 style={{ margin: 0 }}>Stay informed with real-time earthquake alerts.</h3>
+        <div className="notify-permission-modal" role="dialog" aria-modal="true" aria-label="Enable notifications">
+          <div className="notify-permission-modal__card">
+            <div className="notify-permission-modal__header">
+              <h3 className="notify-permission-modal__title">Stay informed with real-time earthquake alerts.</h3>
               <button
                 type="button"
-                className="learn-video-modal-close"
+                className="notify-permission-modal__close"
                 onClick={maybeLaterEarthquakeNotifications}
                 aria-label="Close"
               >
                 ✕
               </button>
             </div>
-            <p className="section-lead" style={{ marginTop: 6 }}>
+            <p className="notify-permission-modal__body">
               Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).
             </p>
-            <div className="inline-controls" style={{ marginTop: 12 }}>
-              <button type="button" onClick={enableEarthquakeBrowserNotifications}>
+            <div className="notify-permission-modal__actions">
+              <button type="button" className="notify-permission-modal__primary" onClick={enableEarthquakeBrowserNotifications}>
                 Enable Notifications
               </button>
-              <button type="button" onClick={maybeLaterEarthquakeNotifications}>
-                Maybe Later
+              <button type="button" className="notify-permission-modal__secondary" onClick={maybeLaterEarthquakeNotifications}>
+                Not Now
               </button>
             </div>
           </div>
