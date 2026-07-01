@@ -169,29 +169,17 @@ function inferHazardFromPath(relativePath) {
 async function headOk(url) {
   try {
     const response = await fetch(url, { method: 'HEAD' })
-    if (response.ok) return true
-    // Some R2/CDN edges reject HEAD for certain object types — confirm with a ranged GET before discarding.
-    const rangedGet = await fetch(url, { method: 'GET', headers: { Range: 'bytes=0-0' } })
-    return rangedGet.ok
+    return response.ok
   } catch {
     return false
   }
 }
 
-const isDevMediaDebug = () => String(process.env.NODE_ENV ?? '').toLowerCase() !== 'production'
-
-function devMediaLog(...args) {
-  if (!isDevMediaDebug()) return
-  console.info('[disaster-media]', ...args)
-}
-
 export async function respondDisasterDashboardMediaMetadata(_req, res) {
   const metadataUrl = mapStorageContentToPublicMediaUrl('/storage/content/disaster-dashboard/metadata.json')
-  devMediaLog('metadata endpoint', metadataUrl)
   let metadata
   try {
     const upstream = await fetch(metadataUrl, { cache: 'no-store' })
-    devMediaLog('metadata HTTP status', upstream.status)
     if (!upstream.ok) {
       return res.status(502).json({
         ok: false,
@@ -201,9 +189,7 @@ export async function respondDisasterDashboardMediaMetadata(_req, res) {
       })
     }
     metadata = await upstream.json()
-    devMediaLog('metadata received', metadata)
   } catch (error) {
-    devMediaLog('metadata fetch failed', String(error?.message ?? error ?? 'unknown'))
     return res.status(502).json({
       ok: false,
       error: 'metadata_fetch_failed',
@@ -219,28 +205,6 @@ export async function respondDisasterDashboardMediaMetadata(_req, res) {
     pdfs: Array.isArray(metadata?.pdfs) ? metadata.pdfs.map(normalizeMediaPath).filter(Boolean) : [],
   }
 
-  // Validate every distinct R2 object once (parallel HEAD/GET-range probe) before any hazard is assigned.
-  const uniqueByType = { images: [], videos: [], audio: [], pdfs: [] }
-  const seenPaths = new Set()
-  for (const mediaType of ['images', 'videos', 'audio', 'pdfs']) {
-    for (const relPath of typedPaths[mediaType]) {
-      if (seenPaths.has(`${mediaType}:${relPath}`)) continue
-      seenPaths.add(`${mediaType}:${relPath}`)
-      uniqueByType[mediaType].push({ path: relPath, url: encodedStorageContentUrl(relPath) })
-    }
-  }
-
-  const validatedByType = { images: [], videos: [], audio: [], pdfs: [] }
-  await Promise.all(
-    Object.entries(uniqueByType).flatMap(([mediaType, rows]) =>
-      rows.map(async (row) => {
-        const ok = await headOk(row.url)
-        devMediaLog('R2 URL resolved', { mediaType, path: row.path, url: row.url, ok })
-        if (ok) validatedByType[mediaType].push(row)
-      }),
-    ),
-  )
-
   const hazardMedia = Object.fromEntries(
     DISASTER_HAZARD_ORDER.map((hazardId) => [
       hazardId,
@@ -255,30 +219,24 @@ export async function respondDisasterDashboardMediaMetadata(_req, res) {
     ]),
   )
 
-  // Media whose filename does not map to a specific hazard (e.g. a shared dashboard background or
-  // a shared risk-atlas PDF) is tracked separately so it can back-fill any hazard left without its
-  // own dedicated asset — this keeps every hazard rendering a real, verified R2 object instead of
-  // nothing, without ever inventing or hardcoding a URL.
-  const sharedByType = { images: [], videos: [], audio: [], pdfs: [] }
-
   for (const mediaType of ['images', 'videos', 'audio', 'pdfs']) {
-    for (const row of validatedByType[mediaType]) {
-      const hazard = inferHazardFromPath(row.path)
-      devMediaLog('resolved hazard mapping', { mediaType, path: row.path, hazard })
-      if (hazard && hazardMedia[hazard]) {
-        hazardMedia[hazard][mediaType].push(row)
-      } else {
-        sharedByType[mediaType].push(row)
-      }
+    for (const relPath of typedPaths[mediaType]) {
+      const hazard = inferHazardFromPath(relPath)
+      if (!hazard || !hazardMedia[hazard]) continue
+      const resolvedUrl = encodedStorageContentUrl(relPath)
+      hazardMedia[hazard][mediaType].push({ path: relPath, url: resolvedUrl })
     }
   }
 
   for (const hazardId of DISASTER_HAZARD_ORDER) {
     for (const mediaType of ['images', 'videos', 'audio', 'pdfs']) {
-      if (hazardMedia[hazardId][mediaType].length === 0 && sharedByType[mediaType].length > 0) {
-        hazardMedia[hazardId][mediaType] = [...sharedByType[mediaType]]
+      const entries = hazardMedia[hazardId][mediaType]
+      const validated = []
+      for (const row of entries) {
+        if (await headOk(row.url)) validated.push(row)
       }
-      hazardMedia[hazardId][`${mediaType}Available`] = hazardMedia[hazardId][mediaType].length > 0
+      hazardMedia[hazardId][mediaType] = validated
+      hazardMedia[hazardId][`${mediaType}Available`] = validated.length > 0
     }
 
     hazardMedia[hazardId].thumbnail = hazardMedia[hazardId].images[0]?.url ?? ''
@@ -288,13 +246,6 @@ export async function respondDisasterDashboardMediaMetadata(_req, res) {
     hazardMedia[hazardId].video = hazardMedia[hazardId].videos[0]?.url ?? ''
     hazardMedia[hazardId].audioPrimary = hazardMedia[hazardId].audio[0]?.url ?? ''
     hazardMedia[hazardId].pdf = hazardMedia[hazardId].pdfs[0]?.url ?? ''
-    devMediaLog('media loading result', {
-      hazardId,
-      imagesAvailable: hazardMedia[hazardId].imagesAvailable,
-      videosAvailable: hazardMedia[hazardId].videosAvailable,
-      audioAvailable: hazardMedia[hazardId].audioAvailable,
-      pdfsAvailable: hazardMedia[hazardId].pdfsAvailable,
-    })
   }
 
   res.setHeader('Cache-Control', 'public, max-age=120')
