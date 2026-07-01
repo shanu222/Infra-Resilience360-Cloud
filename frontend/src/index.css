@@ -9047,6 +9047,12 @@ embed {
   min-height: auto !important;
 }
 
+.r360-app-stack.r360-app-stack--home {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
 .page-home .app-shell.home-shell > main {
   display: flex;
   flex-direction: column;
@@ -9145,12 +9151,6 @@ embed {
   .page-home .home-card-grid,
   .home-card-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-  }
-}
-
-@media (min-width: 1500px) {
-  .page-home .home-card-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
 

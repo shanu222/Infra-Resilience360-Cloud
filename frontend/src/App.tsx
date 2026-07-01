@@ -6964,7 +6964,7 @@ function App(_props: AppProps = {}) {
       )
     : null}
     <GlobalBackgroundVideo />
-    <div className="r360-app-stack">
+    <div className={`r360-app-stack ${isHomeView ? 'r360-app-stack--home' : ''}`}>
     <div
       className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}${isContentFitPortalView ? ' page-wrapper--content-fit-portals' : ''}`}
       dir={isUrdu ? 'rtl' : 'ltr'}

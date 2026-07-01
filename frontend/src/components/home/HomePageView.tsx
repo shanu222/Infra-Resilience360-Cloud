@@ -80,7 +80,7 @@ export function HomePageView({
   return (
     <>
       <BackgroundMedia pageSlug="homepage" />
-      <div className="r360-app-stack">
+      <div className="r360-app-stack r360-app-stack--home">
     <div
       dir={isUrdu ? 'rtl' : 'ltr'}
       className="page-wrapper page-home"
