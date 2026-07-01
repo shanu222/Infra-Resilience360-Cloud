@@ -1506,6 +1506,7 @@ function App(_props: AppProps = {}) {
   const isRiskMapsView = activeSection === 'riskMaps'
   const isLiveEarthquakeMapView = activeSection === 'liveEarthquakeMap'
   const isReadinessView = activeSection === 'readiness'
+  const isContentFitPortalView = activeSection === 'retrofitCalculator' || activeSection === 'smartConstruction'
   const ndmaBadgeTone: 'default' | 'home' | 'bestPractices' | 'riskMaps' | 'readiness' =
     isHomeView ? 'home'
     : isRiskMapsView || isLiveEarthquakeMapView ? 'riskMaps'
@@ -6965,7 +6966,7 @@ function App(_props: AppProps = {}) {
     <GlobalBackgroundVideo />
     <div className="r360-app-stack">
     <div
-      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}`}
+      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}${isContentFitPortalView ? ' page-wrapper--content-fit-portals' : ''}`}
       dir={isUrdu ? 'rtl' : 'ltr'}
     >
       <div className="content-layer">
