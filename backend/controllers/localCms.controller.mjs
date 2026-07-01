@@ -7,7 +7,7 @@ import {
   readLocalRetrofitCms,
   readLocalSectionManifest,
 } from '../services/localCms.service.mjs'
-import { mediaKeyToLocalMediaUrl } from '../services/localUrlRewrite.mjs'
+import { mapStorageContentToPublicMediaUrl, mediaKeyToLocalMediaUrl } from '../services/localUrlRewrite.mjs'
 
 function safeString(v) {
   return String(v ?? '').trim()
@@ -88,6 +88,181 @@ export async function respondPublicDisasterMediaPresign(req, res) {
   })
 }
 
+const DISASTER_HAZARD_ORDER = [
+  'flood',
+  'earthquake',
+  'urban-fire',
+  'crop-fire',
+  'heatwave',
+  'load-shedding',
+  'storm-cyclone',
+  'landslide',
+  'cold-wave',
+  'smog',
+]
+
+const DISASTER_ALIAS_MAP = {
+  flood: ['flood'],
+  earthquake: ['earthquake'],
+  'urban-fire': ['urban-fire', 'urbanfire', 'urban fire'],
+  'crop-fire': ['crop-fire', 'cropfire', 'crop fire'],
+  heatwave: ['heatwave', 'heat-wave', 'heat wave'],
+  'load-shedding': ['load-shedding', 'loadshedding', 'load shedding', 'loadscheduling'],
+  'storm-cyclone': ['storm-cyclone', 'stormcyclone', 'storm cyclone', 'cyclone'],
+  landslide: ['landslide', 'land slide'],
+  'cold-wave': ['cold-wave', 'coldwave', 'cold wave'],
+  smog: ['smog'],
+}
+
+function normalizeMediaPath(raw) {
+  return String(raw ?? '').trim().replace(/\\/g, '/').replace(/^\/+/, '')
+}
+
+function normalizeNameForMatch(raw) {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[_\s]+/g, '-')
+    .replace(/-+/g, '-')
+}
+
+function encodedStorageContentUrl(relativePath) {
+  const clean = normalizeMediaPath(relativePath)
+  const encoded = clean
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+  return mapStorageContentToPublicMediaUrl(`/storage/content/disaster-dashboard/${encoded}`)
+}
+
+function inferHazardFromPath(relativePath) {
+  const clean = normalizeMediaPath(relativePath)
+  const norm = normalizeNameForMatch(clean.split('/').pop() ?? clean)
+  const pathNorm = normalizeNameForMatch(clean)
+  for (const hazardId of DISASTER_HAZARD_ORDER) {
+    const aliases = DISASTER_ALIAS_MAP[hazardId] ?? []
+    for (const alias of aliases) {
+      const token = normalizeNameForMatch(alias)
+      if (!token) continue
+      if (pathNorm.includes(`/${token}/`) || pathNorm.includes(`-${token}-`) || pathNorm.endsWith(`-${token}`)) {
+        return hazardId
+      }
+      if (norm.includes(token)) return hazardId
+    }
+  }
+
+  const numbered = /(?:^|[^a-z0-9])(?:image|video|audio|pdf|document)[-_ ]?(\d+)(?:[^a-z0-9]|$)/i.exec(
+    clean.split('/').pop() ?? '',
+  )
+  if (numbered) {
+    const idx = Number(numbered[1]) - 1
+    if (Number.isInteger(idx) && idx >= 0 && idx < DISASTER_HAZARD_ORDER.length) {
+      return DISASTER_HAZARD_ORDER[idx]
+    }
+  }
+
+  return null
+}
+
+async function headOk(url) {
+  try {
+    const response = await fetch(url, { method: 'HEAD' })
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
+export async function respondDisasterDashboardMediaMetadata(_req, res) {
+  const metadataUrl = mapStorageContentToPublicMediaUrl('/storage/content/disaster-dashboard/metadata.json')
+  let metadata
+  try {
+    const upstream = await fetch(metadataUrl, { cache: 'no-store' })
+    if (!upstream.ok) {
+      return res.status(502).json({
+        ok: false,
+        error: 'metadata_fetch_failed',
+        status: upstream.status,
+        metadataUrl,
+      })
+    }
+    metadata = await upstream.json()
+  } catch (error) {
+    return res.status(502).json({
+      ok: false,
+      error: 'metadata_fetch_failed',
+      metadataUrl,
+      detail: String(error?.message ?? error ?? 'unknown'),
+    })
+  }
+
+  const typedPaths = {
+    images: Array.isArray(metadata?.images) ? metadata.images.map(normalizeMediaPath).filter(Boolean) : [],
+    videos: Array.isArray(metadata?.videos) ? metadata.videos.map(normalizeMediaPath).filter(Boolean) : [],
+    audio: Array.isArray(metadata?.audio) ? metadata.audio.map(normalizeMediaPath).filter(Boolean) : [],
+    pdfs: Array.isArray(metadata?.pdfs) ? metadata.pdfs.map(normalizeMediaPath).filter(Boolean) : [],
+  }
+
+  const hazardMedia = Object.fromEntries(
+    DISASTER_HAZARD_ORDER.map((hazardId) => [
+      hazardId,
+      {
+        hazardId,
+        aliases: DISASTER_ALIAS_MAP[hazardId] ?? [],
+        images: [],
+        videos: [],
+        audio: [],
+        pdfs: [],
+      },
+    ]),
+  )
+
+  for (const mediaType of ['images', 'videos', 'audio', 'pdfs']) {
+    for (const relPath of typedPaths[mediaType]) {
+      const hazard = inferHazardFromPath(relPath)
+      if (!hazard || !hazardMedia[hazard]) continue
+      const resolvedUrl = encodedStorageContentUrl(relPath)
+      hazardMedia[hazard][mediaType].push({ path: relPath, url: resolvedUrl })
+    }
+  }
+
+  for (const hazardId of DISASTER_HAZARD_ORDER) {
+    for (const mediaType of ['images', 'videos', 'audio', 'pdfs']) {
+      const entries = hazardMedia[hazardId][mediaType]
+      const validated = []
+      for (const row of entries) {
+        if (await headOk(row.url)) validated.push(row)
+      }
+      hazardMedia[hazardId][mediaType] = validated
+      hazardMedia[hazardId][`${mediaType}Available`] = validated.length > 0
+    }
+
+    hazardMedia[hazardId].thumbnail = hazardMedia[hazardId].images[0]?.url ?? ''
+    hazardMedia[hazardId].poster = hazardMedia[hazardId].images[0]?.url ?? ''
+    hazardMedia[hazardId].gallery = hazardMedia[hazardId].images.map((row) => row.url)
+    hazardMedia[hazardId].guidanceImages = hazardMedia[hazardId].images.map((row) => row.url)
+    hazardMedia[hazardId].video = hazardMedia[hazardId].videos[0]?.url ?? ''
+    hazardMedia[hazardId].audioPrimary = hazardMedia[hazardId].audio[0]?.url ?? ''
+    hazardMedia[hazardId].pdf = hazardMedia[hazardId].pdfs[0]?.url ?? ''
+  }
+
+  res.setHeader('Cache-Control', 'public, max-age=120')
+  return res.status(200).json({
+    ok: true,
+    source: {
+      metadataUrl,
+      mediaBaseUrl: String(process.env.MEDIA_BASE_URL ?? ''),
+      module: 'disaster-dashboard',
+      root: 'content/disaster-dashboard',
+    },
+    aliases: DISASTER_ALIAS_MAP,
+    metadata,
+    hazards: hazardMedia,
+  })
+}
+
 /** Public GET-only router stub — admin/CMS mutations remain disabled. */
 export function registerPageConfigRoutes(app, _deps = {}) {
   app.get('/api/cms/mapping-status', async (_req, res) => {
@@ -98,6 +273,7 @@ export function registerPageConfigRoutes(app, _deps = {}) {
 export function registerLocalPlatformRoutes(app) {
   app.get('/api/section-content/:section', respondPublicSectionManifest)
   app.get('/api/disaster-media/:disaster', respondPublicDisasterMediaPresign)
+  app.get('/api/disaster-dashboard/media-metadata', respondDisasterDashboardMediaMetadata)
 
   console.log('✅ Local platform routes registered (content, media)')
 }
