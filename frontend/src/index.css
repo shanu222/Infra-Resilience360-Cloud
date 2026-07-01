@@ -9025,35 +9025,33 @@ embed {
 /* Root cause: viewport min-heights + flex-grow on the shell chain stretch home
    past the card grid (`app-container` → `r360-app-stack` → `page-wrapper` →
    `content-layer` → `.app-shell.home-shell`), leaving a tall tinted panel. */
-.app-container:has(.page-home),
-.r360-app-stack:has(> .page-wrapper.page-home),
 .page-wrapper.page-home,
 .page-home .content-layer {
-  min-height: auto;
-  height: auto;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  min-height: auto !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
 }
 
 .page-home .app-shell.home-shell {
-  min-height: auto;
-  height: auto;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  min-height: auto !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
   align-self: flex-start;
   width: 100%;
   padding-bottom: calc(clamp(16px, 2vw, 32px) + env(safe-area-inset-bottom, 0px));
 }
 
 .page-home .content-layer {
-  min-height: auto;
+  min-height: auto !important;
 }
 
 .page-home .app-shell.home-shell > main {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
   min-height: 0;
   gap: var(--space-3);
 }
@@ -9061,6 +9059,8 @@ embed {
 .page-home .home-card-grid {
   margin-bottom: 0;
   align-content: start;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-home .home-carousel {
@@ -9145,6 +9145,12 @@ embed {
   .page-home .home-card-grid,
   .home-card-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1500px) {
+  .page-home .home-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
 
