@@ -1,6 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router'
 import { MapPin, Package, GraduationCap, Info } from 'lucide-react'
-import { MATERIAL_HUB_BRAND } from '@/config/materialHubCatalog'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
 import { usePortalLanguage } from '@/context/PortalLanguageContext'
 
@@ -18,14 +17,7 @@ export function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-3 min-w-0">
-              <img
-                src={MATERIAL_HUB_BRAND.logoUrl}
-                alt={s.ndmaAlt}
-                className="h-10 w-10 rounded-full object-contain border border-gray-200 shrink-0"
-                width={40}
-                height={40}
-                decoding="async"
-              />
+              <span className="h-10 w-10 shrink-0" aria-hidden />
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-gray-900">{s.brandShort}</h1>
                 <p className="text-xs text-gray-600 truncate">{s.brandSubtitle}</p>
