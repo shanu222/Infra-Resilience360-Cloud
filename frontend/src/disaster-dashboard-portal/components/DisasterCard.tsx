@@ -1,7 +1,8 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback } from 'react'
 import { Link } from 'react-router'
 import { ChevronRight } from 'lucide-react'
-import { disasterDashboardGuidanceMedia, preloadDisasterMedia } from '@/config/disasterDashboardMedia'
+import { preloadDisasterMedia } from '@/config/disasterDashboardMedia'
+import { useDisasterGuidanceMedia } from '../hooks/useDisasterGuidanceMedia'
 import { resolveLucideIcon } from '../utils/lucideIcon'
 import { useMediaCandidates } from '../hooks/useMediaCandidates'
 import { useDisasterDashboardStrings } from '@/hooks/useDisasterDashboardStrings'
@@ -17,7 +18,8 @@ interface DisasterCardProps {
 export const DisasterCard = memo(function DisasterCard({ id, name, description, icon, color }: DisasterCardProps) {
   const s = useDisasterDashboardStrings()
   const IconComponent = resolveLucideIcon(icon)
-  const imageCandidates = useMemo(() => disasterDashboardGuidanceMedia(id).imageCandidates, [id])
+  const media = useDisasterGuidanceMedia(id)
+  const imageCandidates = media.imageCandidates
   const { src, loaded, failed, onLoad, onError } = useMediaCandidates(imageCandidates)
 
   const warmMedia = useCallback(() => {
