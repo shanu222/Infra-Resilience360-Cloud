@@ -4843,6 +4843,18 @@ h4 {
   .infra-model-side-by-side {
     grid-template-columns: 1fr;
     gap: 14px;
+    /* Center each stacked item horizontally so neither stretches edge-to-edge. */
+    justify-items: center;
+  }
+
+  /* Limit each pane to 520 px and centre it.
+     Also reset height: 100% — meaningless in a single-column flow — so the
+     panes size naturally to their content. */
+  .infra-model-left-pane,
+  .infra-model-right-pane {
+    width: 100%;
+    max-width: 520px;
+    height: auto;
   }
 
   .infra-model-preview-image {
@@ -4853,12 +4865,22 @@ h4 {
 
   .infra-model-image-wrap,
   .infra-model-image-frame {
+    width: 100%;
     min-height: min(420px, 52vh);
+    /* Remove any fixed height so the frame sizes to the contained image. */
+    height: auto;
   }
 
   .infra-model-board-pdf {
     min-height: min(260px, 42vh);
     height: min(400px, 52vh);
+  }
+
+  /* Canvas PDF renderer: also centre and cap on mobile. */
+  .infra-model-board-canvas-wrap {
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .infra-layout-video {
