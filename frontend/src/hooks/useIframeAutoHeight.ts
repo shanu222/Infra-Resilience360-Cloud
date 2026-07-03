@@ -14,28 +14,16 @@ function measureDocumentHeight(doc: Document): number {
   const body = doc.body
   const root = doc.documentElement
   if (!body || !root) return 0
-
-  // Temporarily zero out min-height on body and html before measuring.
-  // Without this, `min-h-screen` (min-height: 100vh) inside the iframe creates
-  // a feedback loop: iframe height → 100vh → min-h-screen → scrollHeight → iframe height.
-  // Zeroing it breaks the cycle so scrollHeight reflects actual content, not the viewport floor.
-  const prevBodyMin = body.style.minHeight
-  const prevRootMin = root.style.minHeight
-  body.style.minHeight = '0px'
-  root.style.minHeight = '0px'
-
-  const measured = Math.max(
+  // scrollHeight and offsetHeight on body/root reflect actual content layout.
+  // At the point this is called, the iframe has already been shrunk to 1px so
+  // 100vh = 1px inside the frame, which collapses any min-h-screen (100vh) divs
+  // to 1px. scrollHeight then returns true content height, not the viewport floor.
+  return Math.max(
     body.scrollHeight,
     body.offsetHeight,
     root.scrollHeight,
     root.offsetHeight,
-    root.clientHeight,
   )
-
-  body.style.minHeight = prevBodyMin
-  root.style.minHeight = prevRootMin
-
-  return measured
 }
 
 export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: IframeAutoHeightOptions = {}) {
@@ -62,14 +50,35 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
       try {
         const doc = node.contentDocument
         if (!doc) return false
+
+        // Read the stable height before we temporarily shrink the iframe.
+        const prev = parseFloat(node.style.height || '0') || 0
+
+        // KEY FIX: Temporarily shrink the iframe to 1px so that, inside the
+        // frame, 100vh = 1px. Any element using `min-h-screen` (min-height:100vh)
+        // then collapses to 1px, breaking the circular dependency:
+        //   iframe.height → 100vh → min-h-screen → scrollHeight → iframe.height
+        // Reading scrollHeight AFTER this change forces a synchronous reflow
+        // inside the frame with the new 1px viewport — giving the true content height.
+        node.style.height = '1px'
+
         const measured = measureDocumentHeight(doc)
         const next = Math.min(maxHeightPx, Math.max(minHeight, measured))
-        const prev = Number.parseInt(node.style.height || '0', 10) || 0
-        if (!Number.isFinite(next) || next <= 0 || Math.abs(prev - next) < 4) {
+
+        // Always restore to the correct height (even when unchanged),
+        // so the 1px state is never left visible.
+        if (!Number.isFinite(next) || next <= 0) {
+          node.style.height = prev > 0 ? `${prev}px` : `${minHeight}px`
           unchangedTicks += 1
           return false
         }
+
         node.style.height = `${next}px`
+
+        if (Math.abs(prev - next) < 4) {
+          unchangedTicks += 1
+          return false
+        }
         unchangedTicks = 0
         return true
       } catch {
@@ -95,8 +104,13 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
 
         if (observeResize) {
           resizeObserver = new ResizeObserver(scheduleMeasure)
-          resizeObserver.observe(root)
-          resizeObserver.observe(body)
+          // Observe the app's #root element instead of body/html.
+          // Observing body/html creates a second feedback loop because our own
+          // 1px→contentHeight transition resizes them on every measurement cycle.
+          // #root only resizes when the ACTUAL CONTENT changes, so the observer
+          // fires only when necessary and quickly becomes stable.
+          const appRoot = doc.getElementById('root') ?? body
+          resizeObserver.observe(appRoot)
         }
 
         if (observeMutations) {
@@ -149,4 +163,3 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
 
   return iframeRef
 }
-

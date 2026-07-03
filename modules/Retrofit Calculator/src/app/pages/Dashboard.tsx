@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { createPortal } from "react-dom"
 import { useNavigate } from "react-router"
 import { Upload, Camera, MapPin, Zap, Shield, TrendingUp, Clock, Edit2, CheckCircle, AlertCircle, Loader2, Search } from "lucide-react"
 import { motion } from "motion/react"
@@ -288,8 +289,15 @@ export function Dashboard() {
                   </div>
                 )}
 
-                {isManualMode && (
-                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 100 }}>
+                {isManualMode && createPortal(
+                  // Render the modal via a portal so it is mounted directly on
+                  // document.body, outside the motion.div ancestor that carries
+                  // `transform: translateY()` from its entrance animation.
+                  // Without the portal, CSS makes `position:fixed` use the
+                  // transformed ancestor's box as its containing block instead of
+                  // the viewport — confining the overlay to the card area and
+                  // preventing the dialog from being seen.
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
                     <div
                       className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
                     >
@@ -333,7 +341,8 @@ export function Dashboard() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </motion.div>
             )}
