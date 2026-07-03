@@ -1,11 +1,9 @@
-import { memo, useEffect } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { Film, ImageIcon, Volume2 } from 'lucide-react'
-import { preloadDisasterMedia } from '@/config/disasterDashboardMedia'
+import { disasterDashboardGuidanceMedia, preloadDisasterMedia } from '@/config/disasterDashboardMedia'
 import { DisasterMediaAudioPlayer } from './DisasterMediaAudioPlayer'
 import { DisasterMediaImageViewer } from './DisasterMediaImageViewer'
 import { DisasterMediaVideoPlayer } from './DisasterMediaVideoPlayer'
-import { useDisasterGuidanceMedia } from '../hooks/useDisasterGuidanceMedia'
-import { isVideoLikeMediaUrl } from '../utils/mediaType'
 
 import { useDisasterDashboardStrings } from '@/hooks/useDisasterDashboardStrings'
 
@@ -19,9 +17,8 @@ export const DisasterGuidanceMultimedia = memo(function DisasterGuidanceMultimed
   disasterName,
 }: DisasterGuidanceMultimediaProps) {
   const s = useDisasterDashboardStrings()
-  const media = useDisasterGuidanceMedia(disasterId)
-  const posterCandidate = media.imageCandidates[0] ?? ''
-  const poster = posterCandidate && !isVideoLikeMediaUrl(posterCandidate) ? posterCandidate : ''
+  const media = useMemo(() => disasterDashboardGuidanceMedia(disasterId), [disasterId])
+  const poster = media.imageCandidates[0] ?? ''
   const hasImage = media.imageCandidates.length > 0
   const hasVideo = media.videoCandidates.length > 0
   const hasAudio = media.audioCandidates.length > 0

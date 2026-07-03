@@ -2,7 +2,6 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Minus, Plus, RotateCcw, X, ZoomIn } from 'lucide-react'
 import { useMediaCandidates } from '../hooks/useMediaCandidates'
-import { isVideoLikeMediaUrl } from '../utils/mediaType'
 
 type DisasterMediaImageViewerProps = {
   candidates: string[]
@@ -13,8 +12,7 @@ export const DisasterMediaImageViewer = memo(function DisasterMediaImageViewer({
   candidates,
   alt,
 }: DisasterMediaImageViewerProps) {
-  const { src, loaded, failed, onLoad, onError } = useMediaCandidates(candidates, { cacheAsImage: false })
-  const isVideo = isVideoLikeMediaUrl(src)
+  const { src, loaded, failed, onLoad, onError } = useMediaCandidates(candidates)
   const [modalOpen, setModalOpen] = useState(false)
   const [modalFailed, setModalFailed] = useState(false)
   const [scale, setScale] = useState(1)
@@ -116,25 +114,12 @@ export const DisasterMediaImageViewer = memo(function DisasterMediaImageViewer({
       <button
         type="button"
         className="dd-media-image-thumb"
-        onClick={() => loaded && !isVideo && setModalOpen(true)}
-        aria-label={isVideo ? `Play guidance media: ${alt}` : `View fullscreen image: ${alt}`}
+        onClick={() => loaded && setModalOpen(true)}
+        aria-label={`View fullscreen image: ${alt}`}
         disabled={!loaded}
       >
         {!loaded ? <span className="dd-skeleton dd-skeleton--image dd-skeleton--fill" aria-hidden /> : null}
-        {src && isVideo ?
-          <video
-            src={src}
-            className={`dd-media-image-thumb__img${loaded ? ' is-loaded' : ''}`}
-            muted
-            autoPlay
-            loop
-            playsInline
-            preload="metadata"
-            onLoadedData={onLoad}
-            onError={onError}
-          />
-        : null}
-        {src && !isVideo ? (
+        {src ? (
           <img
             src={src}
             alt={alt}
@@ -146,7 +131,7 @@ export const DisasterMediaImageViewer = memo(function DisasterMediaImageViewer({
             onError={onError}
           />
         ) : null}
-        {loaded && !isVideo ? (
+        {loaded ? (
           <span className="dd-media-image-thumb__hint">
             <ZoomIn className="w-4 h-4" aria-hidden />
             Tap to enlarge

@@ -1,12 +1,10 @@
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { Link } from 'react-router'
 import { ChevronRight } from 'lucide-react'
-import { preloadDisasterMedia } from '@/config/disasterDashboardMedia'
-import { useDisasterGuidanceMedia } from '../hooks/useDisasterGuidanceMedia'
+import { disasterDashboardGuidanceMedia, preloadDisasterMedia } from '@/config/disasterDashboardMedia'
 import { resolveLucideIcon } from '../utils/lucideIcon'
 import { useMediaCandidates } from '../hooks/useMediaCandidates'
 import { useDisasterDashboardStrings } from '@/hooks/useDisasterDashboardStrings'
-import { isVideoLikeMediaUrl } from '../utils/mediaType'
 
 interface DisasterCardProps {
   id: string
@@ -19,10 +17,8 @@ interface DisasterCardProps {
 export const DisasterCard = memo(function DisasterCard({ id, name, description, icon, color }: DisasterCardProps) {
   const s = useDisasterDashboardStrings()
   const IconComponent = resolveLucideIcon(icon)
-  const media = useDisasterGuidanceMedia(id)
-  const visualCandidates = media.imageCandidates.length > 0 ? media.imageCandidates : media.videoCandidates
-  const { src, loaded, failed, onLoad, onError } = useMediaCandidates(visualCandidates, { cacheAsImage: false })
-  const isVideoVisual = isVideoLikeMediaUrl(src)
+  const imageCandidates = useMemo(() => disasterDashboardGuidanceMedia(id).imageCandidates, [id])
+  const { src, loaded, failed, onLoad, onError } = useMediaCandidates(imageCandidates)
 
   const warmMedia = useCallback(() => {
     preloadDisasterMedia(id)
@@ -38,29 +34,17 @@ export const DisasterCard = memo(function DisasterCard({ id, name, description, 
     >
       <div className="dd-hazard-card__glow" aria-hidden />
       <div className="dd-hazard-card__media">
-        {src && !failed ?
-          (isVideoVisual ?
-            <video
-              src={src}
-              className={`dd-hazard-card__img${loaded ? ' is-loaded' : ''}`}
-              muted
-              autoPlay
-              loop
-              playsInline
-              preload="metadata"
-              onLoadedData={onLoad}
-              onError={onError}
-            />
-          : <img
-              src={src}
-              alt=""
-              className={`dd-hazard-card__img${loaded ? ' is-loaded' : ''}`}
-              loading="lazy"
-              decoding="async"
-              onLoad={onLoad}
-              onError={onError}
-            />)
-        : (
+        {src && !failed ? (
+          <img
+            src={src}
+            alt=""
+            className={`dd-hazard-card__img${loaded ? ' is-loaded' : ''}`}
+            loading="lazy"
+            decoding="async"
+            onLoad={onLoad}
+            onError={onError}
+          />
+        ) : (
           <div className={`dd-hazard-card__icon-badge ${color}`}>
             <IconComponent className="w-10 h-10 text-white" aria-hidden />
           </div>
