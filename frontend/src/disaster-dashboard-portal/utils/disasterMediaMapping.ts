@@ -37,7 +37,7 @@ const DISASTER_ALIAS_MAP: Record<string, string[]> = {
   'crop-fire': ['crop-fire', 'cropfire', 'crop fire'],
   heatwave: ['heatwave', 'heat-wave', 'heat wave'],
   'load-shedding': ['load-shedding', 'loadshedding', 'load shedding', 'loadscheduling'],
-  'storm-cyclone': ['storm-cyclone', 'stormcyclone', 'storm cyclone', 'cyclone'],
+  'storm-cyclone': ['storm-cyclone', 'stormcyclone', 'storm cyclone', 'cyclone', 'storm'],
   landslide: ['landslide', 'land slide'],
   'cold-wave': ['cold-wave', 'coldwave', 'cold wave'],
   smog: ['smog'],
@@ -177,7 +177,9 @@ async function buildFallbackRow(base: string, hazardId: string, aliases: string[
   const folders = [...new Set(keys.flatMap((key) => folderTokens(key)).filter(Boolean))]
 
   const imageUrl =
-    (await probeReachableUrl(buildCandidateFileUrls(base, 'images', names, FALLBACK_IMAGE_EXTENSIONS))) ?? ''
+    (await probeReachableUrl(buildCandidateFileUrls(base, 'images', names, FALLBACK_IMAGE_EXTENSIONS))) ??
+    (await probeReachableUrl(buildCandidateFileUrls(base, 'images', names, FALLBACK_VIDEO_EXTENSIONS))) ??
+    ''
   const videoUrl =
     (await probeReachableUrl(buildCandidateFileUrls(base, 'videos', names, FALLBACK_VIDEO_EXTENSIONS))) ?? ''
 
@@ -189,7 +191,10 @@ async function buildFallbackRow(base: string, hazardId: string, aliases: string[
         .filter(Boolean),
     ),
   ]
-  const audioFileNames = [...new Set(['audio', 'guidance', 'main', 'track', 'before', 'during', 'after', ...lowerAudioNames])]
+  const audioVariantNames = [...new Set(keys.flatMap((key) => variantTokens(key)).filter(Boolean))]
+  const audioFileNames = [
+    ...new Set(['audio', 'guidance', 'main', 'track', 'before', 'during', 'after', ...lowerAudioNames, ...audioVariantNames]),
+  ]
   const audioCandidates: string[] = []
   const seenAudio = new Set<string>()
   for (const folder of folders) {

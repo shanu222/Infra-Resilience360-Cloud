@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Volume2 } from 'lucide-react'
 import { useMediaCandidates } from '../hooks/useMediaCandidates'
 import { DisasterMediaPlaybackRateSelect } from './DisasterMediaPlaybackRates'
+import { isVideoLikeMediaUrl } from '../utils/mediaType'
 
 type DisasterMediaVideoPlayerProps = {
   candidates: string[]
@@ -20,6 +21,7 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
   const [volume, setVolume] = useState(1)
   const [metadataReady, setMetadataReady] = useState(false)
   const [posterLoaded, setPosterLoaded] = useState(false)
+  const safePoster = poster && !isVideoLikeMediaUrl(poster) ? poster : ''
 
   useEffect(() => {
     setMetadataReady(false)
@@ -47,9 +49,9 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
     <div className="dd-glass-media-card dd-media-video">
       <div className="dd-media-video__stage">
         {!metadataReady ? <div className="dd-skeleton dd-skeleton--video dd-skeleton--fill dd-skeleton--overlay" aria-hidden /> : null}
-        {poster ?
+        {safePoster ?
           <img
-            src={poster}
+            src={safePoster}
             alt=""
             className={`dd-media-video__poster${posterLoaded ? ' is-loaded' : ''}`}
             loading="eager"
@@ -64,7 +66,7 @@ export const DisasterMediaVideoPlayer = memo(function DisasterMediaVideoPlayer({
             ref={videoRef}
             className={`dd-media-video__el${loaded ? ' is-loaded' : ''}`}
             src={src}
-            poster={poster}
+            poster={safePoster}
             controls
             playsInline
             preload="metadata"

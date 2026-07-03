@@ -20,6 +20,7 @@ import { useDisasterDashboardStrings } from '@/hooks/useDisasterDashboardStrings
 import { usePortalLanguage } from '@/context/PortalLanguageContext'
 import { resolveDisaster } from '@/i18n/disasterDashboardCatalogI18n'
 import { useDisasterGuidanceMedia } from '../hooks/useDisasterGuidanceMedia'
+import { isVideoLikeMediaUrl } from '../utils/mediaType'
 
 function GuidanceList({ items, tone }: { items: string[]; tone: 'before' | 'during' | 'after' }) {
   const dot =
@@ -45,7 +46,10 @@ export function DisasterDetail() {
   const baseDisaster = DISASTER_DASHBOARD_DISASTERS.find((d) => d.id === id)
   const disaster = baseDisaster ? resolveDisaster(baseDisaster, lang) : undefined
   const media = useDisasterGuidanceMedia(disaster?.id)
-  const heroImage = useMediaCandidates(media?.imageCandidates ?? [])
+  const heroVisualCandidates =
+    (media?.imageCandidates?.length ?? 0) > 0 ? (media?.imageCandidates ?? []) : (media?.videoCandidates ?? [])
+  const heroImage = useMediaCandidates(heroVisualCandidates, { cacheAsImage: false })
+  const heroIsVideo = isVideoLikeMediaUrl(heroImage.src)
 
   useEffect(() => {
     if (disaster?.id) preloadDisasterMedia(disaster.id)
@@ -78,18 +82,30 @@ export function DisasterDetail() {
 
         <section className="dd-hero-banner dd-glass-panel dd-animate-in" aria-labelledby="dd-disaster-title">
           <div className="dd-hero-banner__media">
-            {heroImage.src && !heroImage.failed ? (
-              <img
-                src={heroImage.src}
-                alt=""
-                className={`dd-hero-banner__img${heroImage.loaded ? ' is-loaded' : ''}`}
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-                onLoad={heroImage.onLoad}
-                onError={heroImage.onError}
-              />
-            ) : (
+            {heroImage.src && !heroImage.failed ?
+              (heroIsVideo ?
+                <video
+                  src={heroImage.src}
+                  className={`dd-hero-banner__img${heroImage.loaded ? ' is-loaded' : ''}`}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  preload="metadata"
+                  onLoadedData={heroImage.onLoad}
+                  onError={heroImage.onError}
+                />
+              : <img
+                  src={heroImage.src}
+                  alt=""
+                  className={`dd-hero-banner__img${heroImage.loaded ? ' is-loaded' : ''}`}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  onLoad={heroImage.onLoad}
+                  onError={heroImage.onError}
+                />)
+            : (
               <div className={`dd-hero-banner__fallback ${disaster.color}`}>
                 <IconComponent className="w-16 h-16 text-white opacity-90" aria-hidden />
               </div>
