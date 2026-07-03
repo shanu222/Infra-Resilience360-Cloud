@@ -247,6 +247,48 @@ function loadPdfJs(): Promise<any> {
   })
 }
 
+/**
+ * Classifies why a media URL is inaccessible using a lightweight HEAD request.
+ * Returns null when the resource is reachable (HTTP 2xx).
+ *
+ * Error taxonomy:
+ *   'not-found'     – HTTP 404
+ *   'access-denied' – HTTP 401 / 403, or CORS block (Access-Control header missing)
+ *   'storage-error' – any other 4xx / 5xx from the storage server
+ *   'network'       – request timed out or the device is offline
+ */
+type PdfFetchError = 'not-found' | 'access-denied' | 'storage-error' | 'network' | 'render-failed'
+
+const PDF_ERROR_MESSAGES: Record<PdfFetchError, string> = {
+  'not-found': 'Model Board PDF not found.',
+  'access-denied': 'Storage access denied.',
+  'storage-error': 'Storage returned an error. Try again later.',
+  'network': 'Unable to connect to storage.',
+  'render-failed': 'PDF could not be rendered.',
+}
+
+async function probeUrl(url: string): Promise<PdfFetchError | null> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10_000)
+  try {
+    const res = await fetch(url, { method: 'HEAD', signal: controller.signal })
+    clearTimeout(timeoutId)
+    if (res.ok) return null
+    if (res.status === 401 || res.status === 403) return 'access-denied'
+    if (res.status === 404) return 'not-found'
+    return 'storage-error'
+  } catch (err: any) {
+    clearTimeout(timeoutId)
+    if (err?.name === 'AbortError') return 'network'
+    // TypeError / NetworkError from CORS block or genuine network failure.
+    // In a Cloudflare R2 context the overwhelming cause is a missing
+    // Access-Control-Allow-Origin header (bucket CORS not configured) or
+    // a 401 from a non-public bucket, both of which manifest as a blocked
+    // fetch rather than a readable HTTP response.
+    return 'access-denied'
+  }
+}
+
 const MobilePdfCanvas = memo(function MobilePdfCanvas({
   src,
   isLoaded,
@@ -256,7 +298,7 @@ const MobilePdfCanvas = memo(function MobilePdfCanvas({
   src: string
   isLoaded: boolean
   onLoad: () => void
-  onError: () => void
+  onError: (type: PdfFetchError) => void
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -293,7 +335,15 @@ const MobilePdfCanvas = memo(function MobilePdfCanvas({
         return page.render({ canvasContext: ctx, viewport }).promise
       })
       .then(() => { if (!cancelled) onLoad() })
-      .catch(() => { if (!cancelled) onError() })
+      .catch((err: any) => {
+        if (cancelled) return
+        // PDF.js surfaces HTTP status codes via UnexpectedResponseException.
+        const status: number = err?.status ?? err?.statusCode ?? 0
+        if (status === 401 || status === 403) onError('access-denied')
+        else if (status === 404) onError('not-found')
+        else if (err?.name === 'AbortError') onError('network')
+        else onError('render-failed')
+      })
 
     return () => { cancelled = true }
   }, [src, onLoad, onError])
@@ -317,9 +367,10 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   embedKey: string
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null)
-  const [hasPdfError, setHasPdfError] = useState(false)
+  const [pdfError, setPdfError] = useState<PdfFetchError | null>(null)
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
   const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
+  const [isProbing, setIsProbing] = useState(false)
   // True on narrow mobile viewports where the browser's native iframe PDF
   // viewer does not reliably scale the document to fit the container width.
   const [isMobileViewport, setIsMobileViewport] = useState(
@@ -327,9 +378,10 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   )
 
   useEffect(() => {
-    setHasPdfError(false)
+    setPdfError(null)
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
+    setIsProbing(false)
   }, [embedKey])
 
   // Keep isMobileViewport in sync with orientation / window resize.
@@ -341,6 +393,8 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   }, [])
 
   const src = String(pdfCandidates[0] ?? '').trim()
+
+  // Trigger lazy render once the wrapper enters the viewport.
   useEffect(() => {
     if (!src) {
       console.warn('[infra-models] Missing model board PDF source.')
@@ -372,28 +426,54 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
     return () => observer.disconnect()
   }, [src, embedKey])
 
-  const handlePdfLoad = useCallback(() => setIsPdfLoaded(true), [])
-  const handlePdfError = useCallback(() => setHasPdfError(true), [])
+  // HEAD preflight: classify accessibility before committing to a full PDF load.
+  // This distinguishes 401 / 403 (bucket not public / CORS missing) from a
+  // genuine 404 (file missing) or a transient network failure, enabling
+  // actionable error messages instead of a generic fallback string.
+  useEffect(() => {
+    if (!shouldRenderPdf || !src || pdfError) return
+    let cancelled = false
+    setIsProbing(true)
+    probeUrl(src).then((err) => {
+      if (cancelled) return
+      setIsProbing(false)
+      if (err) {
+        console.error('[infra-models] PDF access check failed:', { url: src, error: err })
+        setPdfError(err)
+      }
+    })
+    return () => { cancelled = true }
+  }, [shouldRenderPdf, src, pdfError])
 
-  if (!src || hasPdfError) {
-    if (hasPdfError && src) {
-      console.warn('[infra-models] Model board PDF unavailable.', { src })
-    }
+  const handlePdfLoad = useCallback(() => setIsPdfLoaded(true), [])
+  const handlePdfError = useCallback((type: PdfFetchError) => {
+    console.error('[infra-models] PDF render error:', { url: src, type })
+    setPdfError(type)
+  }, [src])
+
+  // Show specific error message based on the classified failure type.
+  if (!src || pdfError) {
+    const message = pdfError
+      ? PDF_ERROR_MESSAGES[pdfError]
+      : 'Model Board PDF source missing.'
     return (
       <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
         <div className="infra-model-media-placeholder" role="status" aria-live="polite">
-          Model Board not available.
+          {message}
         </div>
       </div>
     )
   }
 
+  const isWaiting = !shouldRenderPdf || isProbing
   const pdfSrc = src.includes('#') ? src : `${src}#view=FitH`
 
   return (
     <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
-      {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />}
-      {shouldRenderPdf ? (
+      {(isWaiting || !isPdfLoaded) && (
+        <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />
+      )}
+      {!isWaiting && (
         isMobileViewport ? (
           // On mobile, use canvas rendering so the PDF scales to fit correctly.
           <MobilePdfCanvas
@@ -410,16 +490,36 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
             title="Resilience Model Board PDF"
             className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
             loading="eager"
-            onLoad={() => setIsPdfLoaded(true)}
-            onError={() => setHasPdfError(true)}
+            onLoad={handlePdfLoad}
+            onError={() => {
+              // iframes do not expose HTTP status; re-probe to classify the error.
+              probeUrl(src).then((err) => {
+                console.error('[infra-models] iframe PDF load failed:', { url: src, probeResult: err })
+                setPdfError(err ?? 'render-failed')
+              })
+            }}
           />
         )
-      ) : (
-        <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>
       )}
     </div>
   )
 })
+
+/**
+ * Image error taxonomy — mirrors PdfFetchError so the same probeUrl helper
+ * can be reused.  We only distinguish access-denied from not-found; for
+ * images the difference matters to the user ("the file exists but the bucket
+ * is locked" vs "the file was never uploaded").
+ */
+type ImageFetchError = 'not-found' | 'access-denied' | 'storage-error' | 'network' | 'load-failed'
+
+const IMAGE_ERROR_MESSAGES: Record<ImageFetchError, string> = {
+  'not-found': 'Model image not found.',
+  'access-denied': 'Storage access denied.',
+  'storage-error': 'Storage returned an error.',
+  'network': 'Unable to connect to storage.',
+  'load-failed': 'Model image could not be loaded.',
+}
 
 const InfraModelHeroImage = memo(function InfraModelHeroImage({
   candidates,
@@ -430,22 +530,23 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
   alt: string
   className?: string
 }) {
-  const [imageError, setImageError] = useState(false)
+  const [imageError, setImageError] = useState<ImageFetchError | null>(null)
   const [isImageLoaded, setIsImageLoaded] = useState(false)
-  useEffect(() => {
-    setImageError(false)
-    setIsImageLoaded(false)
-  }, [candidates[0]])
   const src = String(candidates[0] ?? '').trim()
+  useEffect(() => {
+    setImageError(null)
+    setIsImageLoaded(false)
+  }, [src])
+
   if (!src || imageError) {
-    if (imageError && src) {
-      console.warn('[infra-models] Model hero image unavailable.', { src })
-    }
+    const message = imageError
+      ? IMAGE_ERROR_MESSAGES[imageError]
+      : 'Model image source missing.'
     return (
       <div className="infra-model-image-wrap">
         <div className="infra-model-image-frame">
           <div className="infra-model-media-placeholder" role="status" aria-live="polite">
-            Model image not available.
+            {message}
           </div>
         </div>
       </div>
@@ -464,7 +565,19 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
           fetchPriority="high"
           sizes="(max-width: 700px) 100vw, min(560px, 45vw)"
           onLoad={() => setIsImageLoaded(true)}
-          onError={() => setImageError(true)}
+          onError={() => {
+            // <img> does not expose HTTP status; use probeUrl to classify.
+            probeUrl(src).then((err) => {
+              const type: ImageFetchError =
+                err === 'access-denied' ? 'access-denied'
+                  : err === 'not-found' ? 'not-found'
+                  : err === 'storage-error' ? 'storage-error'
+                  : err === 'network' ? 'network'
+                  : 'load-failed'
+              console.error('[infra-models] Image load failed:', { url: src, type })
+              setImageError(type)
+            })
+          }}
         />
       </div>
     </div>
