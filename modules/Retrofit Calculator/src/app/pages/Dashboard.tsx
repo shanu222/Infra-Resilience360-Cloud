@@ -290,10 +290,8 @@ export function Dashboard() {
 
                 {isManualMode && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 100 }}>
-                    <motion.div
+                    <div
                       className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
                     >
                       <div className="p-6 border-b border-slate-200">
                         <h3 className="text-xl font-bold text-[#0F172A] mb-4">{r.loc_selectCity}</h3>
@@ -334,7 +332,7 @@ export function Dashboard() {
                           {r.loc_cancel}
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
                 )}
               </motion.div>

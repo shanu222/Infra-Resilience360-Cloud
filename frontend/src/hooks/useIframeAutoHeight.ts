@@ -13,13 +13,29 @@ type IframeAutoHeightOptions = {
 function measureDocumentHeight(doc: Document): number {
   const body = doc.body
   const root = doc.documentElement
-  return Math.max(
-    body?.scrollHeight ?? 0,
-    body?.offsetHeight ?? 0,
-    root?.scrollHeight ?? 0,
-    root?.offsetHeight ?? 0,
-    root?.clientHeight ?? 0,
+  if (!body || !root) return 0
+
+  // Temporarily zero out min-height on body and html before measuring.
+  // Without this, `min-h-screen` (min-height: 100vh) inside the iframe creates
+  // a feedback loop: iframe height → 100vh → min-h-screen → scrollHeight → iframe height.
+  // Zeroing it breaks the cycle so scrollHeight reflects actual content, not the viewport floor.
+  const prevBodyMin = body.style.minHeight
+  const prevRootMin = root.style.minHeight
+  body.style.minHeight = '0px'
+  root.style.minHeight = '0px'
+
+  const measured = Math.max(
+    body.scrollHeight,
+    body.offsetHeight,
+    root.scrollHeight,
+    root.offsetHeight,
+    root.clientHeight,
   )
+
+  body.style.minHeight = prevBodyMin
+  root.style.minHeight = prevRootMin
+
+  return measured
 }
 
 export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: IframeAutoHeightOptions = {}) {
