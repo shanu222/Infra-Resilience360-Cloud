@@ -4561,6 +4561,30 @@ h4 {
   opacity: 1;
 }
 
+/* Mobile canvas renderer — replaces the <iframe> on viewports ≤ 640 px
+   where mobile browsers ignore #view=FitH and clip the PDF to a corner. */
+.infra-model-board-canvas-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.infra-model-board-canvas {
+  display: block;
+  /* Let the canvas fill the container horizontally; height is set by JS
+     after the page is rendered so the aspect ratio is always correct. */
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  background: rgba(15, 23, 42, 0.86);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.infra-model-board-canvas.is-loaded {
+  opacity: 1;
+}
+
 .infra-model-media-skeleton {
   position: absolute;
   inset: 0;

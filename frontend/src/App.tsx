@@ -208,6 +208,106 @@ function preloadInfraVideo(url: string) {
   video.load()
 }
 
+/**
+ * Canvas-based PDF first-page renderer for mobile viewports (≤640 px).
+ *
+ * Root cause of the mobile bug: the browser's native PDF viewer inside an
+ * <iframe> does NOT reliably honour the `#view=FitH` URL parameter on mobile.
+ * On iOS (Safari/Chrome) and some Android Chrome builds the viewer ignores
+ * the hint and renders the PDF at ~100 % zoom relative to the device's
+ * *physical* pixel width. On a 390 px-CSS / 3× DPR iPhone the viewer
+ * effectively sees a ~1170 px viewport, renders the A4 page at full
+ * physical resolution, and only the top-left ~⅓ of the page is visible in
+ * the iframe — exactly the clipped/cropped result shown in the bug report.
+ *
+ * Fix: on narrow viewports we skip the iframe entirely and render page 1
+ * directly onto a <canvas> using PDF.js. We compute the exact scale factor
+ * (containerCSSWidth ÷ page natural width) ourselves so the first page
+ * always fills the available width, and we account for devicePixelRatio so
+ * the canvas bitmap is crisp on HiDPI / Retina screens.
+ *
+ * PDF.js is loaded lazily from the same CDN that the PGBC code-viewer
+ * already uses (cdnjs.cloudflare.com), keeping the main bundle unchanged.
+ */
+const PDFJS_CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174'
+
+function loadPdfJs(): Promise<any> {
+  const win = window as Record<string, any>
+  if (win['pdfjsLib']) return Promise.resolve(win['pdfjsLib'])
+  return new Promise<any>((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = `${PDFJS_CDN_BASE}/pdf.min.js`
+    script.crossOrigin = 'anonymous'
+    script.onload = () => {
+      win['pdfjsLib'].GlobalWorkerOptions.workerSrc = `${PDFJS_CDN_BASE}/pdf.worker.min.js`
+      resolve(win['pdfjsLib'])
+    }
+    script.onerror = () => reject(new Error('pdfjs-cdn-load-failed'))
+    document.head.appendChild(script)
+  })
+}
+
+const MobilePdfCanvas = memo(function MobilePdfCanvas({
+  src,
+  isLoaded,
+  onLoad,
+  onError,
+}: {
+  src: string
+  isLoaded: boolean
+  onLoad: () => void
+  onError: () => void
+}) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current
+    const canvas = canvasRef.current
+    if (!wrapper || !canvas || !src) return
+
+    let cancelled = false
+
+    loadPdfJs()
+      .then((pdfjs) => pdfjs.getDocument(src).promise)
+      .then((pdf: any) => pdf.getPage(1))
+      .then((page: any) => {
+        if (cancelled) return
+        // Scale the page to fill the container's CSS width.
+        const containerWidth = wrapper.clientWidth || 320
+        const baseViewport = page.getViewport({ scale: 1 })
+        const scale = containerWidth / baseViewport.width
+        const viewport = page.getViewport({ scale })
+
+        // Multiply canvas bitmap size by DPR for a crisp HiDPI render while
+        // keeping the CSS display size equal to the scaled viewport.
+        const dpr = window.devicePixelRatio || 1
+        canvas.width = Math.round(viewport.width * dpr)
+        canvas.height = Math.round(viewport.height * dpr)
+        canvas.style.width = `${Math.round(viewport.width)}px`
+        canvas.style.height = `${Math.round(viewport.height)}px`
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) throw new Error('no-2d-context')
+        ctx.scale(dpr, dpr)
+        return page.render({ canvasContext: ctx, viewport }).promise
+      })
+      .then(() => { if (!cancelled) onLoad() })
+      .catch(() => { if (!cancelled) onError() })
+
+    return () => { cancelled = true }
+  }, [src, onLoad, onError])
+
+  return (
+    <div ref={wrapperRef} className="infra-model-board-canvas-wrap">
+      <canvas
+        ref={canvasRef}
+        className={`infra-model-board-canvas${isLoaded ? ' is-loaded' : ''}`}
+      />
+    </div>
+  )
+})
+
 const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   pdfCandidates,
   embedKey,
@@ -220,11 +320,25 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const [hasPdfError, setHasPdfError] = useState(false)
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
   const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
+  // True on narrow mobile viewports where the browser's native iframe PDF
+  // viewer does not reliably scale the document to fit the container width.
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
+  )
+
   useEffect(() => {
     setHasPdfError(false)
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
   }, [embedKey])
+
+  // Keep isMobileViewport in sync with orientation / window resize.
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 640px)')
+    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
 
   const src = String(pdfCandidates[0] ?? '').trim()
   useEffect(() => {
@@ -258,6 +372,9 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
     return () => observer.disconnect()
   }, [src, embedKey])
 
+  const handlePdfLoad = useCallback(() => setIsPdfLoaded(true), [])
+  const handlePdfError = useCallback(() => setHasPdfError(true), [])
+
   if (!src || hasPdfError) {
     if (hasPdfError && src) {
       console.warn('[infra-models] Model board PDF unavailable.', { src })
@@ -276,17 +393,30 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   return (
     <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
       {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />}
-      {shouldRenderPdf ?
-        <iframe
-          key={`${embedKey}-pdf`}
-          src={pdfSrc}
-          title="Resilience Model Board PDF"
-          className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
-          loading="eager"
-          onLoad={() => setIsPdfLoaded(true)}
-          onError={() => setHasPdfError(true)}
-        />
-      : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+      {shouldRenderPdf ? (
+        isMobileViewport ? (
+          // On mobile, use canvas rendering so the PDF scales to fit correctly.
+          <MobilePdfCanvas
+            src={src}
+            isLoaded={isPdfLoaded}
+            onLoad={handlePdfLoad}
+            onError={handlePdfError}
+          />
+        ) : (
+          // On desktop, keep the existing iframe (works correctly there).
+          <iframe
+            key={`${embedKey}-pdf`}
+            src={pdfSrc}
+            title="Resilience Model Board PDF"
+            className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+            loading="eager"
+            onLoad={() => setIsPdfLoaded(true)}
+            onError={() => setHasPdfError(true)}
+          />
+        )
+      ) : (
+        <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>
+      )}
     </div>
   )
 })
