@@ -68,8 +68,8 @@ export const DISASTER_DASHBOARD_MEDIA_SPECS: Record<string, DisasterMediaSpec> =
   },
   'load-shedding': {
     folder: 'load-shedding',
-    flatImageFile: 'LOAD SHEDDING.png', image: 'LOAD SHEDDING.png',
-    flatVideoFile: 'LOAD SHEDDING.mp4', video: 'LOAD SHEDDING.mp4',
+    flatImageFile: 'Load_Shedding_Safety_Guide.png', image: 'Load_Shedding_Safety_Guide.png',
+    flatVideoFile: 'LOAD SHEDDING.mp4',              video: 'LOAD SHEDDING.mp4',
     audio: 'audio.aac',
   },
   'storm-cyclone': {
