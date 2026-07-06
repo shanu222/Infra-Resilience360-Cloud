@@ -223,13 +223,24 @@ export const LEGAL_LINKS = LEGAL_PAGE_PATHS.map((path) => ({
   title: LEGAL_PAGES[path].title,
 }))
 
+function normalizeLegalPathname(pathname: string): string {
+  const raw = String(pathname ?? '').trim()
+  const withoutQuery = raw.split('?')[0].split('#')[0]
+  const collapsed = withoutQuery.replace(/\/{2,}/g, '/')
+  const trimmedTrailing = collapsed.length > 1 ? collapsed.replace(/\/+$/, '') : collapsed
+  if (!trimmedTrailing.startsWith('/')) return `/${trimmedTrailing}`
+  return trimmedTrailing || '/'
+}
+
 export function isLegalPath(pathname: string): pathname is LegalPagePath {
-  return LEGAL_PAGE_PATHS.includes(pathname as LegalPagePath)
+  const normalized = normalizeLegalPathname(pathname)
+  return LEGAL_PAGE_PATHS.includes(normalized as LegalPagePath)
 }
 
 export function getLegalPageContent(pathname: string): LegalPageContent | null {
-  if (!isLegalPath(pathname)) return null
-  return LEGAL_PAGES[pathname]
+  const normalized = normalizeLegalPathname(pathname)
+  if (!isLegalPath(normalized)) return null
+  return LEGAL_PAGES[normalized]
 }
 
 export function getPublicLegalUrl(path: LegalPagePath): string {
