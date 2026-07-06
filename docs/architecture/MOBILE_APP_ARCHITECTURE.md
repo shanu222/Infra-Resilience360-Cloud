@@ -399,7 +399,7 @@ cd android
 
 ### App Won't Launch
 1. Check logcat: `adb logcat | grep resilience360`
-2. Verify web assets copied: `adb shell ls /data/data/com.resilience360.app/files/www/`
+2. Verify web assets copied: `adb shell ls /data/data/com.resilience360.mobile/files/www/`
 3. Rebuild: `./gradlew clean assembleDebug`
 
 ### API Calls Failing

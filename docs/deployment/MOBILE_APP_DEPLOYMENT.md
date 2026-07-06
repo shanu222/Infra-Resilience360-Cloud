@@ -161,7 +161,7 @@ adb devices
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 # Launch app
-adb shell am start -n com.resilience360.app/.MainActivity
+adb shell am start -n com.resilience360.mobile/.MainActivity
 
 # View logs
 adb logcat | grep resilience360
@@ -185,7 +185,7 @@ adb devices
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 
 # Launch app
-adb shell am start -n com.resilience360.app/.MainActivity
+adb shell am start -n com.resilience360.mobile/.MainActivity
 ```
 
 ### Option C: Sideload APK File
@@ -325,7 +325,7 @@ java -version  # Must be 11 or newer
 
 ```bash
 # Solution 1: Uninstall old version
-adb uninstall com.resilience360.app
+adb uninstall com.resilience360.mobile
 
 # Solution 2: Install fresh
 adb install android/app/build/outputs/apk/debug/app-debug.apk
@@ -371,7 +371,7 @@ adb shell curl -v https://<your-api-host>/api/alerts/earthquakes
 
 ```bash
 # Grant camera permission manually
-adb shell pm grant com.resilience360.app android.permission.CAMERA
+adb shell pm grant com.resilience360.mobile android.permission.CAMERA
 
 # Verify camera availability
 adb shell getprop ro.hardware.camera
@@ -383,8 +383,8 @@ adb shell getprop ro.hardware.camera
 
 ```bash
 # Grant location permission
-adb shell pm grant com.resilience360.app android.permission.ACCESS_FINE_LOCATION
-adb shell pm grant com.resilience360.app android.permission.ACCESS_COARSE_LOCATION
+adb shell pm grant com.resilience360.mobile android.permission.ACCESS_FINE_LOCATION
+adb shell pm grant com.resilience360.mobile android.permission.ACCESS_COARSE_LOCATION
 
 # Enable location services
 adb shell settings get secure location_mode
@@ -501,7 +501,7 @@ cp android/app/resilience360-release.keystore ~/backup/
 ### Launch Time Optimization
 ```bash
 # Measure cold startup time
-adb shell am start-profile com.resilience360.app
+adb shell am start-profile com.resilience360.mobile
 
 # Target: < 3 seconds
 # Current: 2-2.5 seconds

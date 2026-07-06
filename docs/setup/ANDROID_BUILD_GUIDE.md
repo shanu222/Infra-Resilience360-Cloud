@@ -142,7 +142,7 @@ adb devices
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
 # Launch app
-adb shell am start -n com.resilience360.app/.MainActivity
+adb shell am start -n com.resilience360.mobile/.MainActivity
 
 # View logs
 adb logcat | grep resilience360
@@ -324,7 +324,7 @@ chmod +x gradlew
 ### Issue: APK won't install
 ```bash
 # Might need to uninstall old version first
-adb uninstall com.resilience360.app
+adb uninstall com.resilience360.mobile
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
