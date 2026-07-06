@@ -6,7 +6,8 @@ export function appendPortalApiBaseHint(url: string, apiBase: string): string {
   const b = apiBase.trim().replace(/\/+$/, '')
   if (!b || !url || url.startsWith('file:')) return url
   try {
-    const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/'
+    const base =
+      typeof window !== 'undefined' ? window.location.href : 'https://infra-resilience360-cloud-production.up.railway.app/'
     const resolved = new URL(url, base)
     resolved.searchParams.set('r360_api_base', b)
     if (/^https?:\/\//i.test(url)) {
@@ -38,7 +39,8 @@ export function appendPortalLangParam(url: string, language: 'en' | 'ur'): strin
   if (!url || url.startsWith('file:')) return url
   const lang = language === 'ur' ? 'ur' : 'en'
   try {
-    const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost/'
+    const base =
+      typeof window !== 'undefined' ? window.location.href : 'https://infra-resilience360-cloud-production.up.railway.app/'
     const resolved = new URL(url, base)
     resolved.searchParams.set('lang', lang)
     if (/^https?:\/\//i.test(url)) {

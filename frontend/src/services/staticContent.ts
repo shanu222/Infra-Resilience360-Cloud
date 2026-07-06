@@ -36,20 +36,22 @@ const FALLBACK_BG_IMAGE = LOCAL_BACKGROUND_IMAGE_URL
 function normalizeStaticMediaUrl(raw: string): string {
   const value = String(raw ?? '').trim()
   if (!value) return ''
-  if (value.startsWith('/storage/content/')) {
-    return getMediaUrl(value.slice('/storage/content/'.length))
+  const normalized = value.startsWith('/') ? value.slice(1) : value
+  if (normalized.startsWith('storage/content/')) {
+    return getMediaUrl(normalized.slice('storage/content/'.length))
   }
-  if (value.startsWith('/content/')) {
-    return getMediaUrl(value.slice('/content/'.length))
+  if (normalized.startsWith('content/')) {
+    return getMediaUrl(normalized.slice('content/'.length))
   }
   if (/^https?:\/\//i.test(value)) {
     try {
       const url = new URL(value)
-      if (url.pathname.startsWith('/storage/content/')) {
-        return getMediaUrl(url.pathname.slice('/storage/content/'.length))
+      const path = url.pathname.replace(/^\/+/, '')
+      if (path.startsWith('storage/content/')) {
+        return getMediaUrl(path.slice('storage/content/'.length))
       }
-      if (url.pathname.startsWith('/content/')) {
-        return getMediaUrl(url.pathname.slice('/content/'.length))
+      if (path.startsWith('content/')) {
+        return getMediaUrl(path.slice('content/'.length))
       }
     } catch {
       /* keep original */

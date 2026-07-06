@@ -1,5 +1,14 @@
+import { Capacitor } from '@capacitor/core'
 import { fetchApi } from './apiBase'
 import { EARTHQUAKE_ALERT_SOUND_DATA_URI } from '../assets/audio/earthquakeAlertSound'
+import {
+  ensureEarthquakeNotificationChannel,
+  getNativeNotificationPermission,
+  isNativeEarthquakeNotificationsAvailable,
+  notifyNativeEarthquakeIfNeeded,
+  requestNativeNotificationPermission,
+  showNativeEarthquakeTestNotification,
+} from './earthquakeNativeNotifications'
 
 export type EarthquakeNotificationPayload = {
   magnitude: number
@@ -12,6 +21,8 @@ export type EarthquakeNotificationPayload = {
   url?: string
 }
 
+export type EarthquakePermissionState = 'granted' | 'denied' | 'prompt' | 'unsupported'
+
 class EarthquakePushNotificationService {
   private initialized = false
   private readonly settingsKey = 'r360-earthquake-alert-settings'
@@ -23,25 +34,58 @@ class EarthquakePushNotificationService {
   async initialize(): Promise<void> {
     if (this.initialized) return
     this.initialized = true
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      await ensureEarthquakeNotificationChannel()
+    }
+  }
+
+  isNativeRuntime(): boolean {
+    return isNativeEarthquakeNotificationsAvailable()
   }
 
   isSupported(): boolean {
+    if (isNativeEarthquakeNotificationsAvailable()) return true
     return typeof window !== 'undefined' && typeof Notification !== 'undefined'
   }
 
-  getPermissionState(): NotificationPermission | 'unsupported' {
+  getPermissionState(): EarthquakePermissionState {
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      try {
+        const cached = localStorage.getItem(this.permissionKey)
+        if (cached === 'granted' || cached === 'denied' || cached === 'prompt') {
+          return cached
+        }
+      } catch {
+        /* ignore */
+      }
+      return 'prompt'
+    }
     if (!this.isSupported()) return 'unsupported'
     return Notification.permission
+  }
+
+  async refreshPermissionState(): Promise<EarthquakePermissionState> {
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      const live = await getNativeNotificationPermission()
+      try {
+        localStorage.setItem(this.permissionKey, live)
+      } catch {
+        /* ignore */
+      }
+      return live
+    }
+    return this.getPermissionState()
   }
 
   getSettings(): { enabled: boolean; soundEnabled: boolean; threshold: number } {
     try {
       const raw = localStorage.getItem(this.settingsKey)
       const parsed = raw ? JSON.parse(raw) : {}
+      const thresholdValue = Number(parsed?.threshold)
       return {
         enabled: parsed?.enabled !== false,
         soundEnabled: parsed?.soundEnabled !== false,
-        threshold: Number.isFinite(Number(parsed?.threshold)) ? Math.max(5, Number(parsed?.threshold)) : 5,
+        threshold: thresholdValue >= 6 ? 6 : 5,
       }
     } catch {
       return { enabled: true, soundEnabled: true, threshold: 5 }
@@ -57,7 +101,12 @@ class EarthquakePushNotificationService {
     const next = {
       enabled: patch.enabled !== undefined ? Boolean(patch.enabled) : current.enabled,
       soundEnabled: patch.soundEnabled !== undefined ? Boolean(patch.soundEnabled) : current.soundEnabled,
-      threshold: patch.threshold !== undefined ? Math.max(5, Number(patch.threshold) || 5) : current.threshold,
+      threshold:
+        patch.threshold !== undefined
+          ? Number(patch.threshold) >= 6
+            ? 6
+            : 5
+          : current.threshold,
     }
     try {
       localStorage.setItem(this.settingsKey, JSON.stringify(next))
@@ -69,16 +118,14 @@ class EarthquakePushNotificationService {
 
   shouldShowPrompt(): boolean {
     const permission = this.getPermissionState()
-    if (permission === 'unsupported' || permission === 'granted' || permission === 'denied') return false
+    if (permission === 'granted' || permission === 'denied') return false
+    if (!this.isSupported()) return false
     try {
       const state = String(localStorage.getItem(this.promptKey) || '').trim()
-      if (!state) return true
       if (state === 'accepted' || state === 'declined') return false
-      const lastTs = Number(localStorage.getItem(this.promptTsKey) || 0)
-      const cooldownMs = 24 * 60 * 60 * 1000
-      return !Number.isFinite(lastTs) || Date.now() - lastTs > cooldownMs
+      return state !== 'later'
     } catch {
-      return true
+      return false
     }
   }
 
@@ -91,7 +138,19 @@ class EarthquakePushNotificationService {
     }
   }
 
-  async requestPermissionFromUserGesture(): Promise<NotificationPermission | 'unsupported'> {
+  async requestPermissionFromUserGesture(): Promise<EarthquakePermissionState> {
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      const permission = await requestNativeNotificationPermission()
+      try {
+        localStorage.setItem(this.permissionKey, permission)
+        localStorage.setItem(this.promptKey, permission === 'granted' ? 'accepted' : 'declined')
+        localStorage.setItem(this.promptTsKey, String(Date.now()))
+      } catch {
+        /* ignore */
+      }
+      return permission
+    }
+
     if (!this.isSupported()) return 'unsupported'
     try {
       const permission = await Notification.requestPermission()
@@ -105,6 +164,10 @@ class EarthquakePushNotificationService {
   }
 
   async showTestNotification(): Promise<boolean> {
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      return showNativeEarthquakeTestNotification()
+    }
+
     if (!this.isSupported() || Notification.permission !== 'granted') return false
     const title = 'Infra Resilience360 Alert Test'
     const options: NotificationOptions = {
@@ -148,6 +211,39 @@ class EarthquakePushNotificationService {
       }
       this.audio.currentTime = 0
       await this.audio.play()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  async notifyEarthquake(payload: EarthquakeNotificationPayload): Promise<boolean> {
+    const settings = this.getSettings()
+    if (!settings.enabled) return false
+
+    if (isNativeEarthquakeNotificationsAvailable()) {
+      const delivered = await notifyNativeEarthquakeIfNeeded(payload, settings.threshold)
+      if (delivered && settings.soundEnabled) {
+        void this.playTestSound()
+      }
+      return delivered
+    }
+
+    if (!this.isSupported() || Notification.permission !== 'granted') return false
+    if (payload.magnitude < settings.threshold) return false
+
+    try {
+      const n = new Notification(`Earthquake M${payload.magnitude.toFixed(1)}`, {
+        body: payload.location,
+        icon: '/icon-192.png',
+        tag: `earthquake_${payload.eventId}`,
+      })
+      n.onclick = () => {
+        window.location.assign('/view/live-earthquake-map')
+      }
+      if (settings.soundEnabled) {
+        void this.playTestSound()
+      }
       return true
     } catch {
       return false

@@ -115,8 +115,7 @@ import {
 import { preloadAppMedia } from './utils/preloadAppMedia'
 import { preloadSectionModules } from './utils/preloadSectionModules'
 import { earthquakePushNotificationService } from './services/earthquakePushNotifications'
-import { LEGAL_LINKS, getPublicLegalUrl, type LegalPagePath } from './legal/legalPages'
-import { openExternalUrl } from './utils/openExternalUrl'
+import { LEGAL_LINKS } from './legal/legalPages'
 import './styles/r360-section-panes.css'
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
@@ -4314,19 +4313,6 @@ function App(_props: AppProps = {}) {
           <a key={link.path} href={link.path} className="setting-switch-link" style={{ display: 'inline-flex' }}>
             {link.title}
           </a>
-        ))}
-      </div>
-      <div className="settings-card__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {LEGAL_LINKS.map((link) => (
-          <button
-            key={`${link.path}-browser`}
-            type="button"
-            onClick={() => {
-              void openExternalUrl(getPublicLegalUrl(link.path as LegalPagePath))
-            }}
-          >
-            Open {link.title} in Browser
-          </button>
         ))}
       </div>
     </div>

@@ -5649,6 +5649,91 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API route not found' })
 })
 
+const LEGAL_PAGE_HTML = {
+  '/privacy-policy': {
+    title: 'Privacy Policy',
+    description: 'How Infra Resilience360 collects and protects user information.',
+    sections: [
+      ['Information We Collect', 'We may process location data, selected photos, and app preferences when you use related features.'],
+      ['How We Use Information', 'Information is used to provide guidance, alerts, and service quality improvements.'],
+      ['Permissions', 'Camera, gallery, location, and notifications are used only when you choose those features.'],
+      ['Data Security', 'Reasonable safeguards are applied to protect data in transit and at rest where applicable.'],
+      ['Contact', 'For privacy support, contact: info@ndma.gov.pk'],
+    ],
+  },
+  '/terms-and-conditions': {
+    title: 'Terms and Conditions',
+    description: 'Terms governing use of Infra Resilience360.',
+    sections: [
+      ['Acceptable Use', 'Use the app lawfully and responsibly, and do not attempt unauthorized access.'],
+      ['User Responsibility', 'You are responsible for decisions made using app information.'],
+      ['AI and Engineering Disclaimer', 'AI-assisted outputs are informational and do not replace professional engineering judgment.'],
+      ['Availability', 'Service may change or be updated over time to improve quality and compliance.'],
+      ['Contact', 'Questions about these terms: info@ndma.gov.pk'],
+    ],
+  },
+  '/about': {
+    title: 'About',
+    description: 'About Infra Resilience360.',
+    sections: [
+      ['Mission', 'Infra Resilience360 supports disaster preparedness and resilient recovery planning.'],
+      ['Scope', 'The service provides guidance, learning resources, and practical planning tools for resilience workflows.'],
+    ],
+  },
+  '/contact': {
+    title: 'Contact',
+    description: 'How to contact Infra Resilience360 support.',
+    sections: [
+      ['Support', 'Email: info@ndma.gov.pk'],
+      ['Phone', 'Phone: +92-51-9205200'],
+      ['Website', 'https://infra-resilience360-cloud-production.up.railway.app'],
+    ],
+  },
+}
+
+function renderLegalHtml(pathname) {
+  const page = LEGAL_PAGE_HTML[pathname]
+  if (!page) return null
+  const sectionHtml = page.sections
+    .map(([heading, body]) => `<section><h2>${heading}</h2><p>${body}</p></section>`)
+    .join('')
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${page.title} | Infra Resilience360</title>
+  <meta name="description" content="${page.description}" />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;max-width:920px;margin:0 auto;padding:24px;line-height:1.6;color:#111827}
+    h1{margin:0 0 8px} h2{margin:18px 0 8px;font-size:1.1rem}
+    nav{margin:14px 0 18px} nav a{margin-right:12px}
+  </style>
+</head>
+<body>
+  <h1>${page.title}</h1>
+  <p>${page.description}</p>
+  <nav>
+    <a href="/privacy-policy">Privacy Policy</a>
+    <a href="/terms-and-conditions">Terms & Conditions</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </nav>
+  ${sectionHtml}
+</body>
+</html>`
+}
+
+app.get(['/privacy-policy', '/terms-and-conditions', '/about', '/contact'], (req, res) => {
+  const html = renderLegalHtml(String(req.path ?? ''))
+  if (!html) {
+    res.status(404).json({ error: 'route_not_found', allowedRoots: ['/api', '/storage'] })
+    return
+  }
+  res.setHeader('Cache-Control', 'no-store')
+  res.type('html').status(200).send(html)
+})
+
 app.get('/', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store')
   res.status(200).json({

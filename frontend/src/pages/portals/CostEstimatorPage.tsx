@@ -189,8 +189,8 @@ export function CostEstimatorPage({
     }
   }, [postToIframe])
 
-  // Direct native picker request (preferred path): launch source immediately
-  // without showing an intermediate app-level chooser sheet.
+  // If the embedded portal requests a direct native pick, still route through
+  // the shared bottom-sheet so users always get both options.
   useEffect(() => {
     if (!isNative) return
     const onMessage = (event: MessageEvent) => {
@@ -199,15 +199,11 @@ export function CostEstimatorPage({
       if (data.type !== 'r360-native-image-pick' || !data.requestId) return
 
       pendingRequestIdRef.current = data.requestId
-      if (data.source === 'camera') {
-        void handleNativeCameraCapture()
-        return
-      }
-      void handleNativeGalleryPick()
+      setUploadSheetOpen(true)
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [isNative, handleNativeCameraCapture, handleNativeGalleryPick])
+  }, [isNative])
 
   // ─── AI analysis bridge ───────────────────────────────────────────────────────
   // On Android, iframe fetch cannot go through CapacitorHttp (same-origin iframes

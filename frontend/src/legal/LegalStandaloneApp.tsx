@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
-import { getLegalPageContent, getPublicLegalUrl, LEGAL_LINKS, type LegalPagePath } from './legalPages'
-import { openExternalUrl } from '../utils/openExternalUrl'
+import { getLegalPageContent, LEGAL_LINKS } from './legalPages'
 
 type LegalStandaloneAppProps = {
   pathname: string
@@ -36,17 +35,6 @@ export function LegalStandaloneApp({ pathname }: LegalStandaloneAppProps) {
       <header style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ marginBottom: '0.5rem' }}>{page.title}</h1>
         <p style={{ opacity: 0.85 }}>{page.description}</p>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={() => {
-              void openExternalUrl(getPublicLegalUrl(page.path as LegalPagePath))
-            }}
-          >
-            Open in Browser
-          </button>
-          <a href="/">Back to App</a>
-        </div>
       </header>
 
       <nav aria-label="Legal pages" style={{ marginBottom: '1.25rem' }}>

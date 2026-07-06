@@ -27,80 +27,130 @@ const LEGAL_PAGES: Record<LegalPagePath, LegalPageContent> = {
   '/privacy-policy': {
     path: '/privacy-policy',
     title: 'Privacy Policy',
-    description: 'How Infra Resilience360 collects, uses, and protects information.',
+    description: 'How Infra Resilience360 collects, uses, protects, and handles your information.',
     sections: [
       {
-        title: 'Overview',
+        title: 'Introduction',
         body: [
-          'Infra Resilience360 is designed to deliver disaster resilience guidance and planning support.',
-          'This policy explains what information is processed by the app and related services.',
+          'Infra Resilience360 supports disaster resilience planning, preparedness, and response guidance.',
+          'This Privacy Policy explains what information may be collected and how it is used.',
         ],
       },
       {
-        title: 'Data Processed',
+        title: 'Information We May Collect',
         body: [
-          'The app may process location (when explicitly requested), selected images, and user interaction preferences.',
-          'Operational backend logs may include technical metadata needed for reliability and security.',
+          'Location data, only when you request location-based guidance features.',
+          'Photos you select or capture, only when you choose image-based assessment features.',
+          'Notification preferences and essential app settings needed to provide requested services.',
         ],
       },
       {
-        title: 'Media and AI Processing',
+        title: 'How Information Is Used',
         body: [
-          'Selected user images may be sent securely to backend services and configured AI providers for analysis features.',
-          'Do not upload highly sensitive personal images unless required by your workflow.',
+          'To provide risk insights, retrofit guidance, and resilience recommendations.',
+          'To improve reliability, safety, and quality of service.',
+          'To support optional AI-assisted analysis when you choose related features.',
+        ],
+      },
+      {
+        title: 'Permissions',
+        body: [
+          'Camera: used only when you choose to capture an image.',
+          'Photo access: used only when you choose to select an image from your gallery.',
+          'Location: used only when you request location-enabled guidance.',
+          'Notifications: used only for alerts and important app updates when enabled.',
+        ],
+      },
+      {
+        title: 'Data Security',
+        body: [
+          'We use reasonable administrative and technical safeguards to protect information.',
+          'Data is transmitted over secure connections where available.',
+        ],
+      },
+      {
+        title: 'Your Rights',
+        body: [
+          'You can disable optional permissions from your device settings at any time.',
+          'You may contact us to request support regarding your data and privacy concerns.',
         ],
       },
       {
         title: 'Contact',
-        body: ['For privacy requests, contact the project support channel listed on the Contact page.'],
+        body: ['Email: info@ndma.gov.pk'],
       },
     ],
   },
   '/terms-and-conditions': {
     path: '/terms-and-conditions',
     title: 'Terms and Conditions',
-    description: 'Terms governing the use of Infra Resilience360.',
+    description: 'Terms governing your use of Infra Resilience360.',
     sections: [
       {
-        title: 'Use of Service',
+        title: 'Acceptable Use',
         body: [
-          'This application provides informational support and planning assistance for resilience and disaster readiness.',
-          'Users remain responsible for engineering judgment and compliance with local regulations.',
+          'You agree to use the app lawfully and responsibly.',
+          'You must not misuse the service, attempt unauthorized access, or disrupt operations.',
         ],
       },
       {
-        title: 'No Warranty',
+        title: 'User Responsibilities',
         body: [
-          'Content is provided on an as-is basis without guarantees of completeness or suitability for every scenario.',
-          'Always validate critical decisions with qualified professionals and official authorities.',
+          'You are responsible for how you apply information provided by the app.',
+          'You should verify critical decisions with qualified professionals and relevant authorities.',
         ],
       },
       {
-        title: 'Service Availability',
+        title: 'AI and Engineering Disclaimer',
         body: [
-          'Some features depend on third-party APIs, internet connectivity, and cloud-hosted media availability.',
-          'Temporary outages may occur despite best-effort reliability controls.',
+          'AI-assisted outputs are informational and do not replace professional engineering judgment.',
+          'The app does not provide legal, emergency command, or certified engineering approval.',
         ],
+      },
+      {
+        title: 'Intellectual Property',
+        body: [
+          'All applicable content, branding, and materials remain protected by intellectual property laws.',
+          'You may not copy or redistribute protected materials without proper authorization.',
+        ],
+      },
+      {
+        title: 'Availability and Updates',
+        body: [
+          'Service availability may vary over time and by region.',
+          'We may update features, content, and policies to improve quality and compliance.',
+        ],
+      },
+      {
+        title: 'Limitation of Liability',
+        body: [
+          'The service is provided on an as-available basis.',
+          'To the extent permitted by law, liability is limited for indirect or consequential losses.',
+        ],
+      },
+      {
+        title: 'Contact',
+        body: ['Email: info@ndma.gov.pk'],
       },
     ],
   },
   '/about': {
     path: '/about',
     title: 'About Infra Resilience360',
-    description: 'Platform mission, purpose, and scope.',
+    description: 'Our mission and service purpose.',
     sections: [
       {
-        title: 'Mission',
+        title: 'Who We Are',
         body: [
-          'Infra Resilience360 helps teams improve preparedness, response, and resilient reconstruction decisions.',
-          'The platform combines maps, media guidance, and decision-support workflows for practical implementation.',
+          'Infra Resilience360 is a disaster resilience support platform for preparedness and recovery planning.',
+          'The app helps users access practical resilience guidance across multiple hazard scenarios.',
         ],
       },
       {
-        title: 'Scope',
+        title: 'What the App Provides',
         body: [
-          'Modules include resilience guidance, retrofit support, hazard insights, and training resources.',
-          'The platform is intended to complement, not replace, official disaster management procedures.',
+          'Risk-informed guidance for infrastructure resilience and safer planning decisions.',
+          'Educational resources, alerts, and support tools for field and planning workflows.',
         ],
       },
     ],
@@ -108,20 +158,19 @@ const LEGAL_PAGES: Record<LegalPagePath, LegalPageContent> = {
   '/contact': {
     path: '/contact',
     title: 'Contact',
-    description: 'Support and communication channels for Infra Resilience360.',
+    description: 'How to reach us for support and information.',
     sections: [
       {
-        title: 'Support',
+        title: 'Support Contact',
         body: [
-          'For support, use your designated project support workflow and technical operations contacts.',
-          'For urgent disaster response, always rely on official emergency channels first.',
+          'Email: info@ndma.gov.pk',
+          'Phone: +92-51-9205200',
         ],
       },
       {
-        title: 'Official Resources',
+        title: 'Website',
         body: [
-          'National Disaster Management Authority (NDMA): https://ndma.gov.pk',
-          'Infra Resilience web portal: https://www.infraresilience.org',
+          'https://infra-resilience360-cloud-production.up.railway.app',
         ],
       },
     ],

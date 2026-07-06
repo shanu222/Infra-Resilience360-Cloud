@@ -25,7 +25,7 @@ export function getAppVersionLabel(): string {
 /** Human-readable version string for settings UI. */
 export function getAppVersionDisplay(): string {
   if (isCapacitorNativeRuntime()) {
-    return `Version 1.0.2`
+    return `Version 1.0.1`
   }
   return 'Web'
 }

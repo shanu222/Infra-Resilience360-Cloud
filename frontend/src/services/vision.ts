@@ -1,4 +1,5 @@
-import { buildApiTargets, fetchApi, resolveAiUserMessage, assertProductionVisionResult, AI_USER_MESSAGES } from './apiBase'
+import { buildApiTargets, fetchVisionApi, resolveAiUserMessage, assertProductionVisionResult, AI_USER_MESSAGES } from './apiBase'
+import { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 
 const wait = (ms: number) => new Promise<void>((resolve) => {
   window.setTimeout(resolve, ms)
@@ -10,7 +11,7 @@ const wait = (ms: number) => new Promise<void>((resolve) => {
  * analyses are cancelled client-side with "signal is aborted without reason".
  */
 const fetchVisionRequest = async (input: RequestInfo | URL, init: RequestInit): Promise<Response> =>
-  fetchApi(input, init)
+  fetchVisionApi(input, init)
 
 export type DefectDetection = {
   type: 'crack' | 'spalling' | 'corrosion' | 'moisture' | 'deformation' | 'other'
@@ -21,15 +22,16 @@ export type DefectDetection = {
   retrofitAction: string
 }
 
-const buildVisionFormData = (payload: {
+const buildVisionFormData = async (payload: {
   image: File
   structureType: string
   province: string
   location: string
   riskProfile: string
 }) => {
+  const normalizedImage = await normalizeImageFileForUpload(payload.image, payload.image.name || 'upload.jpg')
   const formData = new FormData()
-  formData.append('image', payload.image)
+  formData.append('image', normalizedImage, normalizedImage.name)
   formData.append('structureType', payload.structureType)
   formData.append('province', payload.province)
   formData.append('location', payload.location)
@@ -140,7 +142,7 @@ export const analyzeBuildingWithVision = async (payload: {
   for (const target of targets) {
     for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
       try {
-        const formData = buildVisionFormData(payload)
+        const formData = await buildVisionFormData(payload)
         const response = await fetchVisionRequest(target, {
           method: 'POST',
           body: formData,
@@ -170,12 +172,14 @@ export const analyzeBuildingWithVision = async (payload: {
         }
 
         if (!response.ok) {
+          const errorBody = body as { error?: string; message?: string; temporary?: boolean }
           const apiError = resolveAiUserMessage(
-            { error: (body as { error?: string }).error },
+            { error: errorBody.message ?? errorBody.error },
             AI_USER_MESSAGES.unavailable,
           )
           const isRateLimit = response.status === 429
-          const isTemporary = response.status === 503 || response.status === 502 || response.status === 504
+          const isTemporary =
+            Boolean(errorBody.temporary) || response.status === 503 || response.status === 502 || response.status === 504
 
           if ((isRateLimit || isTemporary) && attempt < maxAttemptsPerTarget) {
             await wait(isTemporary ? 2000 : 800 * attempt)
@@ -190,6 +194,10 @@ export const analyzeBuildingWithVision = async (payload: {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(AI_USER_MESSAGES.generic)
 
+        if (/timed out after/i.test(lastError.message)) {
+          break
+        }
+
         const isNetworkError = /failed to fetch|network|timeout/i.test(lastError.message)
         if (attempt < maxAttemptsPerTarget && isNetworkError) {
           await wait(600 * attempt)
@@ -199,5 +207,5 @@ export const analyzeBuildingWithVision = async (payload: {
     }
   }
 
-  throw new Error(resolveAiUserMessage(lastError, AI_USER_MESSAGES.unavailable))
+  throw lastError ?? new Error(AI_USER_MESSAGES.unavailable)
 }
