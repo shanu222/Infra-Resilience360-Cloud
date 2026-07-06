@@ -1,4 +1,4 @@
-export const LEGAL_WEB_BASE_URL = 'https://infra-resilience360-cloud-production.up.railway.app'
+export const LEGAL_WEB_BASE_URL = 'https://infra-resilience360-cloud.vercel.app'
 
 export const LEGAL_PAGE_PATHS = [
   '/privacy-policy',
@@ -170,7 +170,7 @@ const LEGAL_PAGES: Record<LegalPagePath, LegalPageContent> = {
       {
         title: 'Website',
         body: [
-          'https://infra-resilience360-cloud-production.up.railway.app',
+          'https://infra-resilience360-cloud.vercel.app',
         ],
       },
     ],
