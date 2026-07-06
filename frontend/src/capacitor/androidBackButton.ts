@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core'
 import { readPortalSubpathFromUrl, buildHrefWithAppSection, historyStateWithAppSection } from '../routing/appSectionRouter'
 import type { SectionKey } from '../types/sectionKeys'
 
@@ -42,9 +41,11 @@ function stripPortalSubpath(currentHref: string, section: SectionKey | null): st
 }
 
 export function initAndroidBackButton(getContext: () => AndroidBackContext): void {
-  if (!Capacitor.isNativePlatform()) return
+  const isNative = Boolean((globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.())
+  if (!isNative) return
 
-  void import('@capacitor/app').then(({ App }) => {
+  const capacitorAppModule = '@capacitor/app'
+  void import(/* @vite-ignore */ capacitorAppModule).then(({ App }) => {
     void App.addListener('backButton', () => {
       // Component-level interceptor takes priority (e.g. DisasterDetail in-portal back)
       if (_backInterceptor && _backInterceptor()) return
@@ -79,5 +80,7 @@ export function initAndroidBackButton(getContext: () => AndroidBackContext): voi
 
       // Home is the application root — do not exit or minimize.
     })
+  }).catch(() => {
+    /* Capacitor App plugin unavailable in web builds */
   })
 }

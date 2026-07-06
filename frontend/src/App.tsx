@@ -249,9 +249,17 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
     setPdfFullscreenOpen(false)
-    void import('@capacitor/core').then(({ Capacitor }) => {
-      setUseNativePdfRenderer(Capacitor.isNativePlatform())
-    })
+    const capacitorCoreModule = '@capacitor/core'
+    void import(/* @vite-ignore */ capacitorCoreModule)
+      .then((mod) => {
+        const native = Boolean(
+          (mod as { Capacitor?: { isNativePlatform?: () => boolean } })?.Capacitor?.isNativePlatform?.(),
+        )
+        setUseNativePdfRenderer(native)
+      })
+      .catch(() => {
+        setUseNativePdfRenderer(false)
+      })
   }, [embedKey])
 
   useEffect(() => {

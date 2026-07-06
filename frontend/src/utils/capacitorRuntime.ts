@@ -1,13 +1,25 @@
-import { Capacitor } from '@capacitor/core'
+type CapacitorLike = {
+  isNativePlatform?: () => boolean
+  getPlatform?: () => string
+}
+
+function getGlobalCapacitor(): CapacitorLike | null {
+  try {
+    const current = (globalThis as { Capacitor?: CapacitorLike }).Capacitor
+    if (current) return current
+    if (typeof window !== 'undefined' && window.top && window.top !== window) {
+      return (window.top as Window & { Capacitor?: CapacitorLike }).Capacitor ?? null
+    }
+  } catch {
+    /* embedded cross-origin frame */
+  }
+  return null
+}
 
 /** True when running inside the Capacitor Android/iOS shell (not the web browser). */
 export function isCapacitorNativeRuntime(): boolean {
   try {
-    if (Capacitor.isNativePlatform()) return true
-    if (typeof window !== 'undefined' && window.top !== window) {
-      const top = window.top as Window & { Capacitor?: Pick<typeof Capacitor, 'isNativePlatform'> }
-      return Boolean(top?.Capacitor?.isNativePlatform?.())
-    }
+    return Boolean(getGlobalCapacitor()?.isNativePlatform?.())
   } catch {
     /* embedded cross-origin frame */
   }
@@ -17,7 +29,7 @@ export function isCapacitorNativeRuntime(): boolean {
 /** Settings drawer label — never show "Web" on native builds. */
 export function getAppVersionLabel(): string {
   if (isCapacitorNativeRuntime()) {
-    return Capacitor.getPlatform() === 'ios' ? 'iOS' : 'Android'
+    return getGlobalCapacitor()?.getPlatform?.() === 'ios' ? 'iOS' : 'Android'
   }
   return 'Web'
 }

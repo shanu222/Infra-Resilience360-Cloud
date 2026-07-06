@@ -1,5 +1,4 @@
 import { createRoot } from 'react-dom/client'
-import { Capacitor } from '@capacitor/core'
 import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
@@ -8,6 +7,7 @@ import { mediaManager } from './services/mediaManager'
 import { initAndroidBackButton } from './capacitor/androidBackButton'
 import { LegalStandaloneApp } from './legal/LegalStandaloneApp'
 import { isLegalPath } from './legal/legalPages'
+import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
@@ -132,7 +132,7 @@ async function setupServiceWorkerBootstrap() {
   setupFastSwUpdateChecks()
 }
 
-if (typeof document !== 'undefined' && Capacitor.isNativePlatform()) {
+if (typeof document !== 'undefined' && isCapacitorNativeRuntime()) {
   document.documentElement.classList.add('capacitor-native')
 }
 ensureApiPreconnect()

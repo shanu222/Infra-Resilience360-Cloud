@@ -1,5 +1,3 @@
-import { LocalNotifications } from '@capacitor/local-notifications'
-import { Capacitor } from '@capacitor/core'
 import type { EarthquakeNotificationPayload } from './earthquakePushNotifications'
 
 const NOTIFIED_IDS_KEY = 'r360-native-eq-notified-ids'
@@ -33,10 +31,28 @@ function writeNotifiedIds(ids: Set<string>): void {
 }
 
 export function isNativeEarthquakeNotificationsAvailable(): boolean {
-  return Capacitor.isNativePlatform()
+  return Boolean((globalThis as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.())
+}
+
+type LocalNotificationsApi = {
+  checkPermissions: () => Promise<{ display?: string }>
+  requestPermissions: () => Promise<{ display?: string }>
+  schedule: (opts: Record<string, unknown>) => Promise<void>
+  createChannel: (opts: Record<string, unknown>) => Promise<void>
+}
+
+async function loadLocalNotifications(): Promise<LocalNotificationsApi> {
+  const notificationsModule = '@capacitor/local-notifications'
+  try {
+    const mod = (await import(/* @vite-ignore */ notificationsModule)) as { LocalNotifications: LocalNotificationsApi }
+    return mod.LocalNotifications
+  } catch {
+    throw new Error('Native notification module is unavailable in this runtime.')
+  }
 }
 
 export async function getNativeNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
+  const LocalNotifications = await loadLocalNotifications()
   const status = await LocalNotifications.checkPermissions()
   if (status.display === 'granted') return 'granted'
   if (status.display === 'denied') return 'denied'
@@ -44,6 +60,7 @@ export async function getNativeNotificationPermission(): Promise<'granted' | 'de
 }
 
 export async function requestNativeNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
+  const LocalNotifications = await loadLocalNotifications()
   const status = await LocalNotifications.requestPermissions()
   if (status.display === 'granted') return 'granted'
   if (status.display === 'denied') return 'denied'
@@ -53,6 +70,7 @@ export async function requestNativeNotificationPermission(): Promise<'granted' |
 export async function showNativeEarthquakeTestNotification(): Promise<boolean> {
   const permission = await getNativeNotificationPermission()
   if (permission !== 'granted') return false
+  const LocalNotifications = await loadLocalNotifications()
   await LocalNotifications.schedule({
     notifications: [
       {
@@ -83,6 +101,7 @@ export async function notifyNativeEarthquakeIfNeeded(
   notified.add(payload.eventId)
   writeNotifiedIds(notified)
 
+  const LocalNotifications = await loadLocalNotifications()
   await LocalNotifications.schedule({
     notifications: [
       {
@@ -103,6 +122,7 @@ export async function notifyNativeEarthquakeIfNeeded(
 
 export async function ensureEarthquakeNotificationChannel(): Promise<void> {
   if (!isNativeEarthquakeNotificationsAvailable()) return
+  const LocalNotifications = await loadLocalNotifications()
   try {
     await LocalNotifications.createChannel({
       id: 'earthquake-alerts',
