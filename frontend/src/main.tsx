@@ -1,9 +1,13 @@
 import { createRoot } from 'react-dom/client'
+import { Capacitor } from '@capacitor/core'
 import './index.css'
 import App from './App.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
 import { mediaManager } from './services/mediaManager'
+import { initAndroidBackButton } from './capacitor/androidBackButton'
+import { LegalStandaloneApp } from './legal/LegalStandaloneApp'
+import { isLegalPath } from './legal/legalPages'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
@@ -28,6 +32,25 @@ function ensureMediaPreconnect() {
     document.head.appendChild(preconnect)
   } catch {
     /* ignore malformed media base URL */
+  }
+}
+
+function ensureApiPreconnect() {
+  if (typeof document === 'undefined' || !API_BASE_URL) return
+  try {
+    const origin = new URL(API_BASE_URL).origin
+    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return
+    const preconnect = document.createElement('link')
+    preconnect.rel = 'preconnect'
+    preconnect.href = origin
+    preconnect.crossOrigin = 'anonymous'
+    document.head.appendChild(preconnect)
+    const dnsPrefetch = document.createElement('link')
+    dnsPrefetch.rel = 'dns-prefetch'
+    dnsPrefetch.href = origin
+    document.head.appendChild(dnsPrefetch)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -80,7 +103,7 @@ async function setupServiceWorkerBootstrap() {
   if (!('serviceWorker' in navigator)) return
 
   // Local bootstrap should never be blocked by stale SW caches.
-  if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  if (import.meta.env.DEV) {
     try {
       const registrations = await navigator.serviceWorker.getRegistrations()
       await Promise.all(registrations.map((registration) => registration.unregister()))
@@ -109,14 +132,28 @@ async function setupServiceWorkerBootstrap() {
   setupFastSwUpdateChecks()
 }
 
-void setupServiceWorkerBootstrap()
+if (typeof document !== 'undefined' && Capacitor.isNativePlatform()) {
+  document.documentElement.classList.add('capacitor-native')
+}
+ensureApiPreconnect()
 ensureMediaPreconnect()
 ensureMediaDnsPrefetch()
+
+// Android hardware back — registered from App via context ref; bootstrap native listener once.
+initAndroidBackButton(() => {
+  const bridge = (window as Window & { __R360_ANDROID_BACK__?: () => import('./capacitor/androidBackButton').AndroidBackContext }).__R360_ANDROID_BACK__
+  return bridge?.() ?? {
+    activeSection: null,
+    hasOpenOverlay: () => false,
+    closeTopOverlay: () => {},
+    navigateToSection: () => {},
+  }
+})
 
 root.render(
   <LanguageProvider>
     <div className="app-container">
-      <App />
+      {isLegalPath(window.location.pathname) ? <LegalStandaloneApp pathname={window.location.pathname} /> : <App />}
     </div>
   </LanguageProvider>,
 )
