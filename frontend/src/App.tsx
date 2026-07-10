@@ -7045,7 +7045,7 @@ function App(_props: AppProps = {}) {
       language={language}
       setLanguage={setLanguage}
       showLanguageToggle={true}
-      showSettingsToggle={true}
+      showSettingsToggle={false}
       selectedRole={selectedRole}
       setSelectedRole={setSelectedRole}
       interfaceToggleLabel={interfaceToggleLabel}
@@ -7132,7 +7132,7 @@ function App(_props: AppProps = {}) {
               <div className="navbar-start">{navbarBrandContent}</div>
             </div>
             <div className="navbar-top-strip__authority">
-              <div className="navbar-top-strip__logo-wrap">
+              <div className="navbar-top-strip__logo-wrap" hidden>
                 <NdmaHeaderLogo alt={t.ndmaLogoAlt} />
               </div>
               <NdmaAuthorityBadge t={t} isUrdu={isUrdu} variant="topbar" tone={ndmaBadgeTone} />
@@ -7141,7 +7141,7 @@ function App(_props: AppProps = {}) {
           </div>
         : <>
             <div className="navbar-top-strip">
-              <div className="navbar-top-strip__logo-wrap">
+              <div className="navbar-top-strip__logo-wrap" hidden>
                 <NdmaHeaderLogo alt={t.ndmaLogoAlt} />
               </div>
               <NdmaAuthorityBadge t={t} isUrdu={isUrdu} variant="topbar" tone={ndmaBadgeTone} />
