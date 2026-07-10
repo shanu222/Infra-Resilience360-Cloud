@@ -1,6 +1,7 @@
 import type { HomepageFooterConfig } from '../../types/homepageConfig'
 import type { AppLocaleStrings } from '../../i18n/appLocale'
 import type { Language, SectionKey } from '../../types/sectionKeys'
+import { LEGAL_LINKS } from '../../legal/legalPages'
 
 function pickFooterLine(
   footer: HomepageFooterConfig | undefined,
@@ -70,6 +71,14 @@ export function HomeBottomStrip({
         style={{ margin: 0, fontSize: '0.82rem', opacity: 0.8, ...(isUrdu ? { textAlign: 'right' } : {}) }}
       >
         {pickFooterLine(footerCms, language, 'versionLine')}
+      </p>
+      <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.88 }}>
+        {LEGAL_LINKS.map((link, index) => (
+          <span key={link.path}>
+            <a href={link.path}>{link.title}</a>
+            {index + 1 < LEGAL_LINKS.length ? ' · ' : ''}
+          </span>
+        ))}
       </p>
       {showSettingsButton ?
         <button

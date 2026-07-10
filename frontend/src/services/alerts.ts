@@ -9,11 +9,10 @@ export type LiveAlert = {
   summary?: string
 }
 
-const NDMA_ADVISORIES_URL = import.meta.env.VITE_NDMA_ADVISORIES_URL ?? 'https://ndma.gov.pk/advisories'
-const NDMA_SITREPS_URL = import.meta.env.VITE_NDMA_SITREPS_URL ?? 'https://ndma.gov.pk/sitreps'
-const NDMA_PROJECTIONS_URL =
-  import.meta.env.VITE_NDMA_PROJECTIONS_URL ?? 'https://ndma.gov.pk/projection-impact-list_new'
-const PMD_RSS_URL = import.meta.env.VITE_PMD_RSS_URL ?? 'https://www.pmd.gov.pk/en'
+const NDMA_ADVISORIES_URL = 'https://ndma.gov.pk/advisories'
+const NDMA_SITREPS_URL = 'https://ndma.gov.pk/sitreps'
+const NDMA_PROJECTIONS_URL = 'https://ndma.gov.pk/projection-impact-list_new'
+const PMD_RSS_URL = 'https://www.pmd.gov.pk/en'
 
 const withTimeout = async (input: RequestInfo | URL, timeoutMs = 14000): Promise<Response> => {
   const controller = new AbortController()

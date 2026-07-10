@@ -1,5 +1,5 @@
 /** Matches server `ADMIN_API_KEY` (default `secure-key`). */
-export const ADMIN_API_KEY = String(import.meta.env.VITE_ADMIN_API_KEY ?? 'secure-key').trim()
+export const ADMIN_API_KEY = 'secure-key'
 
 export function adminJsonHeaders(): Record<string, string> {
   return {

@@ -1,4 +1,5 @@
 import { API_BASE_URL as CONFIGURED_API_BASE_URL } from '../config/apiBase'
+export { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
 import {
   AI_ANALYSIS_UNAVAILABLE,
   AI_USER_MESSAGES,
@@ -60,23 +61,88 @@ export const buildApiUrl = (path: string): string => {
 /**
  * Logs transport failures (TLS, DNS, offline) then rethrows so callers keep their control flow.
  */
+/** Matches backend `AI_TIMEOUT_MS` default; override with `VITE_AI_TIMEOUT_MS`. */
+export function resolveAiTimeoutMs(): number {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}
+    return Math.max(5_000, Number(env.VITE_AI_TIMEOUT_MS ?? 45_000) || 45_000)
+  } catch {
+    return 45_000
+  }
+}
+
+/**
+ * Vision POST client budget: allow backend provider fallback chain (OpenAI → Gemini → OpenRouter)
+ * to complete before aborting, matching web behaviour of waiting for the full orchestration.
+ */
+export function resolveAiVisionClientTimeoutMs(): number {
+  try {
+    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}
+    const explicit = Number(env.VITE_AI_VISION_CLIENT_TIMEOUT_MS ?? 0)
+    if (explicit > 0) return explicit
+
+    const base = resolveAiTimeoutMs()
+    const order = String(env.VITE_AI_PROVIDER_ORDER ?? 'openai,gemini,openrouter')
+    const providers = Math.max(1, order.split(',').map((item) => item.trim()).filter(Boolean).length)
+    return Math.min(300_000, base * providers + 15_000)
+  } catch {
+    return resolveAiTimeoutMs() * 3
+  }
+}
+
+async function resolveFetchInit(_input: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | undefined> {
+  // Do NOT convert FormData to Uint8Array for CapacitorHttp.
+  // Capacitor's native-bridge.js `convertBody` handles `instanceof FormData` correctly:
+  //   → convertFormData() base64-encodes File entries
+  //   → native writeFormDataRequestBody() writes proper multipart with UUID boundary
+  // Passing Uint8Array corrupts binary data: TextDecoder mangles non-UTF-8 bytes and the
+  // exact-match `contentType === 'multipart/form-data'` check fails for boundary-bearing types,
+  // causing the body to be sent as plain text → Railway gets garbage → HTTP 500.
+  return init
+}
+
+/**
+ * Vision multipart POST with client timeout aligned to backend AI_TIMEOUT_MS.
+ * Prevents infinite spinners when CapacitorHttp or the network stalls.
+ */
+export async function fetchVisionApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const timeoutMs = resolveAiVisionClientTimeoutMs()
+  if (init?.signal) {
+    return fetchApi(input, init)
+  }
+
+  const controller = new AbortController()
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetchApi(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`AI analysis timed out after ${Math.round(timeoutMs / 1000)} seconds. Please try again.`)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timer)
+  }
+}
+
 export async function fetchApi(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const method = String(init?.method ?? 'GET').toUpperCase()
-  const hasBody = init?.body !== undefined && init?.body !== null
-  const shouldTimeoutReadOnly = !init?.signal && !hasBody && (method === 'GET' || method === 'HEAD')
+  const resolvedInit = await resolveFetchInit(input, init)
+  const hasBody = resolvedInit?.body !== undefined && resolvedInit?.body !== null
+  const shouldTimeoutReadOnly = !resolvedInit?.signal && !hasBody && (method === 'GET' || method === 'HEAD')
 
   if (shouldTimeoutReadOnly) {
     const controller = new AbortController()
     const timeoutMs = 12_000
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      return await fetch(input, { ...init, signal: controller.signal })
+      return await fetch(input, { ...resolvedInit, signal: controller.signal })
     } finally {
       clearTimeout(timer)
     }
   }
 
-  return await fetch(input, init)
+  return await fetch(input, resolvedInit)
 }
 
 /**

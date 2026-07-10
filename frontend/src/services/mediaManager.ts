@@ -21,19 +21,14 @@ class MediaManager {
       const windowBase = trimTrailingSlash(
         String(
           (window as Window & { __R360_MEDIA_BASE_URL?: string }).__R360_MEDIA_BASE_URL ??
-            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string; VITE_PUBLIC_MEDIA_BASE_URL?: string } }).__ENV__
-              ?.VITE_MEDIA_BASE_URL ??
-            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string; VITE_PUBLIC_MEDIA_BASE_URL?: string } }).__ENV__
-              ?.VITE_PUBLIC_MEDIA_BASE_URL ??
+            (window as Window & { __ENV__?: { VITE_MEDIA_BASE_URL?: string } }).__ENV__?.VITE_MEDIA_BASE_URL ??
             '',
         ),
       )
       if (windowBase) return windowBase
     }
 
-    const envBase = trimTrailingSlash(
-      String(import.meta.env.VITE_MEDIA_BASE_URL ?? import.meta.env.VITE_PUBLIC_MEDIA_BASE_URL ?? ''),
-    )
+    const envBase = trimTrailingSlash(String(import.meta.env.VITE_MEDIA_BASE_URL ?? ''))
     return envBase || DEFAULT_R2_MEDIA_BASE_URL
   }
 
@@ -87,12 +82,26 @@ class MediaManager {
       const img = new Image()
       img.decoding = 'async'
       img.loading = 'lazy'
+      img.fetchPriority = 'low'
       img.onload = () => resolve()
       img.onerror = () => resolve()
       img.src = resolved
     })
     this.imageWarmCache.set(resolved, promise)
     return promise
+  }
+
+  preloadImages(urls: string[]): Promise<void> {
+    const unique = [...new Set(urls.map((u) => String(u ?? '').trim()).filter(Boolean))]
+    const run = () => Promise.all(unique.map((url) => this.preloadImage(url))).then(() => undefined)
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      return new Promise((resolve) => {
+        window.requestIdleCallback(() => {
+          void run().then(resolve)
+        }, { timeout: 2500 })
+      })
+    }
+    return run()
   }
 
   preloadVideoMetadata(url: string): Promise<void> {

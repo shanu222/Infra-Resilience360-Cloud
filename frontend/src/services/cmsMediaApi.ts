@@ -8,7 +8,7 @@ const API = sameOriginApiBase()
 function adminJsonHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    'x-admin-key': String(import.meta.env.VITE_ADMIN_API_KEY ?? 'secure-key').trim(),
+    'x-admin-key': 'secure-key',
   }
 }
 

@@ -1,6 +1,8 @@
 import {
   Fragment,
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -13,8 +15,12 @@ import { createPortal } from 'react-dom'
 import { ensureUrduPdfFont, pdfTx, setPdfBodyFont, setPdfBoldFont } from './utils/urduPdfSupport'
 import { buildUrduAdvisoryAnswerElement, buildUrduRetrofitEstimateElement } from './utils/urduMainAppPdfHtml'
 import ResponsiveQa from './components/ResponsiveQa'
+
+const NativePdfCanvas = lazy(() =>
+  import('./components/infra/NativePdfCanvas').then((mod) => ({ default: mod.NativePdfCanvas })),
+)
 import { fetchLiveAlerts, type LiveAlert } from './services/alerts'
-import { buildApiTargets } from './services/apiBase'
+import type { AndroidBackContext } from './capacitor/androidBackButton'
 import { mediaManager } from './services/mediaManager'
 import { formatApiErrorMessage } from './utils/apiErrorMessage'
 import { loadSharedAppState, saveSharedAppState } from './services/appStateSync'
@@ -77,6 +83,13 @@ import { isExcludedLearnCatalogRow } from './utils/learnCatalogExclude'
 import { isAwsPresignedUrl } from './utils/videoSourceValidation'
 import { MEDIA_UNAVAILABLE_MESSAGE } from './utils/contentMediaConstants'
 import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
+import { isLikelyImageFile, normalizeImageFileForUpload } from './utils/normalizeImageFile'
+import { ImageUploadBottomSheet } from './components/capacitor/ImageUploadBottomSheet'
+import { NativeAlertDialog } from './components/capacitor/NativeAlertDialog'
+import { capturePhotoWithCamera, pickPhotosFromGallery } from './capacitor/imagePicker'
+import { getNativeCurrentPosition, requestNativeLocationPermission } from './capacitor/nativeLocation'
+import { startNativeEarthquakeAlertMonitor } from './services/earthquakeAlertMonitor'
+import { PdfFullscreenViewer } from './components/infra/PdfFullscreenViewer'
 import { inferVideoMime } from './utils/mediaMime'
 import {
   APP_BRAND_ICON_URL,
@@ -102,6 +115,7 @@ import {
 import { preloadAppMedia } from './utils/preloadAppMedia'
 import { preloadSectionModules } from './utils/preloadSectionModules'
 import { earthquakePushNotificationService } from './services/earthquakePushNotifications'
+import { LEGAL_LINKS } from './legal/legalPages'
 import './styles/r360-section-panes.css'
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
@@ -194,9 +208,16 @@ function preloadInfraPdf(url: string) {
   const src = String(url ?? '').trim()
   if (!src || infraPdfSessionCache.has(src)) return
   infraPdfSessionCache.add(src)
-  void fetch(src, { cache: 'force-cache' }).catch(() => {
-    /* ignore preload failures */
-  })
+  const prefetch = () => {
+    void fetch(src, { cache: 'force-cache', mode: 'cors' }).catch(() => {
+      /* ignore preload failures */
+    })
+  }
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(prefetch, { timeout: 2000 })
+  } else {
+    prefetch()
+  }
 }
 
 function preloadInfraVideo(url: string) {
@@ -207,111 +228,6 @@ function preloadInfraVideo(url: string) {
   video.src = src
   video.load()
 }
-
-/**
- * Canvas-based PDF first-page renderer for mobile viewports (≤640 px).
- *
- * Root cause of the mobile bug: the browser's native PDF viewer inside an
- * <iframe> does NOT reliably honour the `#view=FitH` URL parameter on mobile.
- * On iOS (Safari/Chrome) and some Android Chrome builds the viewer ignores
- * the hint and renders the PDF at ~100 % zoom relative to the device's
- * *physical* pixel width. On a 390 px-CSS / 3× DPR iPhone the viewer
- * effectively sees a ~1170 px viewport, renders the A4 page at full
- * physical resolution, and only the top-left ~⅓ of the page is visible in
- * the iframe — exactly the clipped/cropped result shown in the bug report.
- *
- * Fix: on narrow viewports we skip the iframe entirely and render page 1
- * directly onto a <canvas> using PDF.js. We compute the exact scale factor
- * (containerCSSWidth ÷ page natural width) ourselves so the first page
- * always fills the available width, and we account for devicePixelRatio so
- * the canvas bitmap is crisp on HiDPI / Retina screens.
- *
- * PDF.js is loaded lazily from the same CDN that the PGBC code-viewer
- * already uses (cdnjs.cloudflare.com), keeping the main bundle unchanged.
- */
-const PDFJS_CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174'
-
-function loadPdfJs(): Promise<any> {
-  const win = window as Record<string, any>
-  if (win['pdfjsLib']) return Promise.resolve(win['pdfjsLib'])
-  return new Promise<any>((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = `${PDFJS_CDN_BASE}/pdf.min.js`
-    script.crossOrigin = 'anonymous'
-    script.onload = () => {
-      win['pdfjsLib'].GlobalWorkerOptions.workerSrc = `${PDFJS_CDN_BASE}/pdf.worker.min.js`
-      resolve(win['pdfjsLib'])
-    }
-    script.onerror = () => reject(new Error('pdfjs-cdn-load-failed'))
-    document.head.appendChild(script)
-  })
-}
-
-const MobilePdfCanvas = memo(function MobilePdfCanvas({
-  src,
-  isLoaded,
-  onLoad,
-  onError,
-}: {
-  src: string
-  isLoaded: boolean
-  onLoad: () => void
-  onError: () => void
-}) {
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current
-    const canvas = canvasRef.current
-    if (!wrapper || !canvas || !src) return
-
-    let cancelled = false
-
-    loadPdfJs()
-      .then((pdfjs) => pdfjs.getDocument(src).promise)
-      .then((pdf: any) => pdf.getPage(1))
-      .then((page: any) => {
-        if (cancelled) return
-        // Scale the page to fill the container's CSS width.
-        const containerWidth = wrapper.clientWidth || 320
-        const baseViewport = page.getViewport({ scale: 1 })
-        const scale = containerWidth / baseViewport.width
-        const viewport = page.getViewport({ scale })
-
-        // Multiply canvas bitmap size by DPR for a crisp HiDPI render while
-        // keeping the CSS display size equal to the scaled viewport.
-        const dpr = window.devicePixelRatio || 1
-        canvas.width = Math.round(viewport.width * dpr)
-        canvas.height = Math.round(viewport.height * dpr)
-        canvas.style.width = `${Math.round(viewport.width)}px`
-        canvas.style.height = `${Math.round(viewport.height)}px`
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) throw new Error('no-2d-context')
-        ctx.scale(dpr, dpr)
-        return page.render({ canvasContext: ctx, viewport }).promise
-      })
-      .then(() => { if (!cancelled) onLoad() })
-      .catch((err: any) => {
-        if (!cancelled) {
-          console.warn('[infra-models] MobilePdfCanvas render failed:', { src, err })
-          onError()
-        }
-      })
-
-    return () => { cancelled = true }
-  }, [src, onLoad, onError])
-
-  return (
-    <div ref={wrapperRef} className="infra-model-board-canvas-wrap">
-      <canvas
-        ref={canvasRef}
-        className={`infra-model-board-canvas${isLoaded ? ' is-loaded' : ''}`}
-      />
-    </div>
-  )
-})
 
 const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   pdfCandidates,
@@ -325,32 +241,45 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const [hasPdfError, setHasPdfError] = useState(false)
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
   const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
-  // True on narrow mobile viewports where the browser's native iframe PDF
-  // viewer does not reliably scale the document to fit the container width.
-  const [isMobileViewport, setIsMobileViewport] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
-  )
+  const [useNativePdfRenderer, setUseNativePdfRenderer] = useState(false)
+  const [pdfFullscreenOpen, setPdfFullscreenOpen] = useState(false)
 
   useEffect(() => {
     setHasPdfError(false)
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
+    setPdfFullscreenOpen(false)
+    const capacitorCoreModule = '@capacitor/core'
+    void import(/* @vite-ignore */ capacitorCoreModule)
+      .then((mod) => {
+        const native = Boolean(
+          (mod as { Capacitor?: { isNativePlatform?: () => boolean } })?.Capacitor?.isNativePlatform?.(),
+        )
+        setUseNativePdfRenderer(native)
+      })
+      .catch(() => {
+        setUseNativePdfRenderer(false)
+      })
   }, [embedKey])
 
-  // Keep isMobileViewport in sync with orientation / window resize.
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 640px)')
-    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches)
-    mql.addEventListener('change', handler)
-    return () => mql.removeEventListener('change', handler)
-  }, [])
+    if (!pdfFullscreenOpen) {
+      delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+      return
+    }
+    ;(window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ = () =>
+      setPdfFullscreenOpen(false)
+    return () => {
+      delete (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+    }
+  }, [pdfFullscreenOpen])
 
   const src = String(pdfCandidates[0] ?? '').trim()
-
-  // Trigger lazy render once the wrapper enters the viewport.
   useEffect(() => {
     if (!src) {
-      console.warn('[infra-models] Missing model board PDF source.')
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Missing model board PDF source.')
+      }
       return
     }
     if (typeof window === 'undefined') {
@@ -379,17 +308,16 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
     return () => observer.disconnect()
   }, [src, embedKey])
 
-  const handlePdfLoad = useCallback(() => setIsPdfLoaded(true), [])
-  const handlePdfError = useCallback(() => {
-    console.warn('[infra-models] PDF load failed:', { src })
-    setHasPdfError(true)
-  }, [src])
-
   if (!src || hasPdfError) {
+    if (hasPdfError && src) {
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Model board PDF unavailable.', { src })
+      }
+    }
     return (
       <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
         <div className="infra-model-media-placeholder" role="status" aria-live="polite">
-          {hasPdfError ? 'Model Board PDF could not be loaded.' : 'Model Board PDF source missing.'}
+          Model Board not available.
         </div>
       </div>
     )
@@ -397,33 +325,51 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
 
   const pdfSrc = src.includes('#') ? src : `${src}#view=FitH`
 
+  if (useNativePdfRenderer) {
+    return (
+      <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
+        {shouldRenderPdf ?
+          <Suspense
+            fallback={
+              <div className="infra-model-media-skeleton infra-model-pdf-skeleton" role="status" aria-live="polite">
+                Loading model board…
+              </div>
+            }
+          >
+            <NativePdfCanvas
+              key={`${embedKey}-pdf-native`}
+              src={src}
+              className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+              onLoaded={() => setIsPdfLoaded(true)}
+              onError={() => setHasPdfError(true)}
+              onFullscreen={() => setPdfFullscreenOpen(true)}
+            />
+          </Suspense>
+        : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+        <PdfFullscreenViewer
+          src={src}
+          title="Resilience Model Board"
+          open={pdfFullscreenOpen}
+          onClose={() => setPdfFullscreenOpen(false)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
-      {(!shouldRenderPdf || !isPdfLoaded) && (
-        <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />
-      )}
-      {shouldRenderPdf && (
-        isMobileViewport ? (
-          // On mobile, use canvas rendering so the PDF scales to fit correctly.
-          <MobilePdfCanvas
-            src={src}
-            isLoaded={isPdfLoaded}
-            onLoad={handlePdfLoad}
-            onError={handlePdfError}
-          />
-        ) : (
-          // On desktop, keep the existing iframe (works correctly there).
-          <iframe
-            key={`${embedKey}-pdf`}
-            src={pdfSrc}
-            title="Resilience Model Board PDF"
-            className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
-            loading="eager"
-            onLoad={handlePdfLoad}
-            onError={handlePdfError}
-          />
-        )
-      )}
+      {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />}
+      {shouldRenderPdf ?
+        <iframe
+          key={`${embedKey}-pdf`}
+          src={pdfSrc}
+          title="Resilience Model Board PDF"
+          className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+          loading="eager"
+          onLoad={() => setIsPdfLoaded(true)}
+          onError={() => setHasPdfError(true)}
+        />
+      : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
     </div>
   )
 })
@@ -439,18 +385,22 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
 }) {
   const [imageError, setImageError] = useState(false)
   const [isImageLoaded, setIsImageLoaded] = useState(false)
-  const src = String(candidates[0] ?? '').trim()
   useEffect(() => {
     setImageError(false)
     setIsImageLoaded(false)
-  }, [src])
-
+  }, [candidates[0]])
+  const src = String(candidates[0] ?? '').trim()
   if (!src || imageError) {
+    if (imageError && src) {
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Model hero image unavailable.', { src })
+      }
+    }
     return (
       <div className="infra-model-image-wrap">
         <div className="infra-model-image-frame">
           <div className="infra-model-media-placeholder" role="status" aria-live="polite">
-            {imageError ? 'Model image could not be loaded.' : 'Model image source missing.'}
+            Model image not available.
           </div>
         </div>
       </div>
@@ -469,10 +419,7 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
           fetchPriority="high"
           sizes="(max-width: 700px) 100vw, min(560px, 45vw)"
           onLoad={() => setIsImageLoaded(true)}
-          onError={() => {
-            console.warn('[infra-models] Image load failed:', { src })
-            setImageError(true)
-          }}
+          onError={() => setImageError(true)}
         />
       </div>
     </div>
@@ -1318,14 +1265,21 @@ function App(_props: AppProps = {}) {
   const appStateSyncHydratedRef = useRef(false)
   const appStateSyncTimerRef = useRef<number | null>(null)
   const [isQaRoute, setIsQaRoute] = useState<boolean>(() => window.location.hash === '#qa-responsive')
-  const [showEarthquakeNotifyPrompt, setShowEarthquakeNotifyPrompt] = useState(false)
-  const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<NotificationPermission | 'unsupported'>(
-    () => earthquakePushNotificationService.getPermissionState(),
-  )
+  const [showNotificationPermissionDialog, setShowNotificationPermissionDialog] = useState(false)
+  const [showLocationPermissionDialog, setShowLocationPermissionDialog] = useState(false)
+  const [earthquakeNotifyPermission, setEarthquakeNotifyPermission] = useState<
+    NotificationPermission | 'unsupported' | 'prompt'
+  >('default')
   const [earthquakeNotifySettings, setEarthquakeNotifySettings] = useState(() =>
     earthquakePushNotificationService.getSettings(),
   )
   const [earthquakeNotifyStatusMsg, setEarthquakeNotifyStatusMsg] = useState<string | null>(null)
+  const [isSettingsCardViewport, setIsSettingsCardViewport] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+    return window.matchMedia('(min-width: 1025px)').matches
+  })
+  const [isHomeSettingsPanelOpen, setIsHomeSettingsPanelOpen] = useState(false)
+  const [hasHomeSettingsPanelOpened, setHasHomeSettingsPanelOpened] = useState(false)
   const { language, setLanguage, t, isUrdu } = useLanguage()
   const [activeSection, setActiveSection] = useState<SectionKey | null>(() => readInitialSectionFromUrl())
   const [visitedSections, setVisitedSections] = useState<Set<SectionKey>>(() => {
@@ -1358,7 +1312,6 @@ function App(_props: AppProps = {}) {
   const [locationAccessMsg, setLocationAccessMsg] = useState<string | null>(null)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [detectedUserLocation, setDetectedUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [hasTriedApplyAutoLocation, setHasTriedApplyAutoLocation] = useState(false)
   const [riskActionProgress, setRiskActionProgress] = useState(0)
   const [advisoryQuestion, setAdvisoryQuestion] = useState('')
   const [advisoryMessages, setAdvisoryMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([])
@@ -1432,6 +1385,8 @@ function App(_props: AppProps = {}) {
   const [guidanceError, setGuidanceError] = useState<string | null>(null)
   const [isPreparingWordReport, setIsPreparingWordReport] = useState(false)
   const retrofitUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const [retrofitUploadSheetOpen, setRetrofitUploadSheetOpen] = useState(false)
+  const [isRetrofitUploadBusy, setIsRetrofitUploadBusy] = useState(false)
   const [infraModelsError] = useState<string | null>(null)
   const [infraMediaByModelId, setInfraMediaByModelId] = useState<Record<string, { image?: string; pdf?: string }>>({})
   const [selectedInfraModelId, setSelectedInfraModelId] = useState<string | null>(null)
@@ -1644,7 +1599,6 @@ function App(_props: AppProps = {}) {
   const isRiskMapsView = activeSection === 'riskMaps'
   const isLiveEarthquakeMapView = activeSection === 'liveEarthquakeMap'
   const isReadinessView = activeSection === 'readiness'
-  const isContentFitPortalView = activeSection === 'retrofitCalculator' || activeSection === 'smartConstruction'
   const ndmaBadgeTone: 'default' | 'home' | 'bestPractices' | 'riskMaps' | 'readiness' =
     isHomeView ? 'home'
     : isRiskMapsView || isLiveEarthquakeMapView ? 'riskMaps'
@@ -1918,6 +1872,51 @@ function App(_props: AppProps = {}) {
     [activeSection, isAdminMode, isEditMode],
   )
 
+  const androidBackContextRef = useRef<AndroidBackContext>({
+    activeSection: null,
+    hasOpenOverlay: () => false,
+    closeTopOverlay: () => {},
+    navigateToSection: () => {},
+  })
+
+  androidBackContextRef.current = {
+    activeSection,
+    hasOpenOverlay: () =>
+      Boolean(
+        bestPracticeImageLightbox ||
+          showReadinessLogicModal ||
+          showFireSafetyLogicModal ||
+          showNotificationPermissionDialog ||
+          showLocationPermissionDialog ||
+          isLearnVideoVisible ||
+          isInfraModelCatalogOpen ||
+          typeof (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__ ===
+            'function',
+      ),
+    closeTopOverlay: () => {
+      const closePdfFullscreen = (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void })
+        .__R360_PDF_FULLSCREEN_CLOSE__
+      if (closePdfFullscreen) {
+        closePdfFullscreen()
+        return
+      }
+      if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
+      else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
+      else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
+      else if (showNotificationPermissionDialog) setShowNotificationPermissionDialog(false)
+      else if (showLocationPermissionDialog) setShowLocationPermissionDialog(false)
+      else if (isLearnVideoVisible) closeLearnVideoModal()
+      else if (isInfraModelCatalogOpen) setIsInfraModelCatalogOpen(false)
+    },
+    navigateToSection,
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    ;(window as Window & { __R360_ANDROID_BACK__?: () => AndroidBackContext }).__R360_ANDROID_BACK__ = () =>
+      androidBackContextRef.current
+  }, [])
+
   useEffect(() => {
     preloadSectionModules()
     preloadAppMedia([DEFAULT_SHELL_LOGO_URL, APP_BRAND_ICON_URL, ...APP_BRAND_ICON_URL_CANDIDATES])
@@ -2028,45 +2027,92 @@ function App(_props: AppProps = {}) {
 
   // Initialize push notifications for earthquake alerts
   useEffect(() => {
-    try {
-      void earthquakePushNotificationService.initialize()
-      setEarthquakeNotifyPermission(earthquakePushNotificationService.getPermissionState())
-      setEarthquakeNotifySettings(earthquakePushNotificationService.getSettings())
-    } catch {
-      /* keep app shell stable if push init fails */
+    let stopMonitor: (() => void) | undefined
+    void (async () => {
+      try {
+        await earthquakePushNotificationService.initialize()
+        const permission = isCapacitorNativeRuntime()
+          ? await earthquakePushNotificationService.refreshPermissionState()
+          : earthquakePushNotificationService.getPermissionState()
+        setEarthquakeNotifyPermission(permission)
+        setEarthquakeNotifySettings(earthquakePushNotificationService.getSettings())
+        if (isCapacitorNativeRuntime()) {
+          stopMonitor = startNativeEarthquakeAlertMonitor()
+        }
+      } catch {
+        /* keep app shell stable if push init fails */
+      }
+    })()
+    return () => {
+      stopMonitor?.()
     }
   }, [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        if (earthquakePushNotificationService.shouldShowPrompt()) {
-          setShowEarthquakeNotifyPrompt(true)
-        }
-      } catch {
-        /* ignore prompt-check failures */
+    if (!isCapacitorNativeRuntime()) return
+    if (activeSection !== 'settings') return
+    void (async () => {
+      const permission = await earthquakePushNotificationService.refreshPermissionState()
+      setEarthquakeNotifyPermission(permission)
+      if (permission === 'prompt' && earthquakePushNotificationService.shouldShowPrompt()) {
+        setShowNotificationPermissionDialog(true)
       }
-    }, 1600)
-    return () => window.clearTimeout(timer)
+    })()
+  }, [activeSection])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+    const media = window.matchMedia('(min-width: 1025px)')
+    const onChange = () => setIsSettingsCardViewport(media.matches)
+    onChange()
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
   }, [])
 
+  useEffect(() => {
+    if (activeSection !== null || !isSettingsCardViewport) {
+      setIsHomeSettingsPanelOpen(false)
+    }
+  }, [activeSection, isSettingsCardViewport])
+
+  useEffect(() => {
+    if (!isHomeSettingsPanelOpen) return
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setIsHomeSettingsPanelOpen(false)
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [isHomeSettingsPanelOpen])
 
   const enableEarthquakeBrowserNotifications = useCallback(async () => {
     const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
     setEarthquakeNotifyPermission(permission)
     if (permission === 'granted') {
-      setEarthquakeNotifyStatusMsg('Permission granted.')
-      setShowEarthquakeNotifyPrompt(false)
+      setEarthquakeNotifyStatusMsg(isCapacitorNativeRuntime() ? 'Android notification permission granted.' : 'Permission granted.')
+      setShowNotificationPermissionDialog(false)
       return
     }
-    setEarthquakeNotifyStatusMsg('Notifications were not enabled by the browser.')
-    setShowEarthquakeNotifyPrompt(false)
+    setEarthquakeNotifyStatusMsg(
+      isCapacitorNativeRuntime()
+        ? 'Android notification permission was not granted. You can enable alerts later from Settings.'
+        : 'Notifications were not enabled by the browser.',
+    )
+    setShowNotificationPermissionDialog(false)
   }, [])
 
-  const maybeLaterEarthquakeNotifications = useCallback(() => {
+  const dismissNotificationPermissionDialog = useCallback(() => {
     earthquakePushNotificationService.markPromptLater()
-    setShowEarthquakeNotifyPrompt(false)
+    setShowNotificationPermissionDialog(false)
   }, [])
+
+  const promptForNotificationPermission = useCallback(() => {
+    if (!isCapacitorNativeRuntime()) {
+      void enableEarthquakeBrowserNotifications()
+      return
+    }
+    setShowNotificationPermissionDialog(true)
+  }, [enableEarthquakeBrowserNotifications])
 
   const updateEarthquakeNotifySettings = useCallback(
     (patch: Partial<{ enabled: boolean; soundEnabled: boolean; threshold: number }>) => {
@@ -2078,7 +2124,15 @@ function App(_props: AppProps = {}) {
 
   const sendEarthquakeNotificationTest = useCallback(async () => {
     const ok = await earthquakePushNotificationService.showTestNotification()
-    setEarthquakeNotifyStatusMsg(ok ? 'Test alert delivered.' : 'Test alert failed. Grant browser permission first.')
+    setEarthquakeNotifyStatusMsg(
+      ok
+        ? isCapacitorNativeRuntime()
+          ? 'Android test alert delivered.'
+          : 'Test alert delivered.'
+        : isCapacitorNativeRuntime()
+          ? 'Test alert failed. Allow Android notifications first.'
+          : 'Test alert failed. Grant browser permission first.',
+    )
   }, [])
 
   const sendEarthquakeSoundTest = useCallback(async () => {
@@ -2089,12 +2143,12 @@ function App(_props: AppProps = {}) {
   const toggleBrowserNotificationPreference = useCallback(
     (enabled: boolean) => {
       if (enabled) {
-        void enableEarthquakeBrowserNotifications()
+        promptForNotificationPermission()
         return
       }
       setEarthquakeNotifyStatusMsg('Browser notification permission can be changed from browser site settings.')
     },
-    [enableEarthquakeBrowserNotifications],
+    [promptForNotificationPermission],
   )
 
   const districtRiskLookup = useMemo(() => districtRiskLookupByName(), [])
@@ -2355,7 +2409,7 @@ function App(_props: AppProps = {}) {
     setIsGeneratingGuidance(true)
 
     try {
-      const { generateConstructionGuidance, generateGuidanceStepImages } = await loadConstructionGuidanceService()
+      const { generateConstructionGuidance } = await loadConstructionGuidanceService()
       const selectedBestPracticeName = bestPracticeNameOverride ?? applyBestPracticeTitle
 
       const guidance = await generateConstructionGuidance({
@@ -2367,29 +2421,6 @@ function App(_props: AppProps = {}) {
       })
 
       setConstructionGuidance(guidance)
-
-      setIsGeneratingStepImages(true)
-
-      try {
-        const stepsForImages = isUrdu ? guidance.stepsUrdu : guidance.steps
-        const imageResult = await generateGuidanceStepImages({
-          province: applyProvince,
-          city: applyCity,
-          hazard: applyHazard,
-          structureType,
-          bestPracticeName: selectedBestPracticeName,
-          steps: stepsForImages,
-        })
-
-        if (imageResult.images.length < guidance.steps.length) {
-          throw new Error('AI image generation returned incomplete step visuals. Please try again.')
-        }
-        setGuidanceStepImages(imageResult.images)
-      } catch (error) {
-        setGuidanceError(error instanceof Error ? error.message : 'Step image generation failed.')
-      } finally {
-        setIsGeneratingStepImages(false)
-      }
     } catch (error) {
       setGuidanceError(error instanceof Error ? error.message : 'Guidance generation failed.')
     } finally {
@@ -2403,158 +2434,164 @@ function App(_props: AppProps = {}) {
     setIsPreparingWordReport(true)
 
     try {
-      const { generateGuidanceStepImages } = await loadConstructionGuidanceService()
-      const reportLanguage = isUrdu ? 'urdu' : 'english'
-      let reportImages = guidanceStepImages
-      const isEnglishReport = reportLanguage === 'english'
+      const { AlignmentType, BorderStyle, Document, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } = await import('docx')
+
+      const isEnglishReport = !isUrdu
+      const reportLanguage = isEnglishReport ? 'english' : 'urdu'
       const reportSteps = isEnglishReport ? constructionGuidance.steps : constructionGuidance.stepsUrdu
-
-      if (reportImages.length < reportSteps.length) {
-        try {
-          const imageResult = await generateGuidanceStepImages({
-            province: applyProvince,
-            city: applyCity,
-            hazard: applyHazard,
-            structureType,
-            bestPracticeName: applyBestPracticeTitle,
-            steps: reportSteps,
-          })
-
-          if (imageResult.images.length < reportSteps.length) {
-            setGuidanceError(t.applyRegion.guidanceReportBlocked)
-            return
-          }
-
-          reportImages = imageResult.images
-          setGuidanceStepImages(imageResult.images)
-        } catch (error) {
-          setGuidanceError(error instanceof Error ? error.message : t.applyRegion.guidanceReportImageFailed)
-          return
-        }
-      }
-
-      const toImageBytes = (dataUrl: string): Uint8Array => {
-      const base64 = dataUrl.split(',')[1] ?? ''
-      const binary = window.atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for (let index = 0; index < binary.length; index += 1) {
-        bytes[index] = binary.charCodeAt(index)
-      }
-      return bytes
-    }
-
-      const getImageSize = (dataUrl: string): Promise<{ width: number; height: number }> =>
-      new Promise((resolve) => {
-        const img = new window.Image()
-        img.onload = () => {
-          const maxWidth = 560
-          const naturalWidth = img.naturalWidth || 1024
-          const naturalHeight = img.naturalHeight || 768
-          const ratio = naturalHeight / naturalWidth
-          const width = Math.min(maxWidth, naturalWidth)
-          const height = Math.max(220, Math.round(width * ratio))
-          resolve({ width, height })
-        }
-        img.onerror = () => resolve({ width: 520, height: 320 })
-        img.src = dataUrl
-      })
-
-      const { AlignmentType, Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } = await import('docx')
-
-      const renderedAt = new Date().toLocaleString()
-      const reportTitle = isEnglishReport ? t.applyRegion.wordReportTitleEnglish : t.applyRegion.wordReportTitleUrdu
-      const areaLabel = isEnglishReport ? 'Area' : 'علاقہ'
-      const hazardLabel = isEnglishReport ? 'Hazard' : 'خطرہ'
-      const bestPracticeLabel = isEnglishReport ? 'Best Practice' : 'بہترین طریقہ کار'
-      const generatedLabel = isEnglishReport ? 'Generated' : 'تیار کردہ وقت'
-      const summaryHeading = isEnglishReport ? 'Executive Summary' : 'خلاصہ'
-      const materialsHeading = isEnglishReport ? 'Recommended Materials' : 'تجویز کردہ مواد'
-      const safetyHeading = isEnglishReport ? 'Safety Requirements' : 'حفاظتی ہدایات'
-      const stepLabel = isEnglishReport ? 'Step' : 'مرحلہ'
-      const keyChecksHeading = isEnglishReport ? 'Key Checks' : 'اہم جانچ نکات'
-      const stepVisualCaption = isEnglishReport ? 'Step visual' : 'مرحلے کی تصویر'
       const reportSummary = isEnglishReport ? constructionGuidance.summary : constructionGuidance.summaryUrdu
       const reportMaterials = isEnglishReport ? constructionGuidance.materials : constructionGuidance.materialsUrdu
       const reportSafety = isEnglishReport ? constructionGuidance.safety : constructionGuidance.safetyUrdu
+
+      const renderedAt = new Date().toLocaleString('en-PK', { dateStyle: 'long', timeStyle: 'short' })
+      const reportTitle = isEnglishReport ? t.applyRegion.wordReportTitleEnglish : t.applyRegion.wordReportTitleUrdu
+      const stepLabel = isEnglishReport ? 'Step' : 'مرحلہ'
+      const keyChecksHeading = isEnglishReport ? 'Quality Checks & Inspection Points' : 'اہم جانچ نکات'
+
+      const hr = () => new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1a3a6e', space: 6 } }, text: '', spacing: { after: 0 } })
+      const spacer = (after = 160) => new Paragraph({ text: '', spacing: { after } })
+
       const docChildren = [
-      new Paragraph({
-        heading: HeadingLevel.TITLE,
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: reportTitle, bold: true, size: 34 })],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 260 },
-        children: [
-          new TextRun({
-            text: `${areaLabel}: ${applyCity}, ${applyProvince}   |   ${hazardLabel}: ${applyHazard}   |   ${bestPracticeLabel}: ${applyBestPracticeTitle}   |   ${generatedLabel}: ${renderedAt}`,
-            size: 20,
-          }),
-        ],
-      }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: summaryHeading }),
-      new Paragraph({ text: reportSummary, spacing: { after: 220 } }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: materialsHeading }),
-      ...reportMaterials.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      new Paragraph({ text: '', spacing: { after: 120 } }),
-      new Paragraph({ heading: HeadingLevel.HEADING_1, text: safetyHeading }),
-      ...reportSafety.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      new Paragraph({ text: '', spacing: { after: 140 } }),
-    ]
+        // ── Cover ────────────────────────────────────────────────────────────
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 60 },
+          children: [new TextRun({ text: 'INFRA RESILIENCE360', bold: true, size: 52, color: '0d2b6b', allCaps: true })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 40 },
+          children: [new TextRun({ text: 'National Disaster Management Authority (NDMA)', size: 26, color: '2a5298', bold: true })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 180 },
+          children: [new TextRun({ text: 'Infrastructure Safety & Disaster Engineering Toolkit', italics: true, size: 22, color: '475569' })],
+        }),
+        hr(),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 180, after: 80 },
+          children: [new TextRun({ text: reportTitle, bold: true, size: 36, color: '1a3a6e' })],
+        }),
+        // ── Metadata table ──────────────────────────────────────────────────
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: { top: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, bottom: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, left: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, right: { style: BorderStyle.SINGLE, size: 4, color: 'c8d8f0' }, insideH: { style: BorderStyle.SINGLE, size: 2, color: 'dce8f8' }, insideV: { style: BorderStyle.SINGLE, size: 2, color: 'dce8f8' } },
+          rows: [
+            new TableRow({ children: [
+              new TableCell({ width: { size: 30, type: WidthType.PERCENTAGE }, shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Region / District' : 'علاقہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ width: { size: 70, type: WidthType.PERCENTAGE }, children: [new Paragraph({ children: [new TextRun({ text: `${applyCity}, ${applyProvince}, Pakistan`, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Primary Hazard' : 'بنیادی خطرہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: applyHazard, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Construction Practice' : 'تعمیراتی طریقہ', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: applyBestPracticeTitle, size: 20 })] })] }),
+            ] }),
+            new TableRow({ children: [
+              new TableCell({ shading: { fill: 'e8f0fb' }, children: [new Paragraph({ children: [new TextRun({ text: isEnglishReport ? 'Report Generated' : 'تیار کردہ وقت', bold: true, size: 20, color: '1a3a6e' })] })] }),
+              new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: renderedAt, size: 20 })] })] }),
+            ] }),
+          ],
+        }),
+        spacer(240),
+
+        // ── Executive Summary ────────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '1. Executive Summary' : '۱. خلاصہ', spacing: { before: 200, after: 100 } }),
+        new Paragraph({ text: reportSummary, spacing: { after: 200 }, indent: { left: 240 } }),
+
+        // ── Recommended Materials ────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '2. Recommended Construction Materials' : '۲. تجویز کردہ تعمیراتی مواد', spacing: { before: 200, after: 100 } }),
+        ...reportMaterials.map((item) => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 60 }, indent: { left: 240 } })),
+        spacer(120),
+
+        // ── Safety Requirements ──────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '3. Safety Requirements & Engineering Precautions' : '۳. حفاظتی ہدایات', spacing: { before: 200, after: 100 } }),
+        ...reportSafety.map((item) => new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 60 }, indent: { left: 240 } })),
+        spacer(120),
+
+        // ── Implementation Steps ─────────────────────────────────────────────
+        new Paragraph({ heading: HeadingLevel.HEADING_1, text: isEnglishReport ? '4. Construction Sequence & Implementation Steps' : '۴. تعمیراتی مراحل', spacing: { before: 200, after: 140 } }),
+      ]
 
       for (const [index, step] of reportSteps.entries()) {
-        const image = isEnglishReport
-          ? reportImages.find((item) => item.stepTitle === step.title) ?? reportImages[index]
-          : reportImages[index]
-
         docChildren.push(
-        new Paragraph({ heading: HeadingLevel.HEADING_2, text: `${stepLabel} ${index + 1}: ${step.title}`, spacing: { before: 240, after: 80 } }),
-        new Paragraph({ text: step.description, spacing: { after: 100 } }),
-        new Paragraph({ text: keyChecksHeading, heading: HeadingLevel.HEADING_3 }),
-        ...step.keyChecks.map((item) => new Paragraph({ text: item, bullet: { level: 0 } })),
-      )
-
-        if (image?.imageDataUrl) {
-          const imageBytes = toImageBytes(image.imageDataUrl)
-          const imageSize = await getImageSize(image.imageDataUrl)
-
-          docChildren.push(
-          new Paragraph({ text: '', spacing: { after: 80 } }),
           new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                data: imageBytes,
-                type: 'png',
-                transformation: {
-                  width: imageSize.width,
-                  height: imageSize.height,
-                },
-              }),
-            ],
+            heading: HeadingLevel.HEADING_2,
+            text: `${stepLabel} ${index + 1}: ${step.title}`,
+            spacing: { before: 200, after: 80 },
           }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 180 },
-            children: [new TextRun({ text: `${stepLabel} ${index + 1} ${stepVisualCaption}`, italics: true, size: 18 })],
-          }),
+          new Paragraph({ text: step.description, spacing: { after: 100 }, indent: { left: 240 } }),
+          new Paragraph({ heading: HeadingLevel.HEADING_3, text: keyChecksHeading, spacing: { before: 80, after: 60 } }),
+          ...step.keyChecks.map((item) =>
+            new Paragraph({ text: item, bullet: { level: 0 }, spacing: { after: 50 }, indent: { left: 360 } }),
+          ),
+          spacer(80),
         )
-        }
       }
 
+      // ── Disclaimer ──────────────────────────────────────────────────────────
+      docChildren.push(
+        spacer(200),
+        hr(),
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          text: isEnglishReport ? '5. Disclaimer & Notes' : '۵. اہم نوٹس',
+          spacing: { before: 200, after: 100 },
+        }),
+        new Paragraph({
+          spacing: { after: 120 },
+          indent: { left: 240 },
+          children: [
+            new TextRun({
+              text: isEnglishReport
+                ? 'This guidance report has been generated by Infra Resilience360, a technical toolkit developed under the National Disaster Management Authority (NDMA), Government of Pakistan. The recommendations are based on AI-assisted engineering analysis and regional hazard data. This report is intended to serve as preliminary technical guidance only.'
+                : 'یہ رپورٹ انفرا ریزیلینس 360 کی طرف سے تیار کی گئی ہے، جو قومی ادارہ برائے انتظام آفات (NDMA)، حکومت پاکستان کے تحت تیار کردہ ایک تکنیکی ٹول کٹ ہے۔ سفارشات AI سے معاون انجینئرنگ تجزیے اور علاقائی آفات کے ڈیٹا پر مبنی ہیں۔',
+              size: 18,
+              color: '475569',
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 120 },
+          indent: { left: 240 },
+          children: [
+            new TextRun({
+              text: isEnglishReport
+                ? 'IMPORTANT: All construction activities must be approved and supervised by a licensed structural engineer. This report does not replace mandatory building permits, structural inspections, or compliance with the Pakistan Building Code (PBC) and applicable provincial regulations.'
+                : 'اہم: تمام تعمیراتی کام ایک لائسنس یافتہ سٹرکچرل انجینئر کی منظوری اور نگرانی میں ہونے چاہئیں۔ یہ رپورٹ لازمی بلڈنگ پرمٹ، سٹرکچرل معائنے، یا پاکستان بلڈنگ کوڈ کی تعمیل کا متبادل نہیں ہے۔',
+              size: 18,
+              bold: true,
+              color: 'c0392b',
+            }),
+          ],
+        }),
+        spacer(80),
+        hr(),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 120, after: 60 },
+          children: [
+            new TextRun({ text: 'Infra Resilience360  ·  NDMA Pakistan  ·  Infrastructure Safety & Disaster Engineering Toolkit', size: 16, color: '6b7280', italics: true }),
+          ],
+        }),
+      )
+
       const report = new Document({
-        sections: [
-          {
-            children: docChildren,
-          },
-        ],
+        creator: 'Infra Resilience360 — NDMA Pakistan',
+        title: `${reportTitle} — ${applyCity}, ${applyProvince}`,
+        description: `Construction guidance report for ${applyCity}, ${applyProvince}. Hazard: ${applyHazard}. Practice: ${applyBestPracticeTitle}.`,
+        sections: [{ children: docChildren }],
       })
 
       const blob = await Packer.toBlob(report)
       const url = window.URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `resilience360-guidance-report-${reportLanguage}-${applyProvince}-${applyCity}-${Date.now()}.docx`
+      anchor.download = `R360-guidance-${applyCity}-${applyHazard}-${Date.now()}.docx`
       document.body.appendChild(anchor)
       anchor.click()
       document.body.removeChild(anchor)
@@ -2867,26 +2904,65 @@ function App(_props: AppProps = {}) {
     [],
   )
 
-  const handleRetrofitSeriesUpload = (files: FileList | null) => {
-    if (!files || files.length === 0) {
-      return
+  const addRetrofitUploadFiles = async (incomingFiles: File[]) => {
+    if (incomingFiles.length === 0) return
+
+    const candidates = incomingFiles.filter((file) => isLikelyImageFile(file, file.name))
+    if (candidates.length === 0) return
+
+    setIsRetrofitUploadBusy(true)
+    try {
+      const normalizedFiles = await Promise.all(
+        candidates.map((file, index) => normalizeImageFileForUpload(file, file.name || `upload-${index + 1}.jpg`)),
+      )
+      setRetrofitImageSeriesFiles((prev) => [...prev, ...normalizedFiles])
+      setRetrofitImageSeriesPreviewUrls((prev) => [
+        ...prev,
+        ...normalizedFiles.map((file) => URL.createObjectURL(file)),
+      ])
+      setRetrofitImageSeriesResults([])
+      setRetrofitGuidanceResults([])
+      setRetrofitFinalEstimate(null)
+      setRetrofitError(null)
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'The requested file could not be read. Please choose another image.'))
+    } finally {
+      setIsRetrofitUploadBusy(false)
     }
-
-    const incomingFiles = Array.from(files).filter((file) => file.type.startsWith('image/'))
-    if (incomingFiles.length === 0) {
-      return
-    }
-
-    const nextFiles = [...retrofitImageSeriesFiles, ...incomingFiles]
-    const nextPreviews = [...retrofitImageSeriesPreviewUrls, ...incomingFiles.map((file) => URL.createObjectURL(file))]
-
-    setRetrofitImageSeriesFiles(nextFiles)
-    setRetrofitImageSeriesPreviewUrls(nextPreviews)
-    setRetrofitImageSeriesResults([])
-    setRetrofitGuidanceResults([])
-    setRetrofitFinalEstimate(null)
-    setRetrofitError(null)
   }
+
+  const handleRetrofitSeriesUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    await addRetrofitUploadFiles(Array.from(files))
+  }
+
+  const openRetrofitUploadPicker = useCallback(() => {
+    if (isCapacitorNativeRuntime()) {
+      setRetrofitUploadSheetOpen(true)
+      return
+    }
+    retrofitUploadInputRef.current?.click()
+  }, [])
+
+  const handleRetrofitCameraCapture = useCallback(async () => {
+    setRetrofitUploadSheetOpen(false)
+    try {
+      const file = await capturePhotoWithCamera()
+      await addRetrofitUploadFiles([file])
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'Camera capture failed. Please try again.'))
+    }
+  }, [])
+
+  const handleRetrofitGalleryPick = useCallback(async () => {
+    setRetrofitUploadSheetOpen(false)
+    try {
+      const files = await pickPhotosFromGallery()
+      await addRetrofitUploadFiles(files)
+    } catch (error) {
+      setRetrofitError(formatApiErrorMessage(error, 'Gallery selection failed. Please try again.'))
+    }
+  }, [])
 
   const openRetrofitCalculatorPage = useCallback(() => {
     setRetrofitError(null)
@@ -3676,7 +3752,161 @@ function App(_props: AppProps = {}) {
     }
   }
 
-  const requestCurrentUserLocation = useCallback(() => {
+  const applyDetectedCoordinates = useCallback(
+    async (rawLat: number, rawLng: number) => {
+      const lat = rawLat.toFixed(6)
+      const lng = rawLng.toFixed(6)
+      const gpsText = `${lat}, ${lng}`
+      setRetrofitAutoLocationPermissionGranted(true)
+      setDetectedUserLocation({ lat: rawLat, lng: rawLng })
+      const nearestDistrict = findNearestCenterName({ lat: rawLat, lng: rawLng }, effectiveDistrictCenters)
+      const nearestProvince = getProvinceForDistrict(nearestDistrict) || findNearestCenterName({ lat: rawLat, lng: rawLng }, provinceCenters)
+      const nearestDistrictsInProvince = nearestProvince ? listDistrictsByProvince(nearestProvince) : []
+      const hasDistrictInDropdown = nearestDistrictsInProvince.includes(nearestDistrict)
+      const nearestProvinceCities = nearestProvince ? (pakistanCitiesByProvince[nearestProvince] ?? []) : []
+
+      let resolvedProvince = nearestProvince || 'Punjab'
+      let resolvedCity = hasDistrictInDropdown
+        ? nearestDistrict
+        : nearestProvinceCities[0] || pakistanCitiesByProvince[resolvedProvince]?.[0] || 'Lahore'
+      let reverseReadableLocation = ''
+
+      setStructureReviewGps(gpsText)
+
+      if (nearestProvince) {
+        setSelectedProvince(nearestProvince)
+        setApplyProvince(nearestProvince)
+        setDesignProvince(nearestProvince)
+      }
+
+      if (nearestDistrict && hasDistrictInDropdown) {
+        setSelectedDistrict(nearestDistrict)
+        setApplyCity(nearestDistrict)
+      } else {
+        setSelectedDistrict(null)
+        if (nearestProvinceCities.length > 0) {
+          setApplyCity(nearestProvinceCities[0])
+        }
+      }
+
+      const districtProfileForHazard = nearestProvince
+        ? findDistrictRiskProfile(nearestProvince, hasDistrictInDropdown ? nearestDistrict : null)
+        : null
+      const provinceProfileForHazard = nearestProvince ? effectiveProvinceRisk[nearestProvince] : null
+      const districtFlood = districtProfileForHazard?.flood === 'Very High' || districtProfileForHazard?.flood === 'High'
+      const districtEarthquake =
+        districtProfileForHazard?.earthquake === 'Very High' || districtProfileForHazard?.earthquake === 'High'
+      const provinceFlood = provinceProfileForHazard?.flood === 'Very High' || provinceProfileForHazard?.flood === 'High'
+      const provinceEarthquake =
+        provinceProfileForHazard?.earthquake === 'Very High' || provinceProfileForHazard?.earthquake === 'High'
+
+      if ((districtFlood && !districtEarthquake) || (provinceFlood && !provinceEarthquake)) {
+        setApplyHazard('flood')
+      } else if ((districtEarthquake && !districtFlood) || (provinceEarthquake && !provinceFlood)) {
+        setApplyHazard('earthquake')
+      }
+
+      try {
+        const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
+        const reverseResponse = await fetch(reverseUrl, {
+          headers: { 'Accept-Language': 'en' },
+        })
+
+        if (reverseResponse.ok) {
+          const reverseData = (await reverseResponse.json()) as {
+            display_name?: string
+            address?: {
+              city?: string
+              town?: string
+              village?: string
+              county?: string
+              state?: string
+              province?: string
+            }
+          }
+
+          const address = reverseData.address ?? {}
+          const reverseProvince = resolveProvinceFromText(address.state) || resolveProvinceFromText(address.province)
+          const reverseCityCandidate = address.city || address.town || address.village || address.county
+
+          if (reverseProvince) {
+            resolvedProvince = reverseProvince
+            resolvedCity = resolveCityFromProvince(reverseProvince, reverseCityCandidate || nearestDistrict)
+          }
+
+          if (reverseData.display_name) {
+            reverseReadableLocation = reverseData.display_name
+            setLocationText(`${reverseData.display_name} (${gpsText})`)
+          } else {
+            setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+          }
+        } else {
+          setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+        }
+      } catch {
+        setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
+      }
+
+      setRetrofitAutoLocation({
+        province: resolvedProvince,
+        city: resolvedCity,
+        lat: rawLat,
+        lng: rawLng,
+      })
+
+      if (resolvedProvince) {
+        setRetrofitCity(resolveCityFromProvince(resolvedProvince, resolvedCity))
+      }
+
+      if (reverseReadableLocation) {
+        setLocationAccessMsg(
+          t.errors.geolocationAutoDetected
+            .replace('{city}', resolvedCity)
+            .replace('{province}', resolvedProvince)
+            .replace('{gps}', toGpsLabel(rawLat, rawLng)),
+        )
+      }
+
+      if (nearestProvince && nearestDistrict && hasDistrictInDropdown) {
+        setLocationAccessMsg(
+          t.errors.geolocationMappedDistrict.replace('{district}', nearestDistrict).replace('{province}', nearestProvince),
+        )
+      } else if (nearestProvince) {
+        setLocationAccessMsg(t.errors.geolocationMappedProvince.replace('{province}', nearestProvince))
+      } else {
+        setLocationAccessMsg(t.errors.geolocationExactSuccess)
+      }
+    },
+    [effectiveDistrictCenters, effectiveProvinceRisk, t.errors],
+  )
+
+  const executeLocationRequest = useCallback(async () => {
+    if (isCapacitorNativeRuntime()) {
+      setIsDetectingLocation(true)
+      setLocationAccessMsg(t.errors.geolocationRequesting)
+      try {
+        const permission = await requestNativeLocationPermission()
+        if (permission !== 'granted') {
+          setRetrofitAutoLocationPermissionGranted(false)
+          setLocationAccessMsg(t.errors.geolocationDenied)
+          setRetrofitLocationMode('manual')
+          window.setTimeout(() => setLocationAccessMsg(null), 3500)
+          return
+        }
+        const coords = await getNativeCurrentPosition()
+        await applyDetectedCoordinates(coords.latitude, coords.longitude)
+      } catch {
+        setRetrofitAutoLocationPermissionGranted(false)
+        setLocationAccessMsg(t.errors.geolocationUnable)
+        setRetrofitLocationMode('manual')
+        window.setTimeout(() => setLocationAccessMsg(null), 3500)
+      } finally {
+        setIsDetectingLocation(false)
+        window.setTimeout(() => setLocationAccessMsg(null), 3000)
+      }
+      return
+    }
+
     if (!('geolocation' in navigator)) {
       setRetrofitAutoLocationPermissionGranted(false)
       setLocationAccessMsg(t.errors.geolocationUnsupported)
@@ -3689,130 +3919,7 @@ function App(_props: AppProps = {}) {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const rawLat = position.coords.latitude
-        const rawLng = position.coords.longitude
-        const lat = rawLat.toFixed(6)
-        const lng = rawLng.toFixed(6)
-        const gpsText = `${lat}, ${lng}`
-        setRetrofitAutoLocationPermissionGranted(true)
-        setDetectedUserLocation({ lat: rawLat, lng: rawLng })
-        const nearestDistrict = findNearestCenterName({ lat: rawLat, lng: rawLng }, effectiveDistrictCenters)
-        const nearestProvince = getProvinceForDistrict(nearestDistrict) || findNearestCenterName({ lat: rawLat, lng: rawLng }, provinceCenters)
-        const nearestDistrictsInProvince = nearestProvince ? listDistrictsByProvince(nearestProvince) : []
-        const hasDistrictInDropdown = nearestDistrictsInProvince.includes(nearestDistrict)
-        const nearestProvinceCities = nearestProvince ? (pakistanCitiesByProvince[nearestProvince] ?? []) : []
-
-        let resolvedProvince = nearestProvince || 'Punjab'
-        let resolvedCity = hasDistrictInDropdown
-          ? nearestDistrict
-          : nearestProvinceCities[0] || pakistanCitiesByProvince[resolvedProvince]?.[0] || 'Lahore'
-        let reverseReadableLocation = ''
-
-        setStructureReviewGps(gpsText)
-
-        if (nearestProvince) {
-          setSelectedProvince(nearestProvince)
-          setApplyProvince(nearestProvince)
-          setDesignProvince(nearestProvince)
-        }
-
-        if (nearestDistrict && hasDistrictInDropdown) {
-          setSelectedDistrict(nearestDistrict)
-          setApplyCity(nearestDistrict)
-        } else {
-          setSelectedDistrict(null)
-          if (nearestProvinceCities.length > 0) {
-            setApplyCity(nearestProvinceCities[0])
-          }
-        }
-
-        const districtProfileForHazard = nearestProvince
-          ? findDistrictRiskProfile(nearestProvince, hasDistrictInDropdown ? nearestDistrict : null)
-          : null
-        const provinceProfileForHazard = nearestProvince ? effectiveProvinceRisk[nearestProvince] : null
-        const districtFlood = districtProfileForHazard?.flood === 'Very High' || districtProfileForHazard?.flood === 'High'
-        const districtEarthquake =
-          districtProfileForHazard?.earthquake === 'Very High' || districtProfileForHazard?.earthquake === 'High'
-        const provinceFlood = provinceProfileForHazard?.flood === 'Very High' || provinceProfileForHazard?.flood === 'High'
-        const provinceEarthquake =
-          provinceProfileForHazard?.earthquake === 'Very High' || provinceProfileForHazard?.earthquake === 'High'
-
-        if ((districtFlood && !districtEarthquake) || (provinceFlood && !provinceEarthquake)) {
-          setApplyHazard('flood')
-        } else if ((districtEarthquake && !districtFlood) || (provinceEarthquake && !provinceFlood)) {
-          setApplyHazard('earthquake')
-        }
-
-        try {
-          const reverseUrl = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-          const reverseResponse = await fetch(reverseUrl, {
-            headers: { 'Accept-Language': 'en' },
-          })
-
-          if (reverseResponse.ok) {
-            const reverseData = (await reverseResponse.json()) as {
-              display_name?: string
-              address?: {
-                city?: string
-                town?: string
-                village?: string
-                county?: string
-                state?: string
-                province?: string
-              }
-            }
-
-            const address = reverseData.address ?? {}
-            const reverseProvince = resolveProvinceFromText(address.state) || resolveProvinceFromText(address.province)
-            const reverseCityCandidate = address.city || address.town || address.village || address.county
-
-            if (reverseProvince) {
-              resolvedProvince = reverseProvince
-              resolvedCity = resolveCityFromProvince(reverseProvince, reverseCityCandidate || nearestDistrict)
-            }
-
-            if (reverseData.display_name) {
-              reverseReadableLocation = reverseData.display_name
-              setLocationText(`${reverseData.display_name} (${gpsText})`)
-            } else {
-              setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-            }
-          } else {
-            setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-          }
-        } catch {
-          setLocationText(`${t.errors.exactGpsLabel} ${gpsText}`)
-        }
-
-        setRetrofitAutoLocation({
-          province: resolvedProvince,
-          city: resolvedCity,
-          lat: rawLat,
-          lng: rawLng,
-        })
-
-        if (resolvedProvince) {
-          setRetrofitCity(resolveCityFromProvince(resolvedProvince, resolvedCity))
-        }
-
-        if (reverseReadableLocation) {
-          setLocationAccessMsg(
-            t.errors.geolocationAutoDetected
-              .replace('{city}', resolvedCity)
-              .replace('{province}', resolvedProvince)
-              .replace('{gps}', toGpsLabel(rawLat, rawLng)),
-          )
-        }
-
-        if (nearestProvince && nearestDistrict && hasDistrictInDropdown) {
-          setLocationAccessMsg(
-            t.errors.geolocationMappedDistrict.replace('{district}', nearestDistrict).replace('{province}', nearestProvince),
-          )
-        } else if (nearestProvince) {
-          setLocationAccessMsg(t.errors.geolocationMappedProvince.replace('{province}', nearestProvince))
-        } else {
-          setLocationAccessMsg(t.errors.geolocationExactSuccess)
-        }
+        await applyDetectedCoordinates(position.coords.latitude, position.coords.longitude)
         setIsDetectingLocation(false)
         window.setTimeout(() => setLocationAccessMsg(null), 3000)
       },
@@ -3824,6 +3931,7 @@ function App(_props: AppProps = {}) {
         if (error.code === error.TIMEOUT) message = t.errors.geolocationTimeout
 
         setLocationAccessMsg(message)
+        setRetrofitLocationMode('manual')
         setIsDetectingLocation(false)
         window.setTimeout(() => setLocationAccessMsg(null), 3500)
       },
@@ -3833,21 +3941,17 @@ function App(_props: AppProps = {}) {
         maximumAge: 0,
       },
     )
-  }, [effectiveDistrictCenters, effectiveProvinceRisk, t.errors])
+  }, [applyDetectedCoordinates, t.errors])
 
-  useEffect(() => {
-    if (activeSection !== 'applyRegion') {
-      setHasTriedApplyAutoLocation(false)
+  const beginLocationRequest = useCallback(() => {
+    if (isCapacitorNativeRuntime()) {
+      setShowLocationPermissionDialog(true)
       return
     }
+    void executeLocationRequest()
+  }, [executeLocationRequest])
 
-    if (hasTriedApplyAutoLocation) return
-    setHasTriedApplyAutoLocation(true)
-
-    if (!detectedUserLocation) {
-      requestCurrentUserLocation()
-    }
-  }, [activeSection, detectedUserLocation, hasTriedApplyAutoLocation, requestCurrentUserLocation])
+  const requestCurrentUserLocation = beginLocationRequest
 
   const submitStructureRiskReview = async () => {
     if (!structureReviewFile) {
@@ -4107,12 +4211,13 @@ function App(_props: AppProps = {}) {
   const notificationPermissionLabel =
     earthquakeNotifyPermission === 'granted' ? 'Granted'
     : earthquakeNotifyPermission === 'denied' ? 'Denied'
+    : isCapacitorNativeRuntime() ? 'Not Requested'
     : earthquakeNotifyPermission === 'unsupported' ? 'Unsupported'
     : 'Not Requested'
   const notificationPermissionTone =
     earthquakeNotifyPermission === 'granted' ? 'is-granted'
     : earthquakeNotifyPermission === 'denied' ? 'is-denied'
-    : earthquakeNotifyPermission === 'unsupported' ? 'is-unsupported'
+    : earthquakeNotifyPermission === 'unsupported' && !isCapacitorNativeRuntime() ? 'is-unsupported'
     : 'is-pending'
 
   const notificationSettingsPanel = (
@@ -4131,19 +4236,48 @@ function App(_props: AppProps = {}) {
             onChange={(event) => updateEarthquakeNotifySettings({ enabled: event.target.checked })}
           />
         </label>
-        <label className="switch-row">
-          <span className="settings-card__switch-label">
-            <span className="settings-card__icon" aria-hidden>
-              🔔
+        {!isCapacitorNativeRuntime() ?
+          <label className="switch-row">
+            <span className="settings-card__switch-label">
+              <span className="settings-card__icon" aria-hidden>
+                🔔
+              </span>
+              <span>Enable Browser Notifications</span>
             </span>
-            <span>Enable Browser Notifications</span>
-          </span>
-          <input
-            type="checkbox"
-            checked={earthquakeNotifyPermission === 'granted'}
-            onChange={(event) => toggleBrowserNotificationPreference(event.target.checked)}
-          />
-        </label>
+            <input
+              type="checkbox"
+              checked={earthquakeNotifyPermission === 'granted'}
+              onChange={(event) => toggleBrowserNotificationPreference(event.target.checked)}
+            />
+          </label>
+        : null}
+        {isCapacitorNativeRuntime() ?
+          <div className="settings-card__actions">
+            <button type="button" onClick={promptForNotificationPermission}>
+              Allow Android Notifications
+            </button>
+          </div>
+        : null}
+        <div className="settings-card__threshold-group" role="radiogroup" aria-label="Earthquake magnitude threshold">
+          <label className="settings-card__threshold-option">
+            <input
+              type="radio"
+              name="earthquake-threshold"
+              checked={earthquakeNotifySettings.threshold === 5}
+              onChange={() => updateEarthquakeNotifySettings({ threshold: 5 })}
+            />
+            <span>Notify for Magnitude ≥ 5.0</span>
+          </label>
+          <label className="settings-card__threshold-option">
+            <input
+              type="radio"
+              name="earthquake-threshold"
+              checked={earthquakeNotifySettings.threshold === 6}
+              onChange={() => updateEarthquakeNotifySettings({ threshold: 6 })}
+            />
+            <span>Notify for Magnitude ≥ 6.0</span>
+          </label>
+        </div>
         <label className="switch-row">
           <span className="settings-card__switch-label">
             <span className="settings-card__icon" aria-hidden>
@@ -4174,6 +4308,22 @@ function App(_props: AppProps = {}) {
       </p>
       {earthquakeNotifyStatusMsg ? <p className="settings-card__status">{earthquakeNotifyStatusMsg}</p> : null}
     </>
+  )
+
+  const legalLinksPanel = (
+    <div className="settings-card__group" role="group" aria-label="Legal and policy pages">
+      <h4 className="settings-card__title" style={{ marginTop: 0 }}>
+        Legal and Policy
+      </h4>
+      <p className="settings-card__subtitle">Privacy, terms, contact, and compliance information.</p>
+      <div className="settings-card__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        {LEGAL_LINKS.map((link) => (
+          <a key={link.path} href={link.path} className="setting-switch-link" style={{ display: 'inline-flex' }}>
+            {link.title}
+          </a>
+        ))}
+      </div>
+    </div>
   )
 
   const renderSectionContent = (section: SectionKey) => {
@@ -5359,30 +5509,20 @@ function App(_props: AppProps = {}) {
 
                       <CmsText as="h3" id="block.implementationStepsHeading" fallback={t.applyRegion.implementationStepsHeading} />
                       <div className="retrofit-defect-list">
-                        {constructionGuidance.steps.map((step, index) => {
-                          const image = guidanceStepImages.find((item) => item.stepTitle === step.title) ?? guidanceStepImages[index]
-                          return (
+                        {constructionGuidance.steps.map((step, index) => (
                             <article key={`${step.title}-${index}`} className="retrofit-defect-card">
                               <h4>
                                 <CmsText as="span" id="block.applyStepLabelWordEn" fallback={t.applyRegion.stepLabel} /> {index + 1}:{' '}
                                 {step.title}
                               </h4>
                               <p>{step.description}</p>
-                              {image?.imageDataUrl && (
-                                <img
-                                  src={image.imageDataUrl}
-                                  alt={`${step.title} ${t.applyRegion.visualGuideAltSuffix}`}
-                                  className="retrofit-preview"
-                                />
-                              )}
                               <ul>
                                 {step.keyChecks.map((item) => (
                                   <li key={item}>{item}</li>
                                 ))}
                               </ul>
                             </article>
-                          )
-                        })}
+                          ))}
                       </div>
                     </>
                   ) : (
@@ -5419,41 +5559,23 @@ function App(_props: AppProps = {}) {
 
                       <CmsText as="h3" id="block.implementationStepsHeadingUr" fallback={t.applyRegion.stepsUrdu} />
                       <div className="retrofit-defect-list">
-                        {constructionGuidance.stepsUrdu.map((step, index) => {
-                          const image = guidanceStepImages[index]
-                          return (
+                        {constructionGuidance.stepsUrdu.map((step, index) => (
                             <article key={`${step.title}-${index}-urdu`} className="retrofit-defect-card">
                               <h4>
                                 <CmsText as="span" id="block.applyStepLabelWordUr" fallback={t.applyRegion.stepUrdu} /> {index + 1}:{' '}
                                 {step.title}
                               </h4>
                               <p>{step.description}</p>
-                              {image?.imageDataUrl && (
-                                <img
-                                  src={image.imageDataUrl}
-                                  alt={`${step.title} ${t.applyRegion.visualGuideAltSuffix}`}
-                                  className="retrofit-preview"
-                                />
-                              )}
                               <ul>
                                 {step.keyChecks.map((item) => (
                                   <li key={item}>{item}</li>
                                 ))}
                               </ul>
                             </article>
-                          )
-                        })}
+                          ))}
                       </div>
                     </>
                   )}
-                  <div className="inline-controls">
-                    <button type="button" onClick={() => { void downloadApplyGuidanceWordReport() }} disabled={isPreparingWordReport}>
-                      {isPreparingWordReport ?
-                        <CmsText as="span" id="block.applyPreparingWordReport" fallback={t.applyRegion.preparingWordReport} />
-                      : <CmsText as="span" id="block.applyDownloadWordReport" fallback={t.applyRegion.downloadWordReport} />}
-                    </button>
-                  </div>
-                  {isGeneratingStepImages && <p>{t.applyRegion.generatingStepImages}</p>}
                 </div>
 
               )}
@@ -6167,7 +6289,7 @@ function App(_props: AppProps = {}) {
                   {...rf('main', 'useMyLocation')}
                   onClick={() => {
                     setRetrofitLocationMode('auto')
-                    requestCurrentUserLocation()
+                    beginLocationRequest()
                   }}
                   disabled={isDetectingLocation}
                 >
@@ -6222,6 +6344,16 @@ function App(_props: AppProps = {}) {
 
             <label className="retrofit-upload-label" {...rf('main', 'uploadSeries')}>
               {mergedRetrofit.uploadSeries}
+              {isCapacitorNativeRuntime() ?
+                <button
+                  type="button"
+                  className="retrofit-upload-native-btn"
+                  onClick={openRetrofitUploadPicker}
+                  disabled={isRetrofitUploadBusy}
+                >
+                  {isRetrofitUploadBusy ? 'Loading image…' : 'Upload Image'}
+                </button>
+              : null}
               <input
                 ref={retrofitUploadInputRef}
                 className="retrofit-upload-input"
@@ -6229,11 +6361,17 @@ function App(_props: AppProps = {}) {
                 accept="image/*"
                 multiple
                 onChange={(event) => {
-                  handleRetrofitSeriesUpload(event.target.files)
+                  void handleRetrofitSeriesUpload(event.target.files)
                   event.currentTarget.value = ''
                 }}
               />
             </label>
+            <ImageUploadBottomSheet
+              open={retrofitUploadSheetOpen}
+              onClose={() => setRetrofitUploadSheetOpen(false)}
+              onTakePhoto={() => void handleRetrofitCameraCapture()}
+              onChooseGallery={() => void handleRetrofitGalleryPick()}
+            />
 
             {retrofitImageSeriesFiles.length > 0 && (
               <p className="retrofit-selected-photos" {...rf('main', 'selectedPhotos')}>
@@ -6271,7 +6409,7 @@ function App(_props: AppProps = {}) {
                 <article
                   key={`${preview}-${index}`}
                   className="retrofit-defect-card retrofit-upload-card"
-                  onClick={() => retrofitUploadInputRef.current?.click()}
+                  onClick={() => openRetrofitUploadPicker()}
                 >
                   <h4>
                     {mergedRetrofit.imageN} {index + 1}
@@ -6986,12 +7124,53 @@ function App(_props: AppProps = {}) {
           <h3 className="settings-card__title">Settings</h3>
           <p className="settings-card__subtitle">Notification Preferences</p>
           {notificationSettingsPanel}
+          {legalLinksPanel}
         </div>
       </div>
     )
   }
 
   const useWebSingleRowHeader = !isCapacitorNativeRuntime()
+  const showDesktopSettingsCard = isHomeView && isSettingsCardViewport
+  const homeSettingsPanelId = 'homeSettingsNotificationPanel'
+  const toggleHomeSettingsPanel = () => {
+    setIsHomeSettingsPanelOpen((previous) => {
+      const next = !previous
+      if (next) setHasHomeSettingsPanelOpened(true)
+      return next
+    })
+  }
+  const desktopHomeSettingsCard =
+    showDesktopSettingsCard ?
+      <section className="home-settings-strip settings-card" aria-label="Settings">
+        <div className="home-settings-strip__summary">
+          <h3 className="settings-card__title">⚙ Settings</h3>
+          <p className="settings-card__subtitle">Manage Notification Preferences</p>
+        </div>
+        <div className="home-settings-strip__actions">
+          <button
+            type="button"
+            className="home-settings-strip__open-btn"
+            aria-expanded={isHomeSettingsPanelOpen}
+            aria-controls={homeSettingsPanelId}
+            onClick={toggleHomeSettingsPanel}
+          >
+            {isHomeSettingsPanelOpen ? 'Close Settings' : 'Open Settings'}
+          </button>
+        </div>
+        <div
+          id={homeSettingsPanelId}
+          className={`home-settings-drawer ${isHomeSettingsPanelOpen ? 'is-open' : ''}`}
+          role="region"
+          aria-label="Notification preferences"
+          aria-hidden={isHomeSettingsPanelOpen ? 'false' : 'true'}
+        >
+          <div className="home-settings-drawer__content">
+            {hasHomeSettingsPanelOpened ? notificationSettingsPanel : null}
+          </div>
+        </div>
+      </section>
+    : null
 
   const navbarBrandContent = (
     <div className="brand">
@@ -7070,41 +7249,37 @@ function App(_props: AppProps = {}) {
   return (
     <PageConfigElementsProvider value={pageConfigContextValue}>
     <>
-    {showEarthquakeNotifyPrompt ?
-      createPortal(
-        <div className="notify-permission-modal" role="dialog" aria-modal="true" aria-label="Enable notifications">
-          <div className="notify-permission-modal__card">
-            <div className="notify-permission-modal__header">
-              <h3 className="notify-permission-modal__title">Stay informed with real-time earthquake alerts.</h3>
-              <button
-                type="button"
-                className="notify-permission-modal__close"
-                onClick={maybeLaterEarthquakeNotifications}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <p className="notify-permission-modal__body">
-              Enable notifications to receive instant alerts for significant earthquakes (Magnitude ≥ 5.0).
-            </p>
-            <div className="notify-permission-modal__actions">
-              <button type="button" className="notify-permission-modal__primary" onClick={enableEarthquakeBrowserNotifications}>
-                Enable Notifications
-              </button>
-              <button type="button" className="notify-permission-modal__secondary" onClick={maybeLaterEarthquakeNotifications}>
-                Not Now
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )
-    : null}
+    <NativeAlertDialog
+      open={showNotificationPermissionDialog}
+      title="Enable earthquake alerts"
+      message="Infra Resilience360 can send native Android notifications when significant earthquakes occur near Pakistan. Alerts use your chosen magnitude threshold and run in the background while the app is installed."
+      primaryLabel="Allow Notifications"
+      secondaryLabel="Not Now"
+      onPrimary={() => void enableEarthquakeBrowserNotifications()}
+      onSecondary={dismissNotificationPermissionDialog}
+      onClose={dismissNotificationPermissionDialog}
+    />
+    <NativeAlertDialog
+      open={showLocationPermissionDialog}
+      title="Use your location"
+      message="Location access is used only when you choose Use My Location. It helps detect your city and province so retrofit rates and guidance can be loaded automatically."
+      primaryLabel="Allow Location"
+      secondaryLabel="Enter Manually"
+      onPrimary={() => {
+        setShowLocationPermissionDialog(false)
+        setRetrofitLocationMode('auto')
+        void executeLocationRequest()
+      }}
+      onSecondary={() => {
+        setShowLocationPermissionDialog(false)
+        setRetrofitLocationMode('manual')
+      }}
+      onClose={() => setShowLocationPermissionDialog(false)}
+    />
     <GlobalBackgroundVideo />
-    <div className={`r360-app-stack ${isHomeView ? 'r360-app-stack--home' : ''}`}>
+    <div className="r360-app-stack">
     <div
-      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}${isContentFitPortalView ? ' page-wrapper--content-fit-portals' : ''}`}
+      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}`}
       dir={isUrdu ? 'rtl' : 'ltr'}
     >
       <div className="content-layer">
