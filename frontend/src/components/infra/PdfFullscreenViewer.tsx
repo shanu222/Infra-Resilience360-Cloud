@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { PDFDocumentProxy } from 'pdfjs-dist'
+import { loadPdfJsFromCdn } from '../../utils/pdfJsCdn'
 
 type PdfFullscreenViewerProps = {
   src: string
@@ -12,7 +12,7 @@ type PdfFullscreenViewerProps = {
 export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreenViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
-  const pdfRef = useRef<PDFDocumentProxy | null>(null)
+  const pdfRef = useRef<any | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const scaleRef = useRef(1)
   const pinchRef = useRef<{ startDistance: number; startScale: number } | null>(null)
@@ -53,11 +53,7 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
 
     const render = async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).toString()
+        const pdfjs = await loadPdfJsFromCdn()
 
         const pdf = await pdfjs.getDocument({ url: src, withCredentials: false }).promise
         if (cancelled) {
