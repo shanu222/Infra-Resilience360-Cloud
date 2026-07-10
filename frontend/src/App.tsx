@@ -29,7 +29,9 @@ import type { MlRetrofitEstimate } from './services/mlRetrofit'
 import {
   type ConstructionGuidanceResult,
   type GuidanceStepImage,
+  generateConstructionGuidance,
 } from './services/constructionGuidance'
+import { buildApiTargets } from './services/apiBase'
 import {
   districtRiskLookupByName,
   findDistrictRiskProfile,
@@ -119,7 +121,6 @@ import { LEGAL_LINKS } from './legal/legalPages'
 import './styles/r360-section-panes.css'
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
-let constructionGuidanceServicePromise: Promise<typeof import('./services/constructionGuidance')> | null = null
 let advisoryServicePromise: Promise<typeof import('./services/advisory')> | null = null
 let infraModelsMetadataPromise: Promise<Record<string, { image?: string; pdf?: string }> | null> | null = null
 const infraImageSessionCache = new Set<string>()
@@ -127,8 +128,6 @@ const infraPdfSessionCache = new Set<string>()
 
 const loadVisionService = () => (visionServicePromise ??= import('./services/vision'))
 const loadMlRetrofitService = () => (mlRetrofitServicePromise ??= import('./services/mlRetrofit'))
-const loadConstructionGuidanceService = () =>
-  (constructionGuidanceServicePromise ??= import('./services/constructionGuidance'))
 const loadAdvisoryService = () => (advisoryServicePromise ??= import('./services/advisory'))
 
 function resolveInfraRuntimeMediaUrl(url: string): string {
@@ -2409,7 +2408,6 @@ function App(_props: AppProps = {}) {
     setIsGeneratingGuidance(true)
 
     try {
-      const { generateConstructionGuidance } = await loadConstructionGuidanceService()
       const selectedBestPracticeName = bestPracticeNameOverride ?? applyBestPracticeTitle
 
       const guidance = await generateConstructionGuidance({
