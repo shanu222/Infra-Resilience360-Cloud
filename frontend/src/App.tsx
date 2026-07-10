@@ -1588,8 +1588,14 @@ function App(_props: AppProps = {}) {
     homeShellThemeVars,
   } = homePresentation
 
-  /** Home page: show the original Live Earthquake Alerts tile in grid order. */
-  const homeCardRowsForDisplay = useMemo(() => homeCardRows, [homeCardRows])
+  /** Web app: hide Live Earthquake Alerts home tile (card code retained for native). */
+  const homeCardRowsForDisplay = useMemo(
+    () =>
+      isCapacitorNativeRuntime()
+        ? homeCardRows
+        : homeCardRows.filter((row) => row.key !== 'riskMaps'),
+    [homeCardRows],
+  )
 
 
   const isApplyRegionView = activeSection === 'applyRegion'
