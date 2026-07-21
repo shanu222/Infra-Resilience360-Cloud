@@ -28,6 +28,8 @@ export type MaterialHubPageStrings = {
   trainGuidanceImages: string;
   trainTotalViews: string;
   trainGuidanceLibrary: string;
+  trainInstallVideosTitle: string;
+  trainInstallVideosSubtitle: string;
   trainViewsSuffix: string;
   trainMinSuffix: string;
   train1Title: string;
@@ -175,6 +177,8 @@ export const MATERIAL_HUB_PAGE_STRINGS: Record<AppLanguage, MaterialHubPageStrin
     trainGuidanceImages: "Guidance Images",
     trainTotalViews: "Total Views",
     trainGuidanceLibrary: "Guidance Library",
+    trainInstallVideosTitle: "Installation Videos",
+    trainInstallVideosSubtitle: "Step-by-step material installation videos — streaming directly from R2.",
     trainViewsSuffix: "views",
     trainMinSuffix: "min",
     train1Title: "Bamboo Installation Guide",
@@ -341,6 +345,8 @@ export const MATERIAL_HUB_PAGE_STRINGS: Record<AppLanguage, MaterialHubPageStrin
     trainGuidanceImages: "رہنمائی کی تصاویر",
     trainTotalViews: "کل دیکھنے والے",
     trainGuidanceLibrary: "رہنمائی کا ذخیرہ",
+    trainInstallVideosTitle: "تنصیب ویڈیوز",
+    trainInstallVideosSubtitle: "مواد کی تنصیب کی مرحلہ وار ویڈیوز — براہ راست R2 سے اسٹریمنگ۔",
     trainViewsSuffix: "دیکھنے والے",
     trainMinSuffix: "منٹ",
     train1Title: "بامبو نصب کرنے کی رہنمائی",
