@@ -99,6 +99,7 @@ function VideoLightbox({ video, onClose }: VideoLightboxProps) {
             poster={video.posterUrl}
             controls
             autoPlay
+            muted
             playsInline
             preload="metadata"
             className="mh-video-lightbox__video"

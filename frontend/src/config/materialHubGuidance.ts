@@ -46,25 +46,28 @@ export type MaterialHubInstallationVideo = {
 /**
  * Known installation videos in R2 at
  * content/material-hubs/Installation videos for material/
- * Confirmed 200 OK on 21 Jul 2026. The app also runtime-probes candidates
- * via useInstallationVideos and skips any that return 404.
+ *
+ * Note: several object keys literally contain a Unicode ellipsis (U+2026 `…`),
+ * not ASCII dots — that is how they were uploaded to R2.
  */
+const ELLIPSIS = '\u2026'
+
 export const MATERIAL_HUB_INSTALLATION_VIDEO_CANDIDATES: Omit<MaterialHubInstallationVideo, 'url'>[] = [
   {
     id: 'bamboo-install',
-    fileName: 'Bamboo_disaster-resilient_house_...._202607211139.mp4',
+    fileName: `Bamboo_disaster-resilient_house_${ELLIPSIS}_202607211139.mp4`,
     title: 'Bamboo Installation',
     description: 'Disaster-resilient bamboo house construction walkthrough.',
   },
   {
     id: 'cgi-sheet-roofing',
-    fileName: 'CGI_sheet_roofing_installation_d...._202607211148.mp4',
+    fileName: `CGI_sheet_roofing_installation_d${ELLIPSIS}_202607211148.mp4`,
     title: 'CGI Sheet Roofing',
     description: 'CGI sheet roofing installation for disaster-resilient shelter.',
   },
   {
     id: 'eps-panel',
-    fileName: 'EPS_Panel_Construction_Disaster-...._202607211316.mp4',
+    fileName: `EPS_Panel_Construction_Disaster-${ELLIPSIS}_202607211316.mp4`,
     title: 'EPS Panel Construction',
     description: 'EPS panel fitting and construction for disaster-resilient builds.',
   },
@@ -76,7 +79,7 @@ export const MATERIAL_HUB_INSTALLATION_VIDEO_CANDIDATES: Omit<MaterialHubInstall
   },
   {
     id: 'polythene-sheet',
-    fileName: 'Polythene_sheet_installation_dis...._202607211216.mp4',
+    fileName: `Polythene_sheet_installation_dis${ELLIPSIS}_202607211216.mp4`,
     title: 'Polythene Sheet Installation',
     description: 'Waterproofing layer installation using polythene sheets.',
   },
@@ -88,13 +91,13 @@ export const MATERIAL_HUB_INSTALLATION_VIDEO_CANDIDATES: Omit<MaterialHubInstall
   },
   {
     id: 'steel-girder',
-    fileName: 'Steel_girder_construction_disast...._202607211205.mp4',
+    fileName: `Steel_girder_construction_disast${ELLIPSIS}_202607211205.mp4`,
     title: 'Steel Girder Placement',
     description: 'Placement, support, and alignment checks for steel girders.',
   },
   {
     id: 'wooden-plank',
-    fileName: 'Wooden_plank_construction_disast...._202607211228.mp4',
+    fileName: `Wooden_plank_construction_disast${ELLIPSIS}_202607211228.mp4`,
     title: 'Wooden Plank Assembly',
     description: 'Assembly sequence and fastening for wooden plank systems.',
   },
