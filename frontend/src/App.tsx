@@ -64,6 +64,13 @@ import { DisasterDashboardPage } from './pages/portals/DisasterDashboardPage'
 import { MaterialHubsPage } from './pages/portals/MaterialHubsPage'
 import { SmartConstructionPage } from './pages/portals/SmartConstructionPage'
 import { HelpCenterPage } from './pages/HelpCenterPage'
+import { AppIntroductionExperience } from './components/intro/AppIntroductionExperience'
+import {
+  getAppIntroShowOnStartup,
+  setAppIntroShowOnStartup,
+  setAppIntroWatched,
+  shouldAutoShowAppIntro,
+} from './utils/appIntroPreferences'
 import { PageConfigElementsProvider } from './context/PageConfigElementsContext'
 import { sectionKeyToPageSlug } from './utils/sectionPageSlug'
 import { SHELL_PAGE_BACKGROUND_ID } from './constants/cmsShell'
@@ -1287,6 +1294,8 @@ function App(_props: AppProps = {}) {
     return initial ? new Set([initial]) : new Set()
   })
   const [homeLayoutMode, setHomeLayoutMode] = useState<'grid' | 'carousel'>(() => readHomeLayoutMode())
+  const [showAppIntro, setShowAppIntro] = useState(false)
+  const [appIntroShowOnStartup, setAppIntroShowOnStartupState] = useState(() => getAppIntroShowOnStartup())
   const [selectedRole, setSelectedRole] = useState<(typeof roleOptions)[number]>(() => 'Admin (Full Access)')
   const [homepageConfig] = useState<HomepageConfigPayload>(() => getStaticHomepageConfig())
   const [selectedProvince, setSelectedProvince] = useState('Punjab')
@@ -1885,11 +1894,31 @@ function App(_props: AppProps = {}) {
     navigateToSection: () => {},
   })
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (shouldAutoShowAppIntro()) setShowAppIntro(true)
+  }, [])
+
+  const dismissAppIntro = useCallback(() => {
+    setAppIntroWatched(true)
+    setShowAppIntro(false)
+  }, [])
+
+  const openAppIntroReplay = useCallback(() => {
+    setShowAppIntro(true)
+  }, [])
+
+  const updateAppIntroShowOnStartup = useCallback((enabled: boolean) => {
+    setAppIntroShowOnStartup(enabled)
+    setAppIntroShowOnStartupState(enabled)
+  }, [])
+
   androidBackContextRef.current = {
     activeSection,
     hasOpenOverlay: () =>
       Boolean(
-        bestPracticeImageLightbox ||
+        showAppIntro ||
+          bestPracticeImageLightbox ||
           showReadinessLogicModal ||
           showFireSafetyLogicModal ||
           showNotificationPermissionDialog ||
@@ -1906,7 +1935,8 @@ function App(_props: AppProps = {}) {
         closePdfFullscreen()
         return
       }
-      if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
+      if (showAppIntro) dismissAppIntro()
+      else if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
       else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
       else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
       else if (showNotificationPermissionDialog) setShowNotificationPermissionDialog(false)
@@ -4227,6 +4257,26 @@ function App(_props: AppProps = {}) {
 
   const notificationSettingsPanel = (
     <>
+      <div className="settings-card__group" role="group" aria-label="Application introduction">
+        <label className="switch-row">
+          <span className="settings-card__switch-label">
+            <span className="settings-card__icon" aria-hidden>
+              ▶
+            </span>
+            <span>{t.appIntroShowOnStartup}</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={appIntroShowOnStartup}
+            onChange={(event) => updateAppIntroShowOnStartup(event.target.checked)}
+          />
+        </label>
+        <div className="settings-card__actions">
+          <button type="button" onClick={openAppIntroReplay}>
+            {t.watchAppIntro}
+          </button>
+        </div>
+      </div>
       <div className="settings-card__group" role="group" aria-label="Notification settings">
         <label className="switch-row">
           <span className="settings-card__switch-label">
@@ -7250,6 +7300,8 @@ function App(_props: AppProps = {}) {
       homeLabel={isHomeView ? t.pakistanHome : `🏠 ${t.home}`}
       onHelpCenter={() => navigateToSection('helpCenter')}
       helpCenterLabel={t.sections.helpCenter}
+      onWatchAppIntro={openAppIntroReplay}
+      watchAppIntroLabel={t.watchAppIntro}
       onSettings={() => navigateToSection('settings')}
       settingsLabel={t.sections.settings}
       onNewInterface={() => {
@@ -7268,6 +7320,19 @@ function App(_props: AppProps = {}) {
   return (
     <PageConfigElementsProvider value={pageConfigContextValue}>
     <>
+    <AppIntroductionExperience
+      open={showAppIntro}
+      onDismiss={dismissAppIntro}
+      brandTitle={t.heroTitle}
+      brandSubtitle={t.heroSubtitle}
+      poweredBy={t.navDrawerPoweredBy}
+      preparingLabel={t.appIntroPreparing}
+      skipLabel={t.appIntroSkip}
+      muteLabel={t.appIntroMute}
+      unmuteLabel={t.appIntroUnmute}
+      replayLabel={t.appIntroReplay}
+      dir={isUrdu ? 'rtl' : 'ltr'}
+    />
     <NativeAlertDialog
       open={showNotificationPermissionDialog}
       title="Enable earthquake alerts"

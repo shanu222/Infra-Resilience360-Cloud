@@ -22,6 +22,8 @@ export type TopBarQuickControlsProps = {
   homeLabel: string
   onHelpCenter?: () => void
   helpCenterLabel?: string
+  onWatchAppIntro?: () => void
+  watchAppIntroLabel?: string
   onSettings: () => void
   settingsLabel: string
   /** When false, hides settings entry (feature code retained). */
@@ -44,6 +46,8 @@ export function TopBarQuickControls({
   homeLabel,
   onHelpCenter,
   helpCenterLabel,
+  onWatchAppIntro,
+  watchAppIntroLabel,
   onSettings,
   settingsLabel,
   showSettingsToggle = true,
@@ -169,6 +173,16 @@ export function TopBarQuickControls({
         </section>
       : null}
 
+      {onWatchAppIntro && watchAppIntroLabel ?
+        <section className="nav-drawer-section nav-drawer-section--action">
+          <div className="nav-toolbar-field nav-toolbar-field--action">
+            <button type="button" className="nav-toolbar-action" onClick={() => runAndClose(onWatchAppIntro)}>
+              {watchAppIntroLabel}
+            </button>
+          </div>
+        </section>
+      : null}
+
       <section className="nav-drawer-section nav-drawer-section--home">
         <div className="nav-toolbar-field nav-toolbar-field--action">
           <button type="button" className="nav-toolbar-home-btn" onClick={() => runAndClose(onHome)}>
@@ -279,6 +293,11 @@ export function TopBarQuickControls({
         {onHelpCenter && helpCenterLabel ?
           <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onHelpCenter}>
             {helpCenterLabel}
+          </button>
+        : null}
+        {onWatchAppIntro && watchAppIntroLabel ?
+          <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onWatchAppIntro}>
+            {watchAppIntroLabel}
           </button>
         : null}
         <button type="button" className="nav-toolbar-home-btn" onClick={onHome}>
