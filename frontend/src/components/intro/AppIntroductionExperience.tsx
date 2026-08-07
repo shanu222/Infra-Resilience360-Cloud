@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { APP_BRAND_ICON_URL, APP_BRAND_ICON_URL_CANDIDATES } from '../../services/globalShellConfig'
 import {
   APP_INTRO_FADE_MS,
   APP_INTRO_LOAD_TIMEOUT_MS,
@@ -19,11 +18,15 @@ export type AppIntroductionExperienceProps = {
   muteLabel: string
   unmuteLabel: string
   replayLabel: string
+  slideHint: string
+  slideAriaLabel: string
   /** Text direction for overlay content. */
   dir?: 'ltr' | 'rtl'
 }
 
-type Phase = 'loading' | 'playing' | 'ended' | 'fading'
+type Phase = 'gate' | 'loading' | 'playing' | 'ended' | 'fading'
+
+const SLIDE_COMPLETE_RATIO = 0.86
 
 function disposeVideoElement(video: HTMLVideoElement | null) {
   if (!video) return
@@ -42,7 +45,7 @@ function disposeVideoElement(video: HTMLVideoElement | null) {
 
 /**
  * Full-screen cinematic application introduction.
- * Streams the R2 demo video; does not alter navigation or module state.
+ * Shows a slide-to-start gate first; video streams from R2 only after the user slides.
  */
 export function AppIntroductionExperience({
   open,
@@ -55,22 +58,37 @@ export function AppIntroductionExperience({
   muteLabel,
   unmuteLabel,
   replayLabel,
+  slideHint,
+  slideAriaLabel,
   dir = 'ltr',
 }: AppIntroductionExperienceProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
   const fadeTimerRef = useRef<number | null>(null)
   const loadTimerRef = useRef<number | null>(null)
   const dismissedRef = useRef(false)
   const playStartedRef = useRef(false)
+  const draggingRef = useRef(false)
+  const startXRef = useRef(0)
+  const startOffsetRef = useRef(0)
+  const slideOffsetRef = useRef(0)
 
-  const [phase, setPhase] = useState<Phase>('loading')
+  const [phase, setPhase] = useState<Phase>('gate')
   const [muted, setMuted] = useState(true)
   const [visible, setVisible] = useState(false)
-  const [logoIndex, setLogoIndex] = useState(0)
   const [sessionKey, setSessionKey] = useState(0)
+  const [slideOffset, setSlideOffset] = useState(0)
+  const [slideMax, setSlideMax] = useState(220)
+  const [slideComplete, setSlideComplete] = useState(false)
 
+  const isRtl = dir === 'rtl'
   const videoSrc = mediaManager.resolveRuntimeMediaUrl(APP_INTRO_VIDEO_URL)
-  const logoSrc = APP_BRAND_ICON_URL_CANDIDATES[logoIndex] ?? APP_BRAND_ICON_URL
+  const showVideo = phase === 'loading' || phase === 'playing' || phase === 'ended'
+
+  const updateSlideOffset = useCallback((value: number) => {
+    slideOffsetRef.current = value
+    setSlideOffset(value)
+  }, [])
 
   const clearTimers = useCallback(() => {
     if (fadeTimerRef.current !== null) {
@@ -81,6 +99,14 @@ export function AppIntroductionExperience({
       window.clearTimeout(loadTimerRef.current)
       loadTimerRef.current = null
     }
+  }, [])
+
+  const measureSlideTrack = useCallback(() => {
+    const track = trackRef.current
+    if (!track) return
+    const knob = 52
+    const max = Math.max(120, track.clientWidth - knob - 8)
+    setSlideMax(max)
   }, [])
 
   const beginDismiss = useCallback(() => {
@@ -117,46 +143,65 @@ export function AppIntroductionExperience({
       try {
         await attempt(true)
       } catch {
-        /* autoplay still blocked — user can tap Replay / wait for controls */
+        /* autoplay may still be blocked after gesture; unmute control remains available */
       }
     }
   }, [])
+
+  const startVideoFromGate = useCallback(() => {
+    if (dismissedRef.current || slideComplete) return
+    setSlideComplete(true)
+    updateSlideOffset(slideMax)
+    playStartedRef.current = false
+    setPhase('loading')
+    setSessionKey((k) => k + 1)
+    loadTimerRef.current = window.setTimeout(() => {
+      beginDismiss()
+    }, APP_INTRO_LOAD_TIMEOUT_MS)
+  }, [beginDismiss, slideComplete, slideMax, updateSlideOffset])
 
   useEffect(() => {
     if (!open) {
       clearTimers()
       dismissedRef.current = false
-      setPhase('loading')
+      playStartedRef.current = false
+      setPhase('gate')
       setVisible(false)
       setMuted(true)
+      updateSlideOffset(0)
+      setSlideComplete(false)
       disposeVideoElement(videoRef.current)
       return
     }
 
     dismissedRef.current = false
     playStartedRef.current = false
-    setPhase('loading')
+    setPhase('gate')
     setMuted(true)
-    setSessionKey((k) => k + 1)
+    updateSlideOffset(0)
+    setSlideComplete(false)
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     document.body.classList.add('r360-app-intro-open')
 
-    const showFrame = window.requestAnimationFrame(() => setVisible(true))
+    const showFrame = window.requestAnimationFrame(() => {
+      setVisible(true)
+      measureSlideTrack()
+    })
 
-    loadTimerRef.current = window.setTimeout(() => {
-      beginDismiss()
-    }, APP_INTRO_LOAD_TIMEOUT_MS)
+    const onResize = () => measureSlideTrack()
+    window.addEventListener('resize', onResize)
 
     return () => {
       window.cancelAnimationFrame(showFrame)
+      window.removeEventListener('resize', onResize)
       clearTimers()
       disposeVideoElement(videoRef.current)
       document.body.style.overflow = previousOverflow
       document.body.classList.remove('r360-app-intro-open')
     }
-  }, [open, beginDismiss, clearTimers])
+  }, [open, clearTimers, measureSlideTrack, updateSlideOffset])
 
   useEffect(() => {
     if (!open || phase === 'fading') return
@@ -170,8 +215,41 @@ export function AppIntroductionExperience({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, phase, beginDismiss])
 
+  const clampSlide = (value: number) => Math.max(0, Math.min(slideMax, value))
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (slideComplete || phase !== 'gate') return
+    draggingRef.current = true
+    startXRef.current = event.clientX
+    startOffsetRef.current = slideOffsetRef.current
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!draggingRef.current || slideComplete) return
+    const delta = event.clientX - startXRef.current
+    const directed = isRtl ? -delta : delta
+    updateSlideOffset(clampSlide(startOffsetRef.current + directed))
+  }
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!draggingRef.current) return
+    draggingRef.current = false
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch {
+      /* ignore */
+    }
+    const next = clampSlide(slideOffsetRef.current)
+    if (next / slideMax >= SLIDE_COMPLETE_RATIO) {
+      startVideoFromGate()
+    } else {
+      updateSlideOffset(0)
+    }
+  }
+
   const handleCanPlay = () => {
-    if (dismissedRef.current) return
+    if (dismissedRef.current || phase === 'gate' || phase === 'fading') return
     if (loadTimerRef.current !== null) {
       window.clearTimeout(loadTimerRef.current)
       loadTimerRef.current = null
@@ -193,6 +271,7 @@ export function AppIntroductionExperience({
   }
 
   const handleError = () => {
+    if (phase === 'gate') return
     beginDismiss()
   }
 
@@ -228,6 +307,9 @@ export function AppIntroductionExperience({
 
   if (!open || typeof document === 'undefined') return null
 
+  const knobTransform = isRtl ? `translateX(-${slideOffset}px)` : `translateX(${slideOffset}px)`
+  const fillWidth = `${Math.min(100, (slideOffset / Math.max(1, slideMax)) * 100)}%`
+
   return createPortal(
     <div
       className={`r360-app-intro r360-fullscreen-overlay${visible ? ' is-visible' : ''}${phase === 'fading' ? ' is-fading' : ''}`}
@@ -242,74 +324,101 @@ export function AppIntroductionExperience({
           {skipLabel}
         </button>
 
-        <div className="r360-app-intro__brand" aria-hidden={phase === 'playing' || phase === 'ended' ? undefined : true}>
-          <img
-            className="r360-app-intro__logo"
-            src={logoSrc}
-            alt=""
-            width={72}
-            height={72}
-            decoding="async"
-            onError={() => {
-              setLogoIndex((i) => (i + 1 < APP_BRAND_ICON_URL_CANDIDATES.length ? i + 1 : i))
-            }}
-          />
-          <p className="r360-app-intro__title">{brandTitle}</p>
-          <p className="r360-app-intro__powered">{poweredBy}</p>
-          <p className="r360-app-intro__subtitle">{brandSubtitle}</p>
-        </div>
+        {phase === 'gate' ?
+          <div className="r360-app-intro__gate">
+            <div className="r360-app-intro__gate-glow" aria-hidden />
+            <p className="r360-app-intro__gate-kicker">{poweredBy}</p>
+            <h2 className="r360-app-intro__gate-title">{brandTitle}</h2>
+            <p className="r360-app-intro__gate-subtitle">{brandSubtitle}</p>
+
+            <div className="r360-app-intro__slide" ref={trackRef}>
+              <div className="r360-app-intro__slide-fill" style={{ width: fillWidth }} aria-hidden />
+              <p className="r360-app-intro__slide-hint">{slideHint}</p>
+              <button
+                type="button"
+                className={`r360-app-intro__slide-knob${slideComplete ? ' is-complete' : ''}`}
+                style={{ transform: knobTransform }}
+                aria-label={slideAriaLabel}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round((slideOffset / Math.max(1, slideMax)) * 100)}
+                role="slider"
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerUp}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    startVideoFromGate()
+                  } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                    event.preventDefault()
+                    const forward = isRtl ? event.key === 'ArrowLeft' : event.key === 'ArrowRight'
+                    const next = clampSlide(slideOffsetRef.current + (forward ? slideMax * 0.2 : -slideMax * 0.2))
+                    updateSlideOffset(next)
+                    if (next / slideMax >= SLIDE_COMPLETE_RATIO) startVideoFromGate()
+                  }
+                }}
+              >
+                <span aria-hidden>{isRtl ? '‹' : '›'}</span>
+              </button>
+            </div>
+          </div>
+        : null}
 
         {phase === 'loading' ?
           <div className="r360-app-intro__loading" role="status" aria-live="polite">
-            <div className="r360-app-intro__loading-logo-wrap">
-              <img className="r360-app-intro__loading-logo" src={logoSrc} alt="" width={88} height={88} decoding="async" />
-              <span className="r360-app-intro__spinner" aria-hidden />
+            <div className="r360-app-intro__loading-spinner-wrap" aria-hidden>
+              <span className="r360-app-intro__spinner" />
             </div>
             <p className="r360-app-intro__loading-text">{preparingLabel}</p>
           </div>
         : null}
 
-        <video
-          key={sessionKey}
-          ref={videoRef}
-          className={`r360-app-intro__video${phase === 'loading' ? ' is-hidden' : ''}`}
-          src={videoSrc}
-          playsInline
-          preload="auto"
-          muted={muted}
-          controls={false}
-          disablePictureInPicture
-          controlsList="nodownload noplaybackrate noremoteplayback"
-          onCanPlay={handleCanPlay}
-          onLoadedData={handleCanPlay}
-          onPlaying={() => {
-            if (dismissedRef.current) return
-            if (loadTimerRef.current !== null) {
-              window.clearTimeout(loadTimerRef.current)
-              loadTimerRef.current = null
-            }
-            setPhase((prev) => (prev === 'ended' || prev === 'fading' ? prev : 'playing'))
-          }}
-          onEnded={handleEnded}
-          onError={handleError}
-        />
+        {showVideo ?
+          <video
+            key={sessionKey}
+            ref={videoRef}
+            className={`r360-app-intro__video${phase === 'loading' ? ' is-hidden' : ''}`}
+            src={videoSrc}
+            playsInline
+            preload="auto"
+            muted={muted}
+            controls={false}
+            disablePictureInPicture
+            controlsList="nodownload noplaybackrate noremoteplayback"
+            onCanPlay={handleCanPlay}
+            onLoadedData={handleCanPlay}
+            onPlaying={() => {
+              if (dismissedRef.current) return
+              if (loadTimerRef.current !== null) {
+                window.clearTimeout(loadTimerRef.current)
+                loadTimerRef.current = null
+              }
+              setPhase((prev) => (prev === 'ended' || prev === 'fading' || prev === 'gate' ? prev : 'playing'))
+            }}
+            onEnded={handleEnded}
+            onError={handleError}
+          />
+        : null}
 
-        <div className="r360-app-intro__controls">
-          {phase === 'ended' ?
-            <button type="button" className="r360-app-intro__replay" onClick={handleReplay}>
-              {replayLabel}
+        {phase === 'playing' || phase === 'ended' ?
+          <div className="r360-app-intro__controls">
+            {phase === 'ended' ?
+              <button type="button" className="r360-app-intro__replay" onClick={handleReplay}>
+                {replayLabel}
+              </button>
+            : null}
+            <button
+              type="button"
+              className="r360-app-intro__mute"
+              onClick={toggleMute}
+              aria-pressed={muted}
+            >
+              {muted ? unmuteLabel : muteLabel}
             </button>
-          : null}
-          <button
-            type="button"
-            className="r360-app-intro__mute"
-            onClick={toggleMute}
-            aria-pressed={muted}
-            disabled={phase === 'loading'}
-          >
-            {muted ? unmuteLabel : muteLabel}
-          </button>
-        </div>
+          </div>
+        : null}
       </div>
     </div>,
     document.body,

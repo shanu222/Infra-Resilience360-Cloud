@@ -28,6 +28,8 @@
     "appIntroMute": "Mute",
     "appIntroUnmute": "Unmute",
     "appIntroReplay": "Replay",
+    "appIntroSlideHint": "Slide to start introduction",
+    "appIntroSlideAria": "Slide to start the application introduction video",
     "appIntroShowOnStartup": "Show Introduction on Startup",
     "commonBack": "⬅ Back",
   "commonBackToHome": "⬅ Back to Home",

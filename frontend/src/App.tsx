@@ -7331,6 +7331,8 @@ function App(_props: AppProps = {}) {
       muteLabel={t.appIntroMute}
       unmuteLabel={t.appIntroUnmute}
       replayLabel={t.appIntroReplay}
+      slideHint={t.appIntroSlideHint}
+      slideAriaLabel={t.appIntroSlideAria}
       dir={isUrdu ? 'rtl' : 'ltr'}
     />
     <NativeAlertDialog
