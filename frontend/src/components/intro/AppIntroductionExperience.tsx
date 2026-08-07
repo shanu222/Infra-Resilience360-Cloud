@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { APP_BRAND_ICON_URL, APP_BRAND_ICON_URL_CANDIDATES } from '../services/globalShellConfig'
+import { APP_BRAND_ICON_URL, APP_BRAND_ICON_URL_CANDIDATES } from '../../services/globalShellConfig'
 import {
   APP_INTRO_FADE_MS,
   APP_INTRO_LOAD_TIMEOUT_MS,
   APP_INTRO_VIDEO_URL,
-} from '../config/appIntroVideo'
-import { mediaManager } from '../services/mediaManager'
+} from '../../config/appIntroVideo'
+import { mediaManager } from '../../services/mediaManager'
 
 export type AppIntroductionExperienceProps = {
   open: boolean
