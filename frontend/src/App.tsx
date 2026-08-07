@@ -63,6 +63,7 @@ import { CostEstimatorPage } from './pages/portals/CostEstimatorPage'
 import { DisasterDashboardPage } from './pages/portals/DisasterDashboardPage'
 import { MaterialHubsPage } from './pages/portals/MaterialHubsPage'
 import { SmartConstructionPage } from './pages/portals/SmartConstructionPage'
+import { HelpCenterPage } from './pages/HelpCenterPage'
 import { PageConfigElementsProvider } from './context/PageConfigElementsContext'
 import { sectionKeyToPageSlug } from './utils/sectionPageSlug'
 import { SHELL_PAGE_BACKGROUND_ID } from './constants/cmsShell'
@@ -4321,6 +4322,14 @@ function App(_props: AppProps = {}) {
       </h4>
       <p className="settings-card__subtitle">Privacy, terms, contact, and compliance information.</p>
       <div className="settings-card__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <button
+          type="button"
+          className="setting-switch-link"
+          style={{ display: 'inline-flex' }}
+          onClick={() => navigateToSection('helpCenter')}
+        >
+          {t.sections.helpCenter}
+        </button>
         {LEGAL_LINKS.map((link) => (
           <a key={link.path} href={link.path} className="setting-switch-link" style={{ display: 'inline-flex' }}>
             {link.title}
@@ -7120,6 +7129,10 @@ function App(_props: AppProps = {}) {
       )
     }
 
+    if (section === 'helpCenter') {
+      return <HelpCenterPage language={language} />
+    }
+
     return (
       <div className="panel section-panel section-settings">
         <CmsSectionHeading fallback={t.sections.settings} />
@@ -7235,6 +7248,8 @@ function App(_props: AppProps = {}) {
       showInterfaceToggle={false}
       onHome={() => navigateToSection(null)}
       homeLabel={isHomeView ? t.pakistanHome : `🏠 ${t.home}`}
+      onHelpCenter={() => navigateToSection('helpCenter')}
+      helpCenterLabel={t.sections.helpCenter}
       onSettings={() => navigateToSection('settings')}
       settingsLabel={t.sections.settings}
       onNewInterface={() => {

@@ -43,6 +43,7 @@
     "retrofit": "🧰 ریٹروفٹ رہنمائی",
     "smartConstruction": "📐 ذہین تعمیر",
     "learn": "📚 تعلیم و تربیت",
+    "helpCenter": "📖 استعمال گائیڈ",
     "settings": "⚙️ ترتیبات"
   },
   "roles": {
@@ -107,6 +108,10 @@
     "learn": {
       "title": "تعلیم و تربیت",
       "subtitle": "دستاویزات، کورسز اور ویڈیوز"
+    },
+    "helpCenter": {
+      "title": "Infra Resilience360° کیسے استعمال کریں",
+      "subtitle": "تعارف، فوری آغاز اور Retrofit Guide"
     },
     "settings": {
       "title": "ترتیبات",

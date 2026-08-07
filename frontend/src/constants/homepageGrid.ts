@@ -65,6 +65,7 @@ export const homeCardMeta: Record<SectionKey, { icon: string; tone: string }> = 
   retrofit: { icon: '🧰', tone: 'tone-f' },
   smartConstruction: { icon: '📐', tone: 'tone-h' },
   learn: { icon: '📚', tone: 'tone-h' },
+  helpCenter: { icon: '📖', tone: 'tone-e' },
   settings: { icon: '⚙️', tone: 'tone-e' },
 }
 

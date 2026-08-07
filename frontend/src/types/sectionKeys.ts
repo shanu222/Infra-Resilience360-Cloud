@@ -16,4 +16,5 @@ export type SectionKey =
   | 'retrofit'
   | 'smartConstruction'
   | 'learn'
+  | 'helpCenter'
   | 'settings'

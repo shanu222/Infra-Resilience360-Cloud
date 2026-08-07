@@ -20,6 +20,8 @@ export type TopBarQuickControlsProps = {
   showInterfaceToggle?: boolean
   onHome: () => void
   homeLabel: string
+  onHelpCenter?: () => void
+  helpCenterLabel?: string
   onSettings: () => void
   settingsLabel: string
   /** When false, hides settings entry (feature code retained). */
@@ -40,6 +42,8 @@ export function TopBarQuickControls({
   showInterfaceToggle = true,
   onHome,
   homeLabel,
+  onHelpCenter,
+  helpCenterLabel,
   onSettings,
   settingsLabel,
   showSettingsToggle = true,
@@ -155,6 +159,16 @@ export function TopBarQuickControls({
         </section>
       : null}
 
+      {onHelpCenter && helpCenterLabel ?
+        <section className="nav-drawer-section nav-drawer-section--action">
+          <div className="nav-toolbar-field nav-toolbar-field--action">
+            <button type="button" className="nav-toolbar-action" onClick={() => runAndClose(onHelpCenter)}>
+              {helpCenterLabel}
+            </button>
+          </div>
+        </section>
+      : null}
+
       <section className="nav-drawer-section nav-drawer-section--home">
         <div className="nav-toolbar-field nav-toolbar-field--action">
           <button type="button" className="nav-toolbar-home-btn" onClick={() => runAndClose(onHome)}>
@@ -260,6 +274,11 @@ export function TopBarQuickControls({
         {showSettingsToggle ?
           <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onSettings}>
             {settingsLabel}
+          </button>
+        : null}
+        {onHelpCenter && helpCenterLabel ?
+          <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onHelpCenter}>
+            {helpCenterLabel}
           </button>
         : null}
         <button type="button" className="nav-toolbar-home-btn" onClick={onHome}>

@@ -43,6 +43,7 @@
     "retrofit": "🧰 Retrofit Guide",
     "smartConstruction": "📐 Smart Construction",
     "learn": "📚 Learn & Train",
+    "helpCenter": "📖 How to Use",
     "settings": "⚙️ Settings"
   },
   "roles": {
@@ -107,6 +108,10 @@
     "learn": {
       "title": "Learn & Train",
       "subtitle": "Guides, Courses, Videos"
+    },
+    "helpCenter": {
+      "title": "How to Use Infra Resilience360°",
+      "subtitle": "Introduction, Quick Start & Retrofit Guide"
     },
     "settings": {
       "title": "Settings",
