@@ -1,10 +1,33 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { MapPin, Package, Shield, GraduationCap, Building2 } from 'lucide-react'
-import { mockHubs } from '@/config/materialHubCatalog'
+import { mockHubs, type MaterialHub } from '@/config/materialHubCatalog'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
+import { fetchMaterialHubPublicInventory } from '@/material-hubs-portal/services/materialHubLiveApi'
 
 export function HomePage() {
   const s = useMaterialHubStrings()
+  const [hubs, setHubs] = useState<MaterialHub[]>([])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadHubs() {
+      try {
+        const payload = await fetchMaterialHubPublicInventory()
+        if (!active) return
+        setHubs(payload.hubs)
+      } catch {
+        if (!active) return
+        setHubs([])
+      }
+    }
+
+    void loadHubs()
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <div>
@@ -37,7 +60,7 @@ export function HomePage() {
           <div className="mh-stat-card mh-stat-card--green p-6">
             <div className="mh-stat-row flex items-center justify-between mb-4">
               <Building2 className="h-10 w-10 shrink-0" />
-              <span className="mh-stat-number text-3xl shrink-0">{mockHubs.length}</span>
+              <span className="mh-stat-number text-3xl shrink-0">{hubs.length}</span>
             </div>
             <p className="text-sm">{s.statHubs}</p>
           </div>

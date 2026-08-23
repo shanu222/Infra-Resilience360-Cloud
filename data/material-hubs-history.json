@@ -1,0 +1,64 @@
+{
+  "entries": [
+    {
+      "id": "hist-df8a9e1fe2cc",
+      "entry_id": "gb1-m1",
+      "material_name": "Bamboo for Joist",
+      "hub_id": "gb1",
+      "hub_name": "Gilgit Material Hub",
+      "field": "closing",
+      "previous_value": "1080",
+      "new_value": "123498",
+      "updated_by": "inventory-admin",
+      "updated_at": "2026-08-23T21:45:25.215Z"
+    },
+    {
+      "id": "hist-d026ebc5c6ea",
+      "entry_id": "gb1-m1",
+      "material_name": "Bamboo for Joist",
+      "hub_id": "gb1",
+      "hub_name": "Gilgit Material Hub",
+      "field": "damaged",
+      "previous_value": "0",
+      "new_value": "1",
+      "updated_by": "inventory-admin",
+      "updated_at": "2026-08-23T21:45:25.215Z"
+    },
+    {
+      "id": "hist-f3e780aaa569",
+      "entry_id": "gb1-m1",
+      "material_name": "Bamboo for Joist",
+      "hub_id": "gb1",
+      "hub_name": "Gilgit Material Hub",
+      "field": "issued",
+      "previous_value": "0",
+      "new_value": "7",
+      "updated_by": "inventory-admin",
+      "updated_at": "2026-08-23T21:45:25.215Z"
+    },
+    {
+      "id": "hist-6305debbc161",
+      "entry_id": "gb1-m1",
+      "material_name": "Bamboo for Joist",
+      "hub_id": "gb1",
+      "hub_name": "Gilgit Material Hub",
+      "field": "received",
+      "previous_value": "0",
+      "new_value": "50",
+      "updated_by": "inventory-admin",
+      "updated_at": "2026-08-23T21:45:25.215Z"
+    },
+    {
+      "id": "hist-316c5f260596",
+      "entry_id": "gb1-m1",
+      "material_name": "Bamboo for Joist",
+      "hub_id": "gb1",
+      "hub_name": "Gilgit Material Hub",
+      "field": "opening",
+      "previous_value": "1080",
+      "new_value": "123456",
+      "updated_by": "inventory-admin",
+      "updated_at": "2026-08-23T21:45:25.215Z"
+    }
+  ]
+}
