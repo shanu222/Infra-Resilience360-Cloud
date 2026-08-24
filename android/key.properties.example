@@ -1,0 +1,20 @@
+# Android release signing — copy to `android/key.properties` and fill in.
+#
+# The real `key.properties` is gitignored: never commit passwords or the keystore.
+#
+# IMPORTANT: Play Store updates for com.resilience360.mobile must be signed with the
+# SAME key as the published build, otherwise Google rejects the upload with
+# "Your Android App Bundle is signed with the wrong key."
+#
+# Published signer (versionCode 4 / 1.0.3):
+#   Subject     C=092, ST=Federal, L=Islamabad, O=NDMA, OU=NDMA, CN=developer NDMA
+#   SHA-256     1c:6f:9b:6c:29:95:de:b7:ae:1a:08:44:e1:12:f3:28:54:f6:36:dd:c3:85:9c:a3:f5:e0:b5:48:e1:8d:e1:74
+#
+# Verify a built artifact matches before uploading:
+#   apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk
+
+# Path to the keystore, relative to the `android/` directory (or absolute).
+storeFile=ndma-release.jks
+storePassword=CHANGE_ME
+keyAlias=CHANGE_ME
+keyPassword=CHANGE_ME
