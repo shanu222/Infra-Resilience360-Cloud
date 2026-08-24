@@ -418,10 +418,56 @@ export function AppIntroductionExperience({
         {phase === 'rotate' ?
           <div className="r360-app-intro__rotate" role="dialog" aria-live="polite">
             <span className="r360-app-intro__rotate-icon" aria-hidden>
-              <svg viewBox="0 0 64 44" width="86" height="60" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="4" width="26" height="36" rx="4" />
-                <rect x="34" y="12" width="28" height="20" rx="4" />
-                <path d="M30 34a10 10 0 0 0 4-8" />
+              <svg viewBox="0 0 120 120" width="132" height="132" fill="none">
+                {/* Circular sweep arrow showing the direction to turn */}
+                <g className="r360-app-intro__rotate-sweep">
+                  <circle
+                    cx="60"
+                    cy="60"
+                    r="50"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeDasharray="46 20"
+                    opacity="0.32"
+                  />
+                  <path
+                    d="M60 10a50 50 0 0 1 44 26"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M96 38l9-3-3-9"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+                {/* Phone that tips from portrait to landscape */}
+                <g className="r360-app-intro__rotate-phone">
+                  <rect
+                    x="45"
+                    y="33"
+                    width="30"
+                    height="54"
+                    rx="6"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    fill="rgba(125, 211, 252, 0.12)"
+                  />
+                  <line
+                    x1="55"
+                    y1="39"
+                    x2="65"
+                    y2="39"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="60" cy="80" r="2.4" fill="currentColor" />
+                </g>
               </svg>
             </span>
             <h3 className="r360-app-intro__rotate-title">{rotateTitle}</h3>

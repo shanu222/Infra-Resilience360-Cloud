@@ -73,21 +73,6 @@ export function HomeBottomStrip({
         {pickFooterLine(footerCms, language, 'versionLine')}
       </p>
       <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.88 }}>
-        <button
-          type="button"
-          className="home-bottom-strip__help-link"
-          onClick={(e) => {
-            if (editMode) {
-              e.preventDefault()
-              e.stopPropagation()
-              return
-            }
-            navigateToSection('helpCenter')
-          }}
-        >
-          {t.sections.helpCenter}
-        </button>
-        {' · '}
         {LEGAL_LINKS.map((link, index) => (
           <span key={link.path}>
             <a href={link.path}>{link.title}</a>

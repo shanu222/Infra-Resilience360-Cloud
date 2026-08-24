@@ -23,12 +23,32 @@ iframe {
   height: auto;
 }
 
+/*
+ * Tables must stay `display: table`. Forcing them to `display: block` on
+ * narrow screens drops the table formatting context, so rows and cells stop
+ * aligning into columns and the text of adjacent cells runs together.
+ *
+ * The report tables already sit in `overflow-x-auto` wrappers, so the correct
+ * mobile treatment is to let them keep their natural column widths and scroll
+ * sideways inside that wrapper.
+ */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
 @media (max-width: 768px) {
-  table {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  .overflow-x-auto > table {
+    /* Below this width the columns crush instead of scrolling. */
+    min-width: 34rem;
+  }
+
+  /* px-6 (1.5rem each side) on five columns spends most of a phone screen on
+     padding alone, so tighten cells and let more content stay on screen. */
+  table th,
+  table td {
+    padding-inline: 0.75rem !important;
+    padding-block: 0.625rem !important;
   }
 
   form,

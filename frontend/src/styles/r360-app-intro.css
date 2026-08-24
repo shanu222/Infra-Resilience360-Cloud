@@ -78,19 +78,51 @@
 }
 
 .r360-app-intro__rotate-icon {
+  display: inline-flex;
   color: #7dd3fc;
-  animation: r360-app-intro-tilt 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 6px 18px rgba(56, 189, 248, 0.35));
 }
 
-@keyframes r360-app-intro-tilt {
+/* The phone tips a quarter turn and holds there, so the gesture reads as
+   "turn it sideways" rather than a generic wobble. */
+.r360-app-intro__rotate-phone {
+  transform-origin: 60px 60px;
+  animation: r360-app-intro-quarter-turn 3s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.r360-app-intro__rotate-sweep {
+  transform-origin: 60px 60px;
+  animation: r360-app-intro-sweep 3s ease-in-out infinite;
+}
+
+@keyframes r360-app-intro-quarter-turn {
   0%,
-  55%,
+  18% {
+    transform: rotate(0deg);
+  }
+  45%,
+  82% {
+    transform: rotate(90deg);
+  }
   100% {
     transform: rotate(0deg);
   }
-  75%,
-  90% {
-    transform: rotate(-12deg);
+}
+
+@keyframes r360-app-intro-sweep {
+  0%,
+  18% {
+    opacity: 0.5;
+    transform: rotate(0deg);
+  }
+  45%,
+  82% {
+    opacity: 1;
+    transform: rotate(90deg);
+  }
+  100% {
+    opacity: 0.5;
+    transform: rotate(0deg);
   }
 }
 
@@ -142,7 +174,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .r360-app-intro__rotate-icon {
+  .r360-app-intro__rotate-phone,
+  .r360-app-intro__rotate-sweep {
     animation: none;
   }
 }

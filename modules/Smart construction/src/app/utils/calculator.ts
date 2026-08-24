@@ -397,10 +397,14 @@ export interface LaborEstimate {
 export interface CalculationResult {
   totalArea: number;
   roomCountSummary: {
+    /** Habitable rooms only — excludes kitchens, washrooms and stores. */
     totalRooms: number;
+    /** Every configured space, including kitchens, washrooms and stores. */
+    totalSpaces: number;
     kitchens: number;
     bathrooms: number;
     lounges: number;
+    stores: number;
     others: number;
   };
   openings: OpeningsSummary;
@@ -434,14 +438,12 @@ const MASONRY_MIX_CEMENT_PART = 1;
 const MASONRY_MIX_SAND_PART = 6;
 /** Dry-volume factor for site concrete batching (1.6–1.65). */
 const CONCRETE_DRY_FACTOR = 1.62;
-/** Site wastage on procured materials (cutting, breakage, re-work). */
-const MATERIAL_SITE_WASTAGE_FACTOR = 1.125;
+/** 1:2:4 concrete — aggregate share of the seven dry parts. */
+const CONCRETE_AGGREGATE_SHARE = 4 / 7;
 /** Labor inefficiency (supervision gaps, re-starts, weather). */
 const LABOR_SITE_INEFFICIENCY_FACTOR = 1.2;
-/** Allowance for foundations / unseen substructure (~10–15% of direct build). */
-const FOUNDATION_ALLOWANCE_RATE = 0.125;
-/** Contractor margin & overhead (~10–25%). */
-const CONTRACTOR_MARGIN_RATE = 0.175;
+/** Screed thickness for tiled circulation floors (inches). */
+const CIRCULATION_SCREED_THICKNESS_IN = 1.5;
 /** Productivity band for Pakistan residential sites (sq ft equivalent per worker-day). */
 const LABOR_PRODUCTIVITY_MIN_SQFT = 60;
 const LABOR_PRODUCTIVITY_MAX_SQFT = 80;
@@ -482,19 +484,6 @@ const safe = (value: unknown): number => {
 
 /** Coerce any intermediate calculation to a finite number (prevents NaN in totals). */
 const finiteOrZero = (value: number): number => (Number.isFinite(value) && !Number.isNaN(value) ? value : 0);
-
-/** Scale PKR line items to match main estimate (wastage, foundation, margin, region). */
-const scalePkr = (amount: number, scaleFactor: number): number =>
-  Math.ceil(finiteOrZero(amount * finiteOrZero(scaleFactor)));
-
-/** PKR uplift by province (market friction, logistics, seasonal demand). */
-const getProvinceCostMultiplier = (province?: string): number => {
-  const p = String(province ?? '').toLowerCase()
-  if (p.includes('sindh')) return 1.05
-  if (p === 'kp' || p.includes('khyber') || p.includes('pakhtunkhwa')) return 1.1
-  if (p.includes('baloch')) return 1.2
-  return 1.0
-};
 
 /**
  * Reinforcement intensity (kg steel / ft² built-up) aligned with Pakistan residential practice.
@@ -1168,7 +1157,9 @@ const estimateMaterials = (
     bricks,
     cementBags: Math.ceil((cementVolumeFromMortarM3 + cementVolumeFromConcreteM3) / CEMENT_BAG_VOLUME_M3),
     sand: Math.ceil((sandVolumeFromMortarM3 + sandVolumeFromConcreteM3) * M3_TO_FT3),
-    aggregate: Math.ceil(Math.max(aggregateVolumeFromConcreteM3 * M3_TO_FT3, tiles.tiledAreaSqFt * 0.15)),
+    // Aggregate only from the concrete that was actually measured — no floor of
+    // "tiled area × 0.15", which invented tonnes of stone for houses with little RCC.
+    aggregate: Math.ceil(Math.max(0, aggregateVolumeFromConcreteM3 * M3_TO_FT3)),
     steel,
     woodCft,
     beamRft,
@@ -1184,9 +1175,10 @@ const estimateMaterials = (
     gaderCount: Math.ceil(gaderCount),
     beamConcreteCft: Math.ceil(beamConcreteCft),
     columnConcreteCft: Math.ceil(columnConcreteCft),
-    gravelCft: Math.ceil(Math.max(0, geometry.concreteVolumeCft * 0.2)),
-    bitumenSqFt: Math.ceil(Math.max(0, waterproofAreaSqFt * 0.75)),
-    insulationSqFt: Math.ceil(Math.max(0, tiles.tiledAreaSqFt * 0.1)),
+    // Kept for type compatibility; no longer inventing gravel/bitumen/insulation lines.
+    gravelCft: 0,
+    bitumenSqFt: 0,
+    insulationSqFt: 0,
     masonryVolumeM3: Number(masonryVolumeM3.toFixed(2)),
     mortarM3: Number(mortarM3.toFixed(2)),
     mortarCft: Math.ceil(mortarCft),
@@ -1255,106 +1247,81 @@ const estimateLabor = (
   };
 };
 
-type EstimateCostResult = {
-  breakdown: CostBreakdown;
-  /** Scales per-room / boundary / circulation PKR so they match the main estimate adjustments. */
-  scaleFactor: number;
-};
-
-const estimateCost = (
-  materials: MaterialEstimate,
-  openings: OpeningsSummary,
-  tile: TileEstimate,
+/**
+ * Rolls the per-space and boundary line items into the itemized BOQ the Results
+ * page already renders. Nothing is invented here: every figure is a sum of
+ * quantities already priced at the rate card, plus measured labour.
+ */
+const buildCostBreakdown = (
+  spaceCosts: SpaceCostBreakdown[],
+  boundary: BoundaryWallBreakdown,
+  loungeCost: number,
   labor: LaborEstimate,
-  rates: ProvinceRateCard,
-  province: string,
-): EstimateCostResult => {
-  const r = rates.materialRates
-  const rawBrickCost = Math.ceil(finiteOrZero(materials.bricks * r.brickPerPiece))
-  const rawCementCost = Math.ceil(finiteOrZero(materials.cementBags * r.cementPerBag))
-  const rawSandCost = Math.ceil(finiteOrZero(materials.sand * r.sandPerCft))
-  const rawAggregateCost = Math.ceil(finiteOrZero(materials.aggregate * r.aggregatePerCft))
-  const rawSteelCost = Math.ceil(finiteOrZero(materials.steel * r.steelPerKg))
-  const rawTileCost = Math.ceil(finiteOrZero(tile.tiledAreaSqFt * r.tilePerSqFt))
-  const rawDoorsCost = Math.ceil(finiteOrZero(openings.doorAreaSqFt * r.doorPerSqFt))
-  const rawWindowsCost = Math.ceil(finiteOrZero(openings.windowAreaSqFt * r.windowPerSqFt))
-  const rawWoodCost = Math.ceil(finiteOrZero(materials.woodCft * r.woodPerCft))
-  const rawPlasterCost = Math.ceil(finiteOrZero(materials.plasterAreaSqFt * r.plasterPerSqFt))
-  const rawStructuralCost = Math.ceil(finiteOrZero(materials.beamRft * r.beamPerRft))
-  const rawLaborCost = Math.ceil(finiteOrZero(labor.totalLaborCost / LABOR_SITE_INEFFICIENCY_FACTOR))
+): CostBreakdown => {
+  const sumField = (field: keyof SpaceCostBreakdown): number =>
+    spaceCosts.reduce((sum, space) => sum + safe(space[field] as number), 0);
 
-  const w = MATERIAL_SITE_WASTAGE_FACTOR
-  const brickCost = Math.ceil(rawBrickCost * w)
-  const cementCost = Math.ceil(rawCementCost * w)
-  const sandCost = Math.ceil(rawSandCost * w)
-  const aggregateCost = Math.ceil(rawAggregateCost * w)
-  const steelCost = Math.ceil(rawSteelCost * w)
-  const tileCost = Math.ceil(rawTileCost * w)
-  const doorsCost = Math.ceil(rawDoorsCost * w)
-  const windowsCost = Math.ceil(rawWindowsCost * w)
-  const woodCost = Math.ceil(rawWoodCost * w)
-  const plasterCost = Math.ceil(rawPlasterCost * w)
-  const structuralCost = Math.ceil(rawStructuralCost * w)
-  const laborCost = Math.ceil(finiteOrZero(labor.totalLaborCost))
+  const brickCost = Math.ceil(sumField('brickCost') + safe(boundary.brickCost));
+  const cementCost = Math.ceil(sumField('cementCost') + safe(boundary.cementCost));
+  const sandCost = Math.ceil(sumField('sandCost') + safe(boundary.sandCost));
+  const aggregateCost = Math.ceil(sumField('aggregateCost'));
+  const steelCost = Math.ceil(sumField('steelCost'));
+  const tileCost = Math.ceil(sumField('tileCost') + loungeCost);
+  const doorsCost = Math.ceil(sumField('doorsCost') + safe(boundary.gateCost));
+  const windowsCost = Math.ceil(sumField('windowsCost'));
+  const plasterCost = Math.ceil(sumField('plasterCost'));
+  // Structural concrete covers slabs/beams/columns; footings are listed under
+  // foundationCost so the BOQ still shows a foundation line without inventing
+  // a percentage on top of volumes already measured.
+  const structuralCost = Math.ceil(sumField('structuralCost'));
+  const foundationCost = Math.ceil(sumField('footingCost'));
+  const laborCost = Math.ceil(finiteOrZero(labor.totalLaborCost));
+  // Circulation finish is a real tiled floor for leftover plot area — not a
+  // percentage of anything else. Stored as loungeCost for the existing UI.
+  const woodCost = 0;
+  const contractorMarginCost = 0;
 
-  const directAfterWastage = finiteOrZero(
-    brickCost +
-      cementCost +
-      sandCost +
-      aggregateCost +
-      steelCost +
-      tileCost +
-      doorsCost +
-      windowsCost +
-      woodCost +
-      plasterCost +
-      structuralCost +
-      laborCost,
-  )
-  const foundationCost = Math.ceil(directAfterWastage * FOUNDATION_ALLOWANCE_RATE)
-  const subWithFoundation = finiteOrZero(directAfterWastage + foundationCost)
-  const contractorMarginCost = Math.ceil(subWithFoundation * CONTRACTOR_MARGIN_RATE)
-  const beforeRegion = finiteOrZero(subWithFoundation + contractorMarginCost)
-  const regionMult = getProvinceCostMultiplier(province)
-  const total = Math.ceil(finiteOrZero(beforeRegion * regionMult))
-
-  const rawSum = finiteOrZero(
-    rawBrickCost +
-      rawCementCost +
-      rawSandCost +
-      rawAggregateCost +
-      rawSteelCost +
-      rawTileCost +
-      rawDoorsCost +
-      rawWindowsCost +
-      rawWoodCost +
-      rawPlasterCost +
-      rawStructuralCost +
-      rawLaborCost,
-  )
-  const scaleFactor = rawSum > 0 ? finiteOrZero(total / rawSum) : 1
+  const spacesAndBoundary = finiteOrZero(
+    spaceCosts.reduce((sum, space) => sum + safe(space.total), 0) + safe(boundary.total),
+  );
+  const total = Math.ceil(finiteOrZero(spacesAndBoundary + loungeCost + laborCost));
 
   return {
-    breakdown: {
-      brickCost,
-      cementCost,
-      sandCost,
-      aggregateCost,
-      steelCost,
-      tileCost,
-      doorsCost,
-      windowsCost,
-      woodCost,
-      plasterCost,
-      structuralCost,
-      laborCost,
-      foundationCost,
-      contractorMarginCost,
-      total,
-    },
-    scaleFactor,
-  }
-}
+    brickCost,
+    cementCost,
+    sandCost,
+    aggregateCost,
+    steelCost,
+    tileCost,
+    doorsCost,
+    windowsCost,
+    woodCost,
+    plasterCost,
+    structuralCost,
+    laborCost,
+    foundationCost,
+    contractorMarginCost,
+    total,
+  };
+};
+
+/** Floor finish for leftover plot area (circulation / lounge). */
+const estimateCirculationCost = (
+  circulationAreaSqFt: number,
+  rates: ProvinceRateCard,
+): number => {
+  const area = Math.max(0, finiteOrZero(circulationAreaSqFt));
+  if (area <= 0) return 0;
+
+  const tileCost = Math.ceil(area * safe(rates.materialRates.tilePerSqFt));
+  // Thin cement screed under the tiles — volume → bags, then bag rate.
+  const screedCft = area * (CIRCULATION_SCREED_THICKNESS_IN / 12);
+  const screedM3 = screedCft * FT3_TO_M3 * CONCRETE_DRY_FACTOR;
+  // Screed is cement-rich mortar (1:4); cement is 1/5 of dry volume.
+  const cementBags = screedM3 * (1 / 5) / CEMENT_BAG_VOLUME_M3;
+  const screedCost = Math.ceil(cementBags * safe(rates.materialRates.cementPerBag));
+  return Math.ceil(tileCost + screedCost);
+};
 
 const buildSpaceCosts = (
   spaces: SpaceEstimate[],
@@ -1362,11 +1329,9 @@ const buildSpaceCosts = (
   templates: RoomTemplateInput[],
   materials: MaterialEstimate,
   totalFloorAreaSqFt: number,
-  scaleFactor: number,
 ): SpaceCostBreakdown[] => {
   const allocFloor = Math.max(1e-6, finiteOrZero(totalFloorAreaSqFt));
   const steelPerSqftKg = finiteOrZero(materials.steel) / allocFloor;
-  const sf = finiteOrZero(scaleFactor) || 1;
 
   return spaces.map((space, index) => {
     const room = templates.find((item) => item.id === space.id);
@@ -1418,39 +1383,57 @@ const buildSpaceCosts = (
     const waterproofAreaSqFt = waterproofEnabled ? footingAreaSqFt : 0;
 
     const title = `${space.roomType.toUpperCase()} ${index + 1}`;
-    const brickCost = scalePkr(Math.ceil(bricksQty * safe(rates.materialRates.brickPerPiece)), sf);
-    const cementCost = scalePkr(Math.ceil(cementQty * safe(rates.materialRates.cementPerBag)), sf);
-    const sandCost = scalePkr(Math.ceil(sandQty * safe(rates.materialRates.sandPerCft)), sf);
-    const aggregateCost = scalePkr(Math.ceil(footingVolumeCft * 0.4 * safe(rates.materialRates.aggregatePerCft)), sf);
-    const steelCost = scalePkr(Math.ceil(steelQty * safe(rates.materialRates.steelPerKg)), sf);
-    const plasterCost = scalePkr(Math.ceil(plasterAreaSqFt * safe(rates.materialRates.plasterPerSqFt)), sf);
-    const tileCost = scalePkr(Math.ceil(floorAreaSqFt * safe(rates.materialRates.tilePerSqFt)), sf);
-    const doorsCost = scalePkr(
-      Math.ceil((room?.doors ?? []).reduce((sum, door) => sum + Math.max(0, safe(door.count)) * safe(rates.materialRates.doorWoodPerUnit), 0)),
-      sf,
+
+    // Every line below is quantity × rate for this space. Nothing is scaled to
+    // reconcile against a separately-derived building total: the building total
+    // is now the sum of these figures, so the room cards and the final estimate
+    // describe the same bill of quantities.
+    const concreteRate = safe(rates.materialRates.concretePerCft);
+    const brickCost = Math.ceil(bricksQty * safe(rates.materialRates.brickPerPiece));
+    const cementCost = Math.ceil(cementQty * safe(rates.materialRates.cementPerBag));
+    const sandCost = Math.ceil(sandQty * safe(rates.materialRates.sandPerCft));
+    // Coarse aggregate for the concrete actually poured in this space, using the
+    // 1:2:4 mix's 4/7 aggregate share rather than a flat guess.
+    const concreteVolumeCft = footingVolumeCft + slabVolumeCft + beamVolumeCft + columnVolumeCft;
+    const aggregateCost = Math.ceil(
+      concreteVolumeCft * CONCRETE_AGGREGATE_SHARE * safe(rates.materialRates.aggregatePerCft),
     );
-    const windowsCost = scalePkr(
-      Math.ceil((room?.windows ?? []).reduce((sum, windowItem) => sum + Math.max(0, safe(windowItem.count)) * safe(rates.materialRates.windowAluminumPerUnit), 0)),
-      sf,
+    const steelCost = Math.ceil(steelQty * safe(rates.materialRates.steelPerKg));
+    const plasterCost = Math.ceil(plasterAreaSqFt * safe(rates.materialRates.plasterPerSqFt));
+    const tileCost = Math.ceil(floorAreaSqFt * safe(rates.materialRates.tilePerSqFt));
+    const doorsCost = Math.ceil(
+      (room?.doors ?? []).reduce(
+        (sum, door) => sum + Math.max(0, safe(door.count)) * safe(rates.materialRates.doorWoodPerUnit),
+        0,
+      ),
     );
-    const structuralCost = scalePkr(
-      Math.ceil((beamVolumeCft + columnVolumeCft + slabVolumeCft) * safe(rates.materialRates.concretePerCft)),
-      sf,
+    const windowsCost = Math.ceil(
+      (room?.windows ?? []).reduce(
+        (sum, windowItem) =>
+          sum + Math.max(0, safe(windowItem.count)) * safe(rates.materialRates.windowAluminumPerUnit),
+        0,
+      ),
     );
-    const footingCost = scalePkr(Math.ceil(footingVolumeCft * safe(rates.materialRates.concretePerCft)), sf);
-    const waterproofCost = scalePkr(Math.ceil(waterproofAreaSqFt * safe(rates.materialRates.waterproofPerSqFt)), sf);
+    // Slab, beams and columns. Footings are priced on their own line so the
+    // substructure is visible rather than folded into a percentage allowance.
+    const structuralCost = Math.ceil((beamVolumeCft + columnVolumeCft + slabVolumeCft) * concreteRate);
+    const footingCost = Math.ceil(footingVolumeCft * concreteRate);
+    const waterproofCost = Math.ceil(waterproofAreaSqFt * safe(rates.materialRates.waterproofPerSqFt));
+    // Waterproofing is finishing work — fold it into plaster for the itemized
+    // BOQ so every rupee in the space total also appears on a named line.
+    const finishingCost = plasterCost + waterproofCost;
     const total = finiteOrZero(
       brickCost +
         cementCost +
         sandCost +
         aggregateCost +
         steelCost +
-        plasterCost +
+        finishingCost +
         tileCost +
         doorsCost +
         windowsCost +
         structuralCost +
-        waterproofCost,
+        footingCost,
     );
 
     return {
@@ -1482,7 +1465,7 @@ const buildSpaceCosts = (
       sandCost,
       aggregateCost,
       steelCost,
-      plasterCost,
+      plasterCost: finishingCost,
       tileCost,
       doorsCost,
       windowsCost,
@@ -1495,9 +1478,7 @@ const buildSpaceCosts = (
 const buildBoundaryBreakdown = (
   input: ConstructionInput,
   rates: ProvinceRateCard,
-  scaleFactor: number = 1,
 ): BoundaryWallBreakdown => {
-  const sf = finiteOrZero(scaleFactor) || 1;
   if (!input.boundaryWall?.enabled) {
     return {
       enabled: false,
@@ -1528,11 +1509,11 @@ const buildBoundaryBreakdown = (
   const cementQty = mortarQty / (MASONRY_MIX_CEMENT_PART + MASONRY_MIX_SAND_PART);
   const sandQty = mortarQty * (MASONRY_MIX_SAND_PART / (MASONRY_MIX_CEMENT_PART + MASONRY_MIX_SAND_PART));
   const gateCount = Math.max(1, safe(input.boundaryWall.gatesCount));
-  const gateCost = scalePkr(Math.ceil(gateCount * safe(rates.materialRates.doorWoodPerUnit)), sf);
+  const gateCost = Math.ceil(gateCount * safe(rates.materialRates.doorWoodPerUnit));
 
-  const brickCost = scalePkr(Math.ceil(bricksQty * safe(rates.materialRates.brickPerPiece)), sf);
-  const cementCost = scalePkr(Math.ceil(cementQty * safe(rates.materialRates.cementPerBag)), sf);
-  const sandCost = scalePkr(Math.ceil(sandQty * safe(rates.materialRates.sandPerCft)), sf);
+  const brickCost = Math.ceil(bricksQty * safe(rates.materialRates.brickPerPiece));
+  const cementCost = Math.ceil(cementQty * safe(rates.materialRates.cementPerBag));
+  const sandCost = Math.ceil(sandQty * safe(rates.materialRates.sandPerCft));
   const total = finiteOrZero(brickCost + cementCost + sandCost + gateCost);
 
   return {
@@ -1552,18 +1533,29 @@ const buildBoundaryBreakdown = (
   };
 };
 
+/**
+ * Counts spaces by kind.
+ *
+ * `totalRooms` deliberately covers habitable rooms only. Counting a kitchen, a
+ * washroom and a store as "rooms" as well as in their own tallies made the
+ * summary read as though the house had far more rooms than were configured, and
+ * it inflated the labour baseline that keys off the room count. `totalSpaces`
+ * carries the every-space figure for anything that genuinely needs it.
+ */
 const countRoomTypes = (templates: RoomTemplateInput[]): CalculationResult['roomCountSummary'] => {
   const summary = {
     totalRooms: 0,
+    totalSpaces: 0,
     kitchens: 0,
     bathrooms: 0,
     lounges: 0,
+    stores: 0,
     others: 0,
   };
 
   for (const room of templates) {
     const count = Math.max(0, Number(room.count) || 0);
-    summary.totalRooms += count;
+    summary.totalSpaces += count;
 
     if (room.category === 'kitchen') {
       summary.kitchens += count;
@@ -1571,8 +1563,12 @@ const countRoomTypes = (templates: RoomTemplateInput[]): CalculationResult['room
       summary.bathrooms += count;
     } else if (room.category === 'lounge') {
       summary.lounges += count;
+      summary.totalRooms += count;
+    } else if (room.category === 'store') {
+      summary.stores += count;
     } else {
       summary.others += count;
+      summary.totalRooms += count;
     }
   }
 
@@ -1810,27 +1806,19 @@ export function calculateConstructionPlan(
   const roomCountSummary = countRoomTypes(templates);
   const openingsSummaryData = openingsSummary(openings.roomDoors, openings.roomWindows, openings.boundaryDoors, openings.boundaryWindows);
   const foundation = getFoundationRecommendation(input.soil, input.hazards, lang);
+  // Labour keys off habitable rooms only — kitchens/washrooms/stores no longer
+  // inflate the worker count as if they were extra bedrooms.
   const labor = estimateLabor(input, geometry, roomCountSummary.totalRooms, rates);
-  const provinceKey = input.location?.province || '';
-  const { breakdown: costBreakdown, scaleFactor } = estimateCost(
-    materials,
-    openingsSummaryData,
-    tile,
-    labor,
-    rates,
-    provinceKey,
-  );
-  const spaceCosts = buildSpaceCosts(spaces, rates, templates, materials, geometry.floorAreaSqFt, scaleFactor);
-  const boundaryBreakdown = buildBoundaryBreakdown(input, rates, scaleFactor);
+
+  const spaceCosts = buildSpaceCosts(spaces, rates, templates, materials, geometry.floorAreaSqFt);
+  const boundaryBreakdown = buildBoundaryBreakdown(input, rates);
+  const loungeCost = estimateCirculationCost(geometry.circulationAreaSqFt, rates);
+  const costBreakdown = buildCostBreakdown(spaceCosts, boundaryBreakdown, loungeCost, labor);
   const resilienceTips = getResilienceTips(input.hazards, input.soil, input.constructionType, lang);
 
   const plotArea = Math.max(0, Number(input.totalPlotAreaSqFt) || 0);
   const totalArea = plotArea > 0 ? Math.min(plotArea, geometry.floorAreaSqFt) : geometry.floorAreaSqFt;
   const boundaryWallCost = boundaryBreakdown.total;
-  const loungeCost = scalePkr(
-    Math.ceil(Math.max(0, geometry.circulationAreaSqFt) * (rates.materialRates.tilePerSqFt * 0.35 + rates.materialRates.cementPerBag * 0.01)),
-    scaleFactor,
-  );
 
   return {
     totalArea: Number(totalArea.toFixed(1)),
@@ -1844,6 +1832,7 @@ export function calculateConstructionPlan(
     foundation,
     labor,
     costBreakdown,
+    // One final figure: spaces + boundary + circulation + labour.
     estimatedCost: costBreakdown.total,
     constructionSteps: getConstructionSteps(input, lang),
     resilienceTips,

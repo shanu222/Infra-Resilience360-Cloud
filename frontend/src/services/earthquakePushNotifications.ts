@@ -5,10 +5,14 @@ import {
   ensureEarthquakeNotificationChannel,
   getNativeNotificationPermission,
   isNativeEarthquakeNotificationsAvailable,
-  notifyNativeEarthquakeIfNeeded,
+  markEarthquakeSeenInApp,
   requestNativeNotificationPermission,
   showNativeEarthquakeTestNotification,
 } from './earthquakeNativeNotifications'
+import {
+  disableEarthquakeBackgroundAlerts,
+  enableEarthquakeBackgroundAlerts,
+} from '../capacitor/earthquakeBackgroundAlerts'
 
 export type EarthquakeNotificationPayload = {
   magnitude: number
@@ -36,7 +40,26 @@ class EarthquakePushNotificationService {
     this.initialized = true
     if (isNativeEarthquakeNotificationsAvailable()) {
       await ensureEarthquakeNotificationChannel()
+      await this.syncBackgroundAlerts()
     }
+  }
+
+  /**
+   * Mirrors the current preferences onto the native background poll.
+   *
+   * On Android the worker — not this class — posts earthquake notifications, so
+   * that alerts arrive while the app is closed. Keeping the two in sync here
+   * means the user's threshold and on/off choice survive a restart.
+   */
+  private async syncBackgroundAlerts(): Promise<void> {
+    if (!isNativeEarthquakeNotificationsAvailable()) return
+    const settings = this.getSettings()
+    const permission = await getNativeNotificationPermission()
+    if (settings.enabled && permission === 'granted') {
+      await enableEarthquakeBackgroundAlerts(settings.threshold)
+      return
+    }
+    await disableEarthquakeBackgroundAlerts()
   }
 
   isNativeRuntime(): boolean {
@@ -113,6 +136,9 @@ class EarthquakePushNotificationService {
     } catch {
       /* ignore storage write errors */
     }
+    // Callers treat this as a synchronous setter, so the native poll is
+    // re-targeted in the background.
+    void this.syncBackgroundAlerts()
     return next
   }
 
@@ -148,6 +174,9 @@ class EarthquakePushNotificationService {
       } catch {
         /* ignore */
       }
+      // Granting permission is what unblocks background delivery, so start the
+      // poll immediately rather than waiting for the next app launch.
+      await this.syncBackgroundAlerts()
       return permission
     }
 
@@ -222,11 +251,18 @@ class EarthquakePushNotificationService {
     if (!settings.enabled) return false
 
     if (isNativeEarthquakeNotificationsAvailable()) {
-      const delivered = await notifyNativeEarthquakeIfNeeded(payload, settings.threshold)
-      if (delivered && settings.soundEnabled) {
+      // The background worker owns the notification shade on Android. Raising a
+      // notification from here as well would mean the user is handed a stack of
+      // alerts as a side effect of opening the app, on top of the copy the
+      // worker already delivered when the event actually happened. The in-app
+      // map and alert list still surface the event; only the tray entry is left
+      // to the worker.
+      if (payload.magnitude < settings.threshold) return false
+      const isNew = markEarthquakeSeenInApp(payload.eventId)
+      if (isNew && settings.soundEnabled) {
         void this.playTestSound()
       }
-      return delivered
+      return false
     }
 
     if (!this.isSupported() || Notification.permission !== 'granted') return false

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { loadPdfJsFromCdn } from '../../utils/pdfJsCdn'
+import { loadPdfJs } from '../../utils/pdfJsCdn'
 
 type NativePdfCanvasProps = {
   src: string
@@ -9,62 +9,89 @@ type NativePdfCanvasProps = {
   onFullscreen?: () => void
 }
 
+/**
+ * Renders every page of a model board into stacked canvases.
+ *
+ * Pages are appended as they finish rather than in one batch at the end, so the
+ * first page shows up almost immediately instead of after the whole document has
+ * been rasterised.
+ */
 export function NativePdfCanvas({ src, className, onLoaded, onError, onFullscreen }: NativePdfCanvasProps) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [isRendering, setIsRendering] = useState(true)
   const [renderError, setRenderError] = useState(false)
+
+  // Callers pass inline arrow functions, so depending on them directly would
+  // give the effect a new identity on every parent render and re-download plus
+  // re-rasterise the whole document each time.
+  const onLoadedRef = useRef(onLoaded)
+  const onErrorRef = useRef(onError)
+  onLoadedRef.current = onLoaded
+  onErrorRef.current = onError
 
   useEffect(() => {
     const host = hostRef.current
     if (!host || !src) return
 
     let cancelled = false
+    let doc: { numPages: number; getPage: (n: number) => Promise<unknown>; destroy: () => Promise<void> } | null = null
+
     host.replaceChildren()
     setIsRendering(true)
     setRenderError(false)
 
     const render = async () => {
       try {
-        const pdfjs = await loadPdfJsFromCdn()
-
-        const loadingTask = pdfjs.getDocument({ url: src, withCredentials: false })
-        const pdf = await loadingTask.promise
+        const pdfjs = await loadPdfJs()
         if (cancelled) return
 
-        const fragment = document.createDocumentFragment()
-        const containerWidth = Math.max(host.clientWidth || 320, 280)
+        const task = pdfjs.getDocument({ url: src, withCredentials: false })
+        doc = (await task.promise) as typeof doc
+        if (cancelled || !doc) return
 
-        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-          const page = await pdf.getPage(pageNumber)
+        const containerWidth = Math.max(host.clientWidth || 320, 280)
+        // Cap the pixel ratio: matching a 3x screen exactly triples decode time
+        // and memory for a barely visible gain on a board-style diagram.
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+
+        for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+          const page = (await doc.getPage(pageNumber)) as {
+            getViewport: (o: { scale: number }) => { width: number; height: number }
+            render: (o: unknown) => { promise: Promise<void> }
+          }
           if (cancelled) return
 
-          const viewport = page.getViewport({ scale: 1 })
-          const scale = containerWidth / viewport.width
-          const scaledViewport = page.getViewport({ scale })
+          const baseViewport = page.getViewport({ scale: 1 })
+          const cssScale = containerWidth / baseViewport.width
+          const viewport = page.getViewport({ scale: cssScale * pixelRatio })
 
           const canvas = document.createElement('canvas')
           canvas.className = 'infra-model-pdf-page-canvas'
-          canvas.width = Math.floor(scaledViewport.width)
-          canvas.height = Math.floor(scaledViewport.height)
+          canvas.width = Math.floor(viewport.width)
+          canvas.height = Math.floor(viewport.height)
+          // The backing store is oversampled; keep the layout box at CSS size.
+          canvas.style.width = '100%'
+          canvas.style.height = 'auto'
 
           const context = canvas.getContext('2d')
           if (!context) continue
 
-          await page.render({ canvasContext: context, viewport: scaledViewport, canvas }).promise
+          await page.render({ canvasContext: context, viewport, canvas }).promise
           if (cancelled) return
-          fragment.appendChild(canvas)
-        }
 
-        host.appendChild(fragment)
-        if (!cancelled) {
-          setIsRendering(false)
-          onLoaded?.()
+          host.appendChild(canvas)
+
+          // Reveal the viewer as soon as there is something to look at.
+          if (pageNumber === 1) {
+            setIsRendering(false)
+            onLoadedRef.current?.()
+          }
         }
       } catch {
         if (!cancelled) {
           setRenderError(true)
           setIsRendering(false)
-          onError?.()
+          onErrorRef.current?.()
         }
       }
     }
@@ -73,8 +100,11 @@ export function NativePdfCanvas({ src, className, onLoaded, onError, onFullscree
 
     return () => {
       cancelled = true
+      const pending = doc
+      doc = null
+      if (pending) void pending.destroy().catch(() => {})
     }
-  }, [src, onLoaded, onError])
+  }, [src])
 
   if (renderError) {
     return (

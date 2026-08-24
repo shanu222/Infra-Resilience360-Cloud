@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { loadPdfJsFromCdn } from '../../utils/pdfJsCdn'
+import { loadPdfJs } from '../../utils/pdfJsCdn'
 
 type PdfFullscreenViewerProps = {
   src: string
@@ -53,36 +53,41 @@ export function PdfFullscreenViewer({ src, title, open, onClose }: PdfFullscreen
 
     const render = async () => {
       try {
-        const pdfjs = await loadPdfJsFromCdn()
+        const pdfjs = await loadPdfJs()
 
-        const pdf = await pdfjs.getDocument({ url: src, withCredentials: false }).promise
+        const pdf = (await pdfjs.getDocument({ url: src, withCredentials: false }).promise) as any
         if (cancelled) {
           void pdf.destroy()
           return
         }
         pdfRef.current = pdf
 
-        const fragment = document.createDocumentFragment()
         const containerWidth = Math.max(Math.min(window.innerWidth, document.documentElement.clientWidth) - 24, 280)
+        // Pinch-zoom scales the stage with a CSS transform, so oversample a
+        // little to keep the page legible when zoomed in.
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
           const page = await pdf.getPage(pageNumber)
           if (cancelled) return
-          const viewport = page.getViewport({ scale: 1 })
-          const scale = containerWidth / viewport.width
-          const scaledViewport = page.getViewport({ scale })
+          const baseViewport = page.getViewport({ scale: 1 })
+          const cssScale = containerWidth / baseViewport.width
+          const viewport = page.getViewport({ scale: cssScale * pixelRatio })
           const canvas = document.createElement('canvas')
           canvas.className = 'infra-model-pdf-page-canvas'
-          canvas.width = Math.floor(scaledViewport.width)
-          canvas.height = Math.floor(scaledViewport.height)
+          canvas.width = Math.floor(viewport.width)
+          canvas.height = Math.floor(viewport.height)
+          canvas.style.width = '100%'
+          canvas.style.height = 'auto'
           const context = canvas.getContext('2d')
           if (!context) continue
-          await page.render({ canvasContext: context, viewport: scaledViewport, canvas }).promise
+          await page.render({ canvasContext: context, viewport, canvas }).promise
           if (cancelled) return
-          fragment.appendChild(canvas)
+          // Append per page so the first page is readable while the rest render.
+          host.appendChild(canvas)
+          if (pageNumber === 1) setIsLoading(false)
         }
 
-        host.appendChild(fragment)
         if (!cancelled) setIsLoading(false)
       } catch {
         if (!cancelled) setIsLoading(false)

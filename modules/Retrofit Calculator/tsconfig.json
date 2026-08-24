@@ -21,9 +21,17 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
+    /* Must mirror the `resolve.alias` map in vite.config.ts, otherwise
+       `tsc --noEmit` reports unresolved modules and real errors get lost in
+       the noise. */
     "paths": {
-      "@resilience/retrofit-portal-locale": ["../src/i18n/retrofitPortalLocale.ts"],
-      "@resilience/urdu-pdf-support": ["../src/utils/urduPdfSupport.ts"]
+      "@": ["./src"],
+      "@/*": ["./src/*"],
+      "@resilience/retrofit-portal-locale": ["../../frontend/src/i18n/retrofitPortalLocale.ts"],
+      "@resilience/urdu-pdf-support": ["../../frontend/src/utils/urduPdfSupport.ts"],
+      "@resilience/urdu-html-to-pdf": ["../../frontend/src/utils/urduHtmlToPdf.ts"],
+      "@resilience/api-base": ["../../frontend/src/services/apiBase.ts"],
+      "@resilience/normalize-image": ["../../frontend/src/utils/normalizeImageFile.ts"]
     }
   },
   "include": ["src"]

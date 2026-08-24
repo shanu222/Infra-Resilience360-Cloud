@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { useNavigate } from "react-router"
 import { Upload, Camera, MapPin, Zap, Shield, TrendingUp, Clock, Edit2, CheckCircle, AlertCircle, Loader2, Search } from "lucide-react"

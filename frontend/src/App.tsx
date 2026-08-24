@@ -4374,14 +4374,6 @@ function App(_props: AppProps = {}) {
       </h4>
       <p className="settings-card__subtitle">Privacy, terms, contact, and compliance information.</p>
       <div className="settings-card__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <button
-          type="button"
-          className="setting-switch-link"
-          style={{ display: 'inline-flex' }}
-          onClick={() => navigateToSection('helpCenter')}
-        >
-          {t.sections.helpCenter}
-        </button>
         {LEGAL_LINKS.map((link) => (
           <a key={link.path} href={link.path} className="setting-switch-link" style={{ display: 'inline-flex' }}>
             {link.title}
