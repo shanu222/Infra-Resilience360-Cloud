@@ -22,6 +22,8 @@ export type TopBarQuickControlsProps = {
   homeLabel: string
   onHelpCenter?: () => void
   helpCenterLabel?: string
+  /** When false, hides How to Use / help center entry (feature code retained). */
+  showHelpCenterToggle?: boolean
   onWatchAppIntro?: () => void
   watchAppIntroLabel?: string
   onSettings: () => void
@@ -46,6 +48,7 @@ export function TopBarQuickControls({
   homeLabel,
   onHelpCenter,
   helpCenterLabel,
+  showHelpCenterToggle = true,
   onWatchAppIntro,
   watchAppIntroLabel,
   onSettings,
@@ -163,7 +166,7 @@ export function TopBarQuickControls({
         </section>
       : null}
 
-      {onHelpCenter && helpCenterLabel ?
+      {showHelpCenterToggle && onHelpCenter && helpCenterLabel ?
         <section className="nav-drawer-section nav-drawer-section--action">
           <div className="nav-toolbar-field nav-toolbar-field--action">
             <button type="button" className="nav-toolbar-action" onClick={() => runAndClose(onHelpCenter)}>
@@ -290,7 +293,7 @@ export function TopBarQuickControls({
             {settingsLabel}
           </button>
         : null}
-        {onHelpCenter && helpCenterLabel ?
+        {showHelpCenterToggle && onHelpCenter && helpCenterLabel ?
           <button type="button" className="nav-toolbar-action nav-toolbar-action--inline" onClick={onHelpCenter}>
             {helpCenterLabel}
           </button>

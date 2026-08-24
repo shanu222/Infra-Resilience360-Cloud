@@ -7300,6 +7300,7 @@ function App(_props: AppProps = {}) {
       homeLabel={isHomeView ? t.pakistanHome : `🏠 ${t.home}`}
       onHelpCenter={() => navigateToSection('helpCenter')}
       helpCenterLabel={t.sections.helpCenter}
+      showHelpCenterToggle={false}
       onWatchAppIntro={openAppIntroReplay}
       watchAppIntroLabel={t.watchAppIntro}
       onSettings={() => navigateToSection('settings')}
