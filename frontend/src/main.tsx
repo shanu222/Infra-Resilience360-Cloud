@@ -9,6 +9,7 @@ import { initAndroidBackButton } from './capacitor/androidBackButton'
 import { LegalStandaloneApp } from './legal/LegalStandaloneApp'
 import { isLegalPath } from './legal/legalPages'
 import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
+import { preloadNativeNotificationPlugin } from './services/earthquakeNativeNotifications'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
@@ -135,6 +136,9 @@ async function setupServiceWorkerBootstrap() {
 
 if (typeof document !== 'undefined' && isCapacitorNativeRuntime()) {
   document.documentElement.classList.add('capacitor-native')
+  // Warm LocalNotifications before any "Allow" tap so Android still sees a
+  // user gesture when requestPermissions() runs.
+  preloadNativeNotificationPlugin()
 }
 ensureApiPreconnect()
 ensureMediaPreconnect()

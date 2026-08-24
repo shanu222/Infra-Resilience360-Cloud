@@ -11,7 +11,7 @@ export function ElementCostBreakdown() {
   const navigate = useNavigate()
   const { addDefect, formData, detectionData, location, manualAnnotation, cityRates, setActiveEstimate } = useAppContext()
   const [showCalculation, setShowCalculation] = useState(false)
-  const [calculating, setCalculating] = useState(true)
+  const [calculating, setCalculating] = useState(false)
   const [mlError, setMlError] = useState<string | null>(null)
   const [, setMlCostPerSqft] = useState<number | null>(null)
   const [mlDurationWeeks, setMlDurationWeeks] = useState<number | null>(null)
@@ -166,10 +166,13 @@ export function ElementCostBreakdown() {
   useEffect(() => {
     let isCancelled = false
 
-    const loadMlEstimate = async () => {
-      setCalculating(true)
-      setMlError(null)
+    // Local line items are already computed — never block the whole page on the
+    // optional ML enrichment call (it can hang for a long time on flaky mobile
+    // networks and left users staring at "Calculating detailed costs...").
+    setCalculating(false)
+    setMlError(null)
 
+    const loadMlEstimate = async () => {
       const severityScore =
         manualAnnotation?.weightedRiskScore
           ? manualAnnotation.weightedRiskScore
@@ -199,10 +202,6 @@ export function ElementCostBreakdown() {
         if (isCancelled) return
         const message = error instanceof Error ? error.message : "Failed to load ML estimate"
         setMlError(message)
-      } finally {
-        if (!isCancelled) {
-          setCalculating(false)
-        }
       }
     }
 

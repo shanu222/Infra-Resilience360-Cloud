@@ -101,12 +101,21 @@ const normalizeRateCard = (raw: unknown, province: string): ProvinceRateCard => 
 
 export async function fetchProvinceRates(province: string, materials?: Record<string, number>): Promise<ProvinceRateCard> {
   const selectedProvince = String(province || 'Punjab').trim();
+  const fallback = (): ProvinceRateCard => ({
+    ...DEFAULT_RATE_CARD,
+    province: selectedProvince,
+    fetchedAt: new Date().toISOString(),
+    source: 'Fallback baseline',
+    notes: ['Using default baseline rates. You can edit these before calculating.'],
+  });
 
   try {
     const targets = buildApiTargets(API_PATH);
-    let lastError: Error | null = null;
+    const timeoutMs = 10_000;
 
     for (const target of targets) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : 0;
       try {
         const response = await fetch(target, {
           method: 'POST',
@@ -114,29 +123,26 @@ export async function fetchProvinceRates(province: string, materials?: Record<st
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ province: selectedProvince, materials: materials ?? {} }),
+          signal: controller?.signal,
         });
 
         if (!response.ok) {
-          lastError = new Error(`Rate API returned ${response.status}`);
           continue;
         }
 
         const payload = await response.json();
         return normalizeRateCard(payload, selectedProvince);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Province rates API request failed');
+      } catch {
+        /* try next target / fall through to defaults */
+      } finally {
+        if (timer) window.clearTimeout(timer);
       }
     }
-    if (lastError) {
-      throw lastError;
-    }
   } catch {
-    return {
-      ...DEFAULT_RATE_CARD,
-      province: selectedProvince,
-      fetchedAt: new Date().toISOString(),
-    };
+    /* buildApiTargets may throw when the API origin is missing */
   }
+
+  return fallback();
 }
 
 export function getDefaultProvinceRateCard(province: string): ProvinceRateCard {

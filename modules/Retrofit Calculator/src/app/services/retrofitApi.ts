@@ -193,8 +193,11 @@ export const getMlRetrofitEstimate = async (payload: {
 }): Promise<MlRetrofitEstimate> => {
   const targets = buildApiTargets('/api/ml/retrofit-estimate')
   let lastError: Error | null = null
+  const timeoutMs = 12_000
 
   for (const target of targets) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : 0
     try {
       const response = await fetchApi(target, {
         method: 'POST',
@@ -202,6 +205,7 @@ export const getMlRetrofitEstimate = async (payload: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: controller?.signal,
       })
 
       const raw = await response.text()
@@ -220,7 +224,13 @@ export const getMlRetrofitEstimate = async (payload: {
 
       return body as MlRetrofitEstimate
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('ML API request failed')
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        lastError = new Error(`ML estimate timed out after ${Math.round(timeoutMs / 1000)}s`)
+      } else {
+        lastError = error instanceof Error ? error : new Error('ML API request failed')
+      }
+    } finally {
+      if (timer) window.clearTimeout(timer)
     }
   }
 

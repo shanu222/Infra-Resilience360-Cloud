@@ -47,7 +47,14 @@ export function initAndroidBackButton(getContext: () => AndroidBackContext): voi
 
   void loadCapacitorApp().then(({ App }) => {
     void App.addListener('backButton', () => {
-      // Component-level interceptor takes priority (e.g. DisasterDetail in-portal back)
+      // Fullscreen PDF overlay (registered by PdfFullscreenViewer / ModelBoardPdfViewer)
+      const closePdf = (window as Window & { __R360_PDF_FULLSCREEN_CLOSE__?: () => void }).__R360_PDF_FULLSCREEN_CLOSE__
+      if (typeof closePdf === 'function') {
+        closePdf()
+        return
+      }
+
+      // Component-level interceptor takes priority (e.g. DisasterDetail, Legal pages)
       if (_backInterceptor && _backInterceptor()) return
 
       const ctx = getContext()
@@ -76,6 +83,24 @@ export function initAndroidBackButton(getContext: () => AndroidBackContext): voi
       if (ctx.activeSection !== null) {
         ctx.navigateToSection(null)
         return
+      }
+
+      // Standalone legal routes replace <App />; if the interceptor missed, still leave.
+      try {
+        const path = String(window.location.pathname || '')
+        if (
+          path === '/privacy-policy' ||
+          path === '/terms-and-conditions' ||
+          path === '/about' ||
+          path === '/contact' ||
+          path === '/ai-disclaimer' ||
+          path === '/open-source-licenses'
+        ) {
+          window.location.assign('/')
+          return
+        }
+      } catch {
+        /* ignore */
       }
 
       // Home is the application root — do not exit or minimize.

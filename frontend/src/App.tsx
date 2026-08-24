@@ -247,26 +247,18 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const wrapperRef = useRef<HTMLDivElement | null>(null)
   const [hasPdfError, setHasPdfError] = useState(false)
   const [isPdfLoaded, setIsPdfLoaded] = useState(false)
-  const [shouldRenderPdf, setShouldRenderPdf] = useState(false)
-  const [useNativePdfRenderer, setUseNativePdfRenderer] = useState(false)
+  const [useNativePdfRenderer, setUseNativePdfRenderer] = useState(() => isCapacitorNativeRuntime())
   const [pdfFullscreenOpen, setPdfFullscreenOpen] = useState(false)
 
   useEffect(() => {
     setHasPdfError(false)
     setIsPdfLoaded(false)
-    setShouldRenderPdf(false)
     setPdfFullscreenOpen(false)
-    const capacitorCoreModule = '@capacitor/core'
-    void import(/* @vite-ignore */ capacitorCoreModule)
-      .then((mod) => {
-        const native = Boolean(
-          (mod as { Capacitor?: { isNativePlatform?: () => boolean } })?.Capacitor?.isNativePlatform?.(),
-        )
-        setUseNativePdfRenderer(native)
-      })
-      .catch(() => {
-        setUseNativePdfRenderer(false)
-      })
+    setUseNativePdfRenderer(isCapacitorNativeRuntime())
+    // Warm PDF.js so the first page is not blocked on a CDN/module download.
+    void import('./utils/pdfJsCdn').then((mod) => {
+      void mod.loadPdfJs?.().catch(() => {})
+    }).catch(() => {})
   }, [embedKey])
 
   useEffect(() => {
@@ -282,38 +274,6 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   }, [pdfFullscreenOpen])
 
   const src = String(pdfCandidates[0] ?? '').trim()
-  useEffect(() => {
-    if (!src) {
-      if (import.meta.env.DEV) {
-        console.warn('[infra-models] Missing model board PDF source.')
-      }
-      return
-    }
-    if (typeof window === 'undefined') {
-      setShouldRenderPdf(true)
-      return
-    }
-    const frame = wrapperRef.current
-    if (!frame || !('IntersectionObserver' in window)) {
-      setShouldRenderPdf(true)
-      return
-    }
-    const top = frame.getBoundingClientRect().top
-    if (top <= window.innerHeight + 240) {
-      setShouldRenderPdf(true)
-      return
-    }
-    const observer = new window.IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return
-        setShouldRenderPdf(true)
-        observer.disconnect()
-      },
-      { rootMargin: '280px 0px 280px 0px' },
-    )
-    observer.observe(frame)
-    return () => observer.disconnect()
-  }, [src, embedKey])
 
   if (!src || hasPdfError) {
     if (hasPdfError && src) {
@@ -335,24 +295,22 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   if (useNativePdfRenderer) {
     return (
       <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
-        {shouldRenderPdf ?
-          <Suspense
-            fallback={
-              <div className="infra-model-media-skeleton infra-model-pdf-skeleton" role="status" aria-live="polite">
-                Loading model board…
-              </div>
-            }
-          >
-            <NativePdfCanvas
-              key={`${embedKey}-pdf-native`}
-              src={src}
-              className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
-              onLoaded={() => setIsPdfLoaded(true)}
-              onError={() => setHasPdfError(true)}
-              onFullscreen={() => setPdfFullscreenOpen(true)}
-            />
-          </Suspense>
-        : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+        <Suspense
+          fallback={
+            <div className="infra-model-media-skeleton infra-model-pdf-skeleton is-compact" role="status" aria-live="polite">
+              Loading model board…
+            </div>
+          }
+        >
+          <NativePdfCanvas
+            key={`${embedKey}-pdf-native`}
+            src={src}
+            className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+            onLoaded={() => setIsPdfLoaded(true)}
+            onError={() => setHasPdfError(true)}
+            onFullscreen={() => setPdfFullscreenOpen(true)}
+          />
+        </Suspense>
         <PdfFullscreenViewer
           src={src}
           title="Resilience Model Board"
@@ -365,18 +323,16 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
 
   return (
     <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
-      {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton" aria-hidden="true" />}
-      {shouldRenderPdf ?
-        <iframe
-          key={`${embedKey}-pdf`}
-          src={pdfSrc}
-          title="Resilience Model Board PDF"
-          className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
-          loading="eager"
-          onLoad={() => setIsPdfLoaded(true)}
-          onError={() => setHasPdfError(true)}
-        />
-      : <div className="infra-model-media-placeholder infra-model-media-placeholder--pending">Preparing model board...</div>}
+      {!isPdfLoaded && <div className="infra-model-media-skeleton infra-model-pdf-skeleton is-compact" aria-hidden="true" />}
+      <iframe
+        key={`${embedKey}-pdf`}
+        src={pdfSrc}
+        title="Resilience Model Board PDF"
+        className={`infra-model-board-pdf ${isPdfLoaded ? 'is-loaded' : ''}`.trim()}
+        loading="eager"
+        onLoad={() => setIsPdfLoaded(true)}
+        onError={() => setHasPdfError(true)}
+      />
     </div>
   )
 })
@@ -2122,19 +2078,28 @@ function App(_props: AppProps = {}) {
   }, [isHomeSettingsPanelOpen])
 
   const enableEarthquakeBrowserNotifications = useCallback(async () => {
-    const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
-    setEarthquakeNotifyPermission(permission)
-    if (permission === 'granted') {
-      setEarthquakeNotifyStatusMsg(isCapacitorNativeRuntime() ? 'Android notification permission granted.' : 'Permission granted.')
+    try {
+      const permission = await earthquakePushNotificationService.requestPermissionFromUserGesture()
+      setEarthquakeNotifyPermission(permission)
+      if (permission === 'granted') {
+        setEarthquakeNotifyStatusMsg(
+          isCapacitorNativeRuntime()
+            ? 'Notifications enabled. A test alert was sent — check your notification shade.'
+            : 'Permission granted.',
+        )
+        setShowNotificationPermissionDialog(false)
+        return
+      }
+      setEarthquakeNotifyStatusMsg(
+        isCapacitorNativeRuntime()
+          ? 'Android notification permission was not granted. Open system Settings → Apps → Infra Resilience360 → Notifications if the prompt did not appear.'
+          : 'Notifications were not enabled by the browser.',
+      )
       setShowNotificationPermissionDialog(false)
-      return
+    } catch {
+      setEarthquakeNotifyStatusMsg('Could not request notification permission. Try again from Settings.')
+      setShowNotificationPermissionDialog(false)
     }
-    setEarthquakeNotifyStatusMsg(
-      isCapacitorNativeRuntime()
-        ? 'Android notification permission was not granted. You can enable alerts later from Settings.'
-        : 'Notifications were not enabled by the browser.',
-    )
-    setShowNotificationPermissionDialog(false)
   }, [])
 
   const dismissNotificationPermissionDialog = useCallback(() => {

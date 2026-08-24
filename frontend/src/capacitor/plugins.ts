@@ -38,6 +38,13 @@ export function loadCapacitorLocalNotifications() {
   return load(() => import('@capacitor/local-notifications'), 'notification')
 }
 
+/** Warm the notification plugin so a later tap can call requestPermissions() without awaiting import first. */
+let localNotificationsWarm: Promise<unknown> | null = null
+export function warmCapacitorLocalNotifications(): void {
+  if (localNotificationsWarm) return
+  localNotificationsWarm = loadCapacitorLocalNotifications().catch(() => null)
+}
+
 export function loadCapacitorScreenOrientation() {
   return load(() => import('@capacitor/screen-orientation'), 'screen orientation')
 }

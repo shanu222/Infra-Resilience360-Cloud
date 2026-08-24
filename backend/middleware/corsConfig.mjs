@@ -12,6 +12,11 @@ export const corsOriginAllowlist = [
   // Live Inventory Admin portal dev server; its production domain is supplied via CORS_ORIGINS.
   'http://localhost:5174',
   'http://127.0.0.1:5174',
+  // Capacitor Android / iOS WebView origins (iframe portal API calls).
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
   ...String(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
     .split(/[,;\s]+/)
     .map((v) => stripTrailingSlash(v))

@@ -6,6 +6,7 @@ import {
   getNativeNotificationPermission,
   isNativeEarthquakeNotificationsAvailable,
   markEarthquakeSeenInApp,
+  preloadNativeNotificationPlugin,
   requestNativeNotificationPermission,
   showNativeEarthquakeTestNotification,
 } from './earthquakeNativeNotifications'
@@ -39,6 +40,9 @@ class EarthquakePushNotificationService {
     if (this.initialized) return
     this.initialized = true
     if (isNativeEarthquakeNotificationsAvailable()) {
+      // Warm the plugin before any "Allow" tap so requestPermissions() is not
+      // blocked behind a dynamic import (which drops the Android user gesture).
+      preloadNativeNotificationPlugin()
       await ensureEarthquakeNotificationChannel()
       await this.syncBackgroundAlerts()
     }
@@ -166,7 +170,12 @@ class EarthquakePushNotificationService {
 
   async requestPermissionFromUserGesture(): Promise<EarthquakePermissionState> {
     if (isNativeEarthquakeNotificationsAvailable()) {
-      const permission = await requestNativeNotificationPermission()
+      let permission: EarthquakePermissionState = 'prompt'
+      try {
+        permission = await requestNativeNotificationPermission()
+      } catch {
+        permission = 'denied'
+      }
       try {
         localStorage.setItem(this.permissionKey, permission)
         localStorage.setItem(this.promptKey, permission === 'granted' ? 'accepted' : 'declined')
@@ -174,9 +183,12 @@ class EarthquakePushNotificationService {
       } catch {
         /* ignore */
       }
-      // Granting permission is what unblocks background delivery, so start the
-      // poll immediately rather than waiting for the next app launch.
       await this.syncBackgroundAlerts()
+      if (permission === 'granted') {
+        // Immediate tray entry so the user knows the grant stuck — do not wait
+        // for the next earthquake.
+        void showNativeEarthquakeTestNotification()
+      }
       return permission
     }
 

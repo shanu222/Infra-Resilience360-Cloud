@@ -1,4 +1,7 @@
-import { loadCapacitorLocalNotifications } from '../capacitor/plugins'
+import {
+  loadCapacitorLocalNotifications,
+  warmCapacitorLocalNotifications,
+} from '../capacitor/plugins'
 
 /**
  * Permission, channel and test-notification helpers for Android alerts.
@@ -29,7 +32,6 @@ export function markEarthquakeSeenInApp(eventId: string): boolean {
     localStorage.setItem(SEEN_IDS_KEY, JSON.stringify([...seen].slice(-MAX_SEEN_IDS)))
     return true
   } catch {
-    // Without storage we cannot dedupe; staying silent beats repeating the cue.
     return false
   }
 }
@@ -45,51 +47,109 @@ type LocalNotificationsApi = {
   createChannel: (opts: Record<string, unknown>) => Promise<void>
 }
 
+let cachedLocalNotifications: LocalNotificationsApi | null = null
+
 async function loadLocalNotifications(): Promise<LocalNotificationsApi> {
+  if (cachedLocalNotifications) return cachedLocalNotifications
+  warmCapacitorLocalNotifications()
   const mod = (await loadCapacitorLocalNotifications()) as unknown as {
     LocalNotifications: LocalNotificationsApi
   }
-  return mod.LocalNotifications
+  cachedLocalNotifications = mod.LocalNotifications
+  return cachedLocalNotifications
+}
+
+/** Call during app boot so "Allow Notifications" does not await a dynamic import. */
+export function preloadNativeNotificationPlugin(): void {
+  if (!isNativeEarthquakeNotificationsAvailable()) return
+  warmCapacitorLocalNotifications()
+  void loadLocalNotifications()
+    .then((api) =>
+      api.createChannel({
+        id: 'earthquake-alerts',
+        name: 'Earthquake Alerts',
+        description: 'Significant earthquake alerts based on your chosen magnitude threshold',
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+      }),
+    )
+    .catch(() => {
+      /* warm-up only */
+    })
+}
+
+function mapDisplay(display?: string): 'granted' | 'denied' | 'prompt' {
+  if (display === 'granted') return 'granted'
+  if (display === 'denied') return 'denied'
+  return 'prompt'
 }
 
 export async function getNativeNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
-  const LocalNotifications = await loadLocalNotifications()
-  const status = await LocalNotifications.checkPermissions()
-  if (status.display === 'granted') return 'granted'
-  if (status.display === 'denied') return 'denied'
-  return 'prompt'
+  try {
+    const LocalNotifications = await loadLocalNotifications()
+    const status = await LocalNotifications.checkPermissions()
+    return mapDisplay(status.display)
+  } catch {
+    return 'prompt'
+  }
 }
 
+/**
+ * Must be invoked directly from a click handler.
+ * Awaiting a dynamic import before requestPermissions() breaks Android's
+ * user-gesture requirement, so the system dialog never appears.
+ */
 export async function requestNativeNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {
-  const LocalNotifications = await loadLocalNotifications()
-  const status = await LocalNotifications.requestPermissions()
-  if (status.display === 'granted') return 'granted'
-  if (status.display === 'denied') return 'denied'
-  return 'prompt'
+  try {
+    const LocalNotifications =
+      cachedLocalNotifications ?? (await loadLocalNotifications())
+    // Channel before the prompt so a grant can deliver immediately.
+    try {
+      await LocalNotifications.createChannel({
+        id: 'earthquake-alerts',
+        name: 'Earthquake Alerts',
+        description: 'Significant earthquake alerts based on your chosen magnitude threshold',
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+      })
+    } catch {
+      /* may already exist */
+    }
+    const status = await LocalNotifications.requestPermissions()
+    return mapDisplay(status.display)
+  } catch {
+    return 'denied'
+  }
 }
 
 export async function showNativeEarthquakeTestNotification(): Promise<boolean> {
-  const permission = await getNativeNotificationPermission()
-  if (permission !== 'granted') return false
-  const LocalNotifications = await loadLocalNotifications()
-  await LocalNotifications.schedule({
-    notifications: [
-      {
-        id: 900001,
-        title: 'Infra Resilience360 Alert Test',
-        body: 'Android earthquake notifications are enabled.',
-        channelId: 'earthquake-alerts',
-        smallIcon: 'ic_launcher_foreground',
-      },
-    ],
-  })
-  return true
+  try {
+    const permission = await getNativeNotificationPermission()
+    if (permission !== 'granted') return false
+    const LocalNotifications = await loadLocalNotifications()
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: 900001,
+          title: 'Infra Resilience360 Alert Test',
+          body: 'Android earthquake notifications are enabled.',
+          channelId: 'earthquake-alerts',
+          smallIcon: 'ic_launcher_foreground',
+        },
+      ],
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function ensureEarthquakeNotificationChannel(): Promise<void> {
   if (!isNativeEarthquakeNotificationsAvailable()) return
-  const LocalNotifications = await loadLocalNotifications()
   try {
+    const LocalNotifications = await loadLocalNotifications()
     await LocalNotifications.createChannel({
       id: 'earthquake-alerts',
       name: 'Earthquake Alerts',

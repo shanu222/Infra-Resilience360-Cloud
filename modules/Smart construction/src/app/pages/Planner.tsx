@@ -6,7 +6,7 @@ import ConstructionForm from '../components/ConstructionForm';
 import HazardSelector from '../components/HazardSelector';
 import { calculateConstructionPlan, ConstructionInput, ProvinceRateCard, type CalculationLang } from '../utils/calculator';
 import ModuleBackground from '../components/ModuleBackground';
-import { fetchProvinceRates } from '../utils/provinceRates';
+import { fetchProvinceRates, getDefaultProvinceRateCard } from '../utils/provinceRates';
 import { ensureArray, normalizeFormData } from '../utils/formDataNormalizer';
 import { useSmartConstructionStrings } from '../../i18n/smartConstructionStrings';
 import { usePortalLanguage } from '../../i18n/portalLanguage';
@@ -124,7 +124,13 @@ export default function Planner() {
     setIsFetchingRates(true);
 
     try {
-      const rates = await fetchProvinceRates(province, previewMaterials as unknown as Record<string, number>);
+      const rates = await Promise.race([
+        fetchProvinceRates(province, previewMaterials as unknown as Record<string, number>),
+        new Promise<ReturnType<typeof getDefaultProvinceRateCard>>((resolve) => {
+          window.setTimeout(() => resolve(getDefaultProvinceRateCard(province)), 11_000);
+        }),
+      ]);
+
       updateFormData({
         location: {
           country: formData.location?.country || 'Pakistan',
@@ -135,6 +141,14 @@ export default function Planner() {
       });
       setShowRateReview(true);
     } catch {
+      updateFormData({
+        location: {
+          country: formData.location?.country || 'Pakistan',
+          province,
+          district: formData.location?.district || '',
+        },
+        rates: getDefaultProvinceRateCard(province),
+      });
       setRateFetchError(p.rateFetchError);
       setShowRateReview(true);
     } finally {

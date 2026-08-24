@@ -4988,13 +4988,21 @@ h4 {
 }
 
 .infra-model-pdf-skeleton {
-  min-height: min(360px, 52vh);
-  height: min(500px, 72vh);
+  min-height: 120px;
+  height: auto;
+  max-height: min(420px, 55vh);
+}
+
+.infra-model-pdf-skeleton.is-compact {
+  min-height: 72px;
+  height: 72px;
+  max-height: 72px;
 }
 
 .infra-model-media-placeholder {
-  min-height: min(360px, 52vh);
-  height: min(500px, 72vh);
+  min-height: 120px;
+  height: auto;
+  max-height: min(420px, 55vh);
   width: 100%;
   border-radius: 12px;
   border: 1px dashed rgba(148, 163, 184, 0.38);
