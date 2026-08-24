@@ -116,4 +116,13 @@ export function registerMaterialHubInventoryRoutes(app) {
       }
     },
   )
+
+  // Confirms from the deploy logs that this build serves the inventory API, which
+  // storage backend it resolved, and whether an admin can actually sign in.
+  const storage = describeInventoryStorage()
+  console.info(
+    '[material-hub-inventory] routes ready |',
+    `storage: ${storage.driver}${storage.durable ? '' : ' (EPHEMERAL — R2 credentials missing, edits lost on redeploy)'} |`,
+    `admin login: ${isInventoryAdminConfigured() ? 'configured' : 'DISABLED (set MATERIAL_HUB_ADMIN_PASSWORD)'}`,
+  )
 }

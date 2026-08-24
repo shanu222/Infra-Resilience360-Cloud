@@ -80,12 +80,19 @@ export function clearStoredToken(): void {
   }
 }
 
+/** The backend's catch-all reply when a route does not exist on the running build. */
+const UNKNOWN_ROUTE_ERROR = 'API route not found'
+
+const STALE_BACKEND_MESSAGE =
+  'The API is reachable but does not provide the inventory endpoints yet. Redeploy the backend from the latest commit, then try again.'
+
 async function readErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = (await response.json()) as { error?: string }
+    if (body?.error === UNKNOWN_ROUTE_ERROR) return STALE_BACKEND_MESSAGE
     return body?.error || fallback
   } catch {
-    return fallback
+    return response.status === 404 ? STALE_BACKEND_MESSAGE : fallback
   }
 }
 
