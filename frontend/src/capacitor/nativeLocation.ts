@@ -1,3 +1,5 @@
+import { loadCapacitorCore, loadCapacitorGeolocation } from './plugins'
+
 export type NativeLocationResult = {
   latitude: number
   longitude: number
@@ -18,9 +20,8 @@ type CapacitorGeolocationModule = {
 }
 
 async function isNativePlatform(): Promise<boolean> {
-  const coreModule = '@capacitor/core'
   try {
-    const core = (await import(/* @vite-ignore */ coreModule)) as CapacitorCoreModule
+    const core = (await loadCapacitorCore()) as unknown as CapacitorCoreModule
     return Boolean(core?.Capacitor?.isNativePlatform?.())
   } catch {
     return false
@@ -28,13 +29,8 @@ async function isNativePlatform(): Promise<boolean> {
 }
 
 async function loadGeolocation() {
-  const geolocationModule = '@capacitor/geolocation'
-  try {
-    const mod = (await import(/* @vite-ignore */ geolocationModule)) as CapacitorGeolocationModule
-    return mod.Geolocation
-  } catch {
-    throw new Error('Native geolocation module is unavailable in this runtime.')
-  }
+  const mod = (await loadCapacitorGeolocation()) as unknown as CapacitorGeolocationModule
+  return mod.Geolocation
 }
 
 export async function getNativeLocationPermission(): Promise<'granted' | 'denied' | 'prompt'> {

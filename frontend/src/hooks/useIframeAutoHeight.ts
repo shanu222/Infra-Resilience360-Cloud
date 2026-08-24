@@ -1,5 +1,16 @@
 import { useEffect, useRef } from 'react'
 
+/**
+ * Embedded portals are sized to their content, so there is no sensible viewport
+ * floor: any non-zero default shows up as dead space under short pages.
+ */
+const DEFAULT_MIN_HEIGHT = 0
+
+/** Minimum gap between observer-driven measurements (ms). */
+const MEASURE_THROTTLE_MS = 100
+
+const HEIGHT_NEUTRALIZER_ID = 'r360-iframe-height-neutralizer'
+
 type IframeAutoHeightOptions = {
   observeResize?: boolean
   observeMutations?: boolean
@@ -23,6 +34,56 @@ function measureDocumentHeight(doc: Document): number {
 }
 
 /**
+ * Removes the viewport-height floor from the frame's own root elements.
+ *
+ * A portal bundle that ships `html, body { min-height: 100vh }` reports at least
+ * a full viewport of height no matter how short its content is, which surfaces in
+ * the shell as a band of empty background below the portal. Only the document
+ * roots are touched: inner `min-h-screen` sections stay intact and simply track
+ * whatever height the frame settles on.
+ */
+function injectHeightNeutralizer(doc: Document): void {
+  if (doc.getElementById(HEIGHT_NEUTRALIZER_ID)) return
+  const head = doc.head
+  if (!head) return
+  const style = doc.createElement('style')
+  style.id = HEIGHT_NEUTRALIZER_ID
+  style.textContent = `
+    html, body, body > #root {
+      min-height: 0 !important;
+      height: auto !important;
+    }
+  `
+  head.appendChild(style)
+}
+
+/**
+ * Client-side routers navigate with history.pushState, which fires no event, so
+ * a route change to a shorter page would otherwise keep the previous height.
+ */
+function patchHistoryForRemeasure(win: Window, onNavigate: () => void): () => void {
+  const historyRef = win.history
+  if (!historyRef) return () => {}
+
+  const originalPushState = historyRef.pushState.bind(historyRef)
+  const originalReplaceState = historyRef.replaceState.bind(historyRef)
+
+  historyRef.pushState = (...args: Parameters<History['pushState']>) => {
+    originalPushState(...args)
+    onNavigate()
+  }
+  historyRef.replaceState = (...args: Parameters<History['replaceState']>) => {
+    originalReplaceState(...args)
+    onNavigate()
+  }
+
+  return () => {
+    historyRef.pushState = originalPushState
+    historyRef.replaceState = originalReplaceState
+  }
+}
+
+/**
  * Returns true when the mobile software keyboard is probably visible.
  *
  * When the keyboard is open, visualViewport.height is significantly smaller
@@ -36,13 +97,16 @@ function isSoftwareKeyboardOpen(): boolean {
   if (!vv) return false
   // Keyboard is considered open when it consumes at least 150 px or 20 % of
   // the window height (whichever is larger). This threshold comfortably catches
-  // typical mobile keyboards (≈ 30–50 % of screen) while ignoring small
+  // typical mobile keyboards (~30-50 % of screen) while ignoring small
   // browser-chrome adjustments on scroll.
   const gap = window.innerHeight - vv.height
   return gap > Math.max(150, window.innerHeight * 0.2)
 }
 
-export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: IframeAutoHeightOptions = {}) {
+export function useIframeAutoHeight(
+  minHeight = DEFAULT_MIN_HEIGHT,
+  options: IframeAutoHeightOptions = {},
+) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
 
   useEffect(() => {
@@ -50,6 +114,8 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
     if (!iframe) return
 
     let raf = 0
+    let throttleTimer = 0
+    let lastMeasureAt = 0
     let interval: number | null = null
     let resizeObserver: ResizeObserver | null = null
     let mutationObserver: MutationObserver | null = null
@@ -60,12 +126,12 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
     const observeResize = options.observeResize !== false
     const observeMutations = options.observeMutations !== false
     const pollIntervalMs = options.pollIntervalMs ?? 2500
-    const maxHeightPx = options.maxHeightPx && options.maxHeightPx > 0 ? options.maxHeightPx : Number.POSITIVE_INFINITY
-    let lastAppliedHeight = 0
+    const maxHeightPx =
+      options.maxHeightPx && options.maxHeightPx > 0 ? options.maxHeightPx : Number.POSITIVE_INFINITY
 
-    const applyHeight = (): boolean => {
+    const applyHeight = (): void => {
       const node = iframeRef.current
-      if (!node) return false
+      if (!node) return
 
       // ── Mobile keyboard guard ────────────────────────────────────────────────
       // On mobile browsers, when the software keyboard opens the visual viewport
@@ -74,11 +140,13 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
       // keyboard does not change actual page layout so skipping is safe — the
       // existing iframe height is already correct. We will measure again once the
       // keyboard is dismissed (the next MutationObserver / poll tick will fire).
-      if (isSoftwareKeyboardOpen()) return false
+      if (isSoftwareKeyboardOpen()) return
 
       try {
         const doc = node.contentDocument
-        if (!doc) return false
+        if (!doc) return
+
+        lastMeasureAt = Date.now()
 
         // Save the stable height before the temporary 1 px measurement.
         const prev = parseFloat(node.style.height || '0') || 0
@@ -100,6 +168,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
         //   iframe.height → 100vh → min-h-screen → scrollHeight → iframe.height
         // Reading scrollHeight immediately after forces a synchronous reflow in the
         // inner frame with the new 1 px viewport — returning the true content height.
+        // Both writes happen in one task, so the 1 px state is never painted.
         node.style.height = '1px'
 
         const measured = measureDocumentHeight(doc)
@@ -108,8 +177,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
         // Always restore to a valid height so the 1 px state is never left visible.
         if (!Number.isFinite(next) || next <= 0) {
           node.style.height = prev > 0 ? `${prev}px` : `${minHeight}px`
-          unchangedTicks += 1
-          return false
+          return
         }
 
         node.style.height = `${next}px`
@@ -120,57 +188,78 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
         if (window.scrollY !== savedScrollY || window.scrollX !== savedScrollX) {
           window.scrollTo(savedScrollX, savedScrollY)
         }
-
-        if (Math.abs(prev - next) < 4) {
-          unchangedTicks += 1
-          return false
-        }
-        unchangedTicks = 0
-        return true
       } catch {
-        return false
+        // Cross-origin or transient loading; keep the current height.
       }
     }
 
-    const scheduleMeasure = () => {
+    const measureNow = () => {
       if (raf) cancelAnimationFrame(raf)
       raf = requestAnimationFrame(() => {
         raf = requestAnimationFrame(applyHeight)
       })
     }
 
+    /**
+     * Observer-driven remeasure. A portal with a spinner or a chart animation
+     * mutates continuously; measuring on every mutation would force two
+     * synchronous reflows per frame inside the WebView, so trailing-edge
+     * throttling keeps the frame responsive while still converging.
+     */
+    const scheduleMeasure = () => {
+      if (throttleTimer) return
+      const elapsed = Date.now() - lastMeasureAt
+      if (elapsed >= MEASURE_THROTTLE_MS) {
+        measureNow()
+        return
+      }
+      throttleTimer = window.setTimeout(() => {
+        throttleTimer = 0
+        measureNow()
+      }, MEASURE_THROTTLE_MS - elapsed)
+    }
+
     const attachObservers = () => {
       const node = iframeRef.current
       if (!node) return
+
+      const doc = node.contentDocument
+      const win = node.contentWindow
+      if (!doc || !win) return
+
+      const root = doc.documentElement
+      const body = doc.body
+      if (!root || !body) return
+
+      // Each step is isolated: a failure in one (for example a frame that blocks
+      // history patching) must not prevent the observers below from attaching.
       try {
-        const doc = node.contentDocument
-        const win = node.contentWindow
-        if (!doc || !win) return
-
-        const root = doc.documentElement
-        const body = doc.body
-        if (!root || !body) return
-
         injectHeightNeutralizer(doc)
+      } catch {
+        /* frame not writable */
+      }
 
+      try {
         teardownHistoryPatch?.()
-        teardownHistoryPatch = patchHistoryForRemeasure(win, () => {
-          lastAppliedHeight = 0
-          scheduleMeasure()
-        })
+        teardownHistoryPatch = patchHistoryForRemeasure(win, measureNow)
+      } catch {
+        teardownHistoryPatch = null
+      }
 
+      try {
         teardownWindowListeners?.()
-        const onRouteChange = () => {
-          lastAppliedHeight = 0
-          scheduleMeasure()
-        }
+        const onRouteChange = () => measureNow()
         win.addEventListener('hashchange', onRouteChange)
         win.addEventListener('popstate', onRouteChange)
         teardownWindowListeners = () => {
           win.removeEventListener('hashchange', onRouteChange)
           win.removeEventListener('popstate', onRouteChange)
         }
+      } catch {
+        teardownWindowListeners = null
+      }
 
+      try {
         teardownDocListeners?.()
         const onAssetLoad = (event: Event) => {
           const target = event.target
@@ -179,7 +268,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
           }
         }
         doc.addEventListener('load', onAssetLoad, true)
-        doc.fonts?.ready.then(() => scheduleMeasure()).catch(() => {})
+        doc.fonts?.ready.then(() => measureNow()).catch(() => {})
 
         const onPortalMessage = (event: MessageEvent) => {
           if (event.source !== win) return
@@ -188,13 +277,24 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
             scheduleMeasure()
           }
         }
+        // Rotating the device changes the frame width, so the content reflows to
+        // a different height and must be remeasured.
+        const onViewportChange = () => measureNow()
         window.addEventListener('message', onPortalMessage)
+        window.addEventListener('resize', onViewportChange)
+        window.addEventListener('orientationchange', onViewportChange)
 
         teardownDocListeners = () => {
           doc.removeEventListener('load', onAssetLoad, true)
           window.removeEventListener('message', onPortalMessage)
+          window.removeEventListener('resize', onViewportChange)
+          window.removeEventListener('orientationchange', onViewportChange)
         }
+      } catch {
+        teardownDocListeners = null
+      }
 
+      try {
         if (observeResize) {
           resizeObserver?.disconnect()
           resizeObserver = new ResizeObserver(scheduleMeasure)
@@ -209,14 +309,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
 
         if (observeMutations) {
           mutationObserver?.disconnect()
-          // Reset lastAppliedHeight on every DOM mutation so height can freely
-          // shrink (not just grow).  Without this, navigating from a tall step to
-          // a shorter step keeps the old height because the delta check passes but
-          // the measurement itself returns the previous (inflated) value.
-          mutationObserver = new MutationObserver(() => {
-            lastAppliedHeight = 0
-            scheduleMeasure()
-          })
+          mutationObserver = new MutationObserver(scheduleMeasure)
           mutationObserver.observe(root, {
             subtree: true,
             childList: true,
@@ -224,26 +317,26 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
             characterData: true,
           })
         }
-
-        if (pollIntervalMs > 0) {
-          if (interval !== null) window.clearInterval(interval)
-          interval = window.setInterval(() => {
-            if (document.visibilityState === 'hidden') return
-            scheduleMeasure()
-          }, pollIntervalMs)
-        }
       } catch {
         /* cross-origin */
+      }
+
+      if (pollIntervalMs > 0) {
+        if (interval !== null) window.clearInterval(interval)
+        interval = window.setInterval(() => {
+          if (document.visibilityState === 'hidden') return
+          scheduleMeasure()
+        }, pollIntervalMs)
       }
     }
 
     const onLoad = () => {
-      lastAppliedHeight = 0
-      scheduleMeasure()
+      measureNow()
       attachObservers()
-      window.setTimeout(scheduleMeasure, 120)
-      window.setTimeout(scheduleMeasure, 400)
-      window.setTimeout(scheduleMeasure, 900)
+      window.setTimeout(measureNow, 120)
+      window.setTimeout(measureNow, 400)
+      window.setTimeout(measureNow, 900)
+      window.setTimeout(measureNow, 1800)
     }
 
     iframe.style.minHeight = '0px'
@@ -253,6 +346,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
 
     return () => {
       if (raf) cancelAnimationFrame(raf)
+      if (throttleTimer) window.clearTimeout(throttleTimer)
       if (interval !== null) window.clearInterval(interval)
       resizeObserver?.disconnect()
       mutationObserver?.disconnect()
@@ -261,7 +355,7 @@ export function useIframeAutoHeight(minHeight = DEFAULT_MIN_HEIGHT, options: Ifr
       teardownDocListeners?.()
       iframe.removeEventListener('load', onLoad)
     }
-  }, [options.maxHeightPx, options.observeMutations, options.observeResize, options.pollIntervalMs])
+  }, [minHeight, options.maxHeightPx, options.observeMutations, options.observeResize, options.pollIntervalMs])
 
   return iframeRef
 }

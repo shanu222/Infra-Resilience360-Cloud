@@ -4089,7 +4089,9 @@ h4 {
 .page-wrapper.page-section.page-wrapper--content-fit-portals .app-shell > main,
 .page-wrapper.page-section.page-wrapper--content-fit-portals .section-panel.section-retrofit-calculator,
 .page-wrapper.page-section.page-wrapper--content-fit-portals .section-panel.section-smart-construction,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .section-panel.section-pgbc,
 .page-wrapper.page-section.page-wrapper--content-fit-portals .portal-page-retrofit-calculator,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .portal-page-pgbc,
 .page-wrapper.page-section.page-wrapper--content-fit-portals .portal-page-smart-construction.smart-construction-layout {
   min-height: 0;
   height: auto;
@@ -4099,6 +4101,7 @@ h4 {
 }
 
 .page-wrapper.page-section.page-wrapper--content-fit-portals .retrofit-calculator-portal-frame,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .pgbc-portal-frame,
 .page-wrapper.page-section.page-wrapper--content-fit-portals .smart-construction-portal-frame {
   width: 100%;
   max-width: 100%;
@@ -4771,50 +4774,120 @@ h4 {
 .r360-image-upload-sheet-overlay {
   position: fixed;
   inset: 0;
-  z-index: 11000;
-  background: rgba(3, 10, 24, 0.55);
+  z-index: 2147483000;
+  background: rgba(3, 10, 24, 0.62);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  animation: r360-image-upload-fade 160ms ease-out;
 }
 
 .r360-image-upload-sheet {
   width: min(100%, 480px);
+  max-height: 85dvh;
+  overflow-y: auto;
   background: #0f172a;
-  border-radius: 16px 16px 0 0;
-  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  box-shadow: 0 -14px 40px rgba(2, 6, 23, 0.6);
+  animation: r360-image-upload-rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes r360-image-upload-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes r360-image-upload-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .r360-image-upload-sheet-overlay,
+  .r360-image-upload-sheet {
+    animation: none;
+  }
+}
+
+.r360-image-upload-sheet__grabber {
+  justify-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+  margin: 4px 0 2px;
+}
+
+.r360-image-upload-sheet__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.01em;
 }
 
 .r360-image-upload-sheet__action,
 .r360-image-upload-sheet__cancel {
   width: 100%;
-  border-radius: 10px;
-  padding: 14px 12px;
+  min-height: 52px;
+  border-radius: 12px;
+  padding: 14px 16px;
   font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .r360-image-upload-sheet__action {
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
   background: rgba(30, 41, 59, 0.95);
   color: #e2eaf7;
+  text-align: left;
+}
+
+.r360-image-upload-sheet__action:active {
+  background: rgba(51, 65, 85, 0.98);
+}
+
+.r360-image-upload-sheet__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #7dd3fc;
 }
 
 .r360-image-upload-sheet__cancel {
   border: none;
-  background: transparent;
-  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5f5;
 }
 
 .retrofit-upload-native-btn {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   margin-top: 8px;
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.45);
   background: rgba(15, 23, 42, 0.72);
   color: #e2eaf7;
-  padding: 8px 14px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .retrofit-upload-label:has(.retrofit-upload-native-btn) .retrofit-upload-input {

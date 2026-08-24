@@ -6,6 +6,12 @@ import {
   APP_INTRO_VIDEO_URL,
 } from '../../config/appIntroVideo'
 import { mediaManager } from '../../services/mediaManager'
+import {
+  isLandscapeViewport,
+  lockLandscape,
+  onOrientationChange,
+  unlockOrientation,
+} from '../../capacitor/screenOrientation'
 
 export type AppIntroductionExperienceProps = {
   open: boolean
@@ -20,11 +26,15 @@ export type AppIntroductionExperienceProps = {
   replayLabel: string
   slideHint: string
   slideAriaLabel: string
+  rotateTitle?: string
+  rotateText?: string
+  rotateLandscapeLabel?: string
+  rotatePortraitLabel?: string
   /** Text direction for overlay content. */
   dir?: 'ltr' | 'rtl'
 }
 
-type Phase = 'gate' | 'loading' | 'playing' | 'ended' | 'fading'
+type Phase = 'gate' | 'rotate' | 'loading' | 'playing' | 'ended' | 'fading'
 
 const SLIDE_COMPLETE_RATIO = 0.86
 
@@ -60,6 +70,10 @@ export function AppIntroductionExperience({
   replayLabel,
   slideHint,
   slideAriaLabel,
+  rotateTitle = 'Best viewed in landscape',
+  rotateText = 'Turn your device sideways to watch the introduction full screen.',
+  rotateLandscapeLabel = 'Watch in landscape',
+  rotatePortraitLabel = 'Continue in portrait',
   dir = 'ltr',
 }: AppIntroductionExperienceProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -113,6 +127,8 @@ export function AppIntroductionExperience({
     if (dismissedRef.current) return
     dismissedRef.current = true
     clearTimers()
+    // Release before the fade so Home is already upright when it is revealed.
+    void unlockOrientation()
     setPhase('fading')
     setVisible(false)
     fadeTimerRef.current = window.setTimeout(() => {
@@ -148,17 +164,49 @@ export function AppIntroductionExperience({
     }
   }, [])
 
+  const beginPlayback = useCallback(() => {
+    if (dismissedRef.current) return
+    playStartedRef.current = false
+    setPhase('loading')
+    setSessionKey((k) => k + 1)
+    if (loadTimerRef.current !== null) window.clearTimeout(loadTimerRef.current)
+    loadTimerRef.current = window.setTimeout(() => {
+      beginDismiss()
+    }, APP_INTRO_LOAD_TIMEOUT_MS)
+  }, [beginDismiss])
+
+  /**
+   * The intro is a widescreen film, so it only fills the screen in landscape.
+   * A device already held sideways goes straight to playback; otherwise the user
+   * is asked, because silently rotating the screen under them is disorienting.
+   */
   const startVideoFromGate = useCallback(() => {
     if (dismissedRef.current || slideComplete) return
     setSlideComplete(true)
     updateSlideOffset(slideMax)
-    playStartedRef.current = false
-    setPhase('loading')
-    setSessionKey((k) => k + 1)
-    loadTimerRef.current = window.setTimeout(() => {
-      beginDismiss()
-    }, APP_INTRO_LOAD_TIMEOUT_MS)
-  }, [beginDismiss, slideComplete, slideMax, updateSlideOffset])
+    if (isLandscapeViewport()) {
+      beginPlayback()
+      return
+    }
+    setPhase('rotate')
+  }, [beginPlayback, slideComplete, slideMax, updateSlideOffset])
+
+  const playInLandscape = useCallback(() => {
+    void lockLandscape().then((locked) => {
+      if (dismissedRef.current) return
+      // When the lock is refused we stay on the prompt and wait for the user to
+      // turn the device; the orientation watcher below starts playback then.
+      if (locked || isLandscapeViewport()) beginPlayback()
+    })
+  }, [beginPlayback])
+
+  // Turning the device while the prompt is up is an implicit "yes".
+  useEffect(() => {
+    if (phase !== 'rotate') return
+    return onOrientationChange((landscape) => {
+      if (landscape) beginPlayback()
+    })
+  }, [phase, beginPlayback])
 
   useEffect(() => {
     if (!open) {
@@ -198,6 +246,7 @@ export function AppIntroductionExperience({
       window.removeEventListener('resize', onResize)
       clearTimers()
       disposeVideoElement(videoRef.current)
+      void unlockOrientation()
       document.body.style.overflow = previousOverflow
       document.body.classList.remove('r360-app-intro-open')
     }
@@ -361,6 +410,28 @@ export function AppIntroductionExperience({
                 }}
               >
                 <span aria-hidden>{isRtl ? '‹' : '›'}</span>
+              </button>
+            </div>
+          </div>
+        : null}
+
+        {phase === 'rotate' ?
+          <div className="r360-app-intro__rotate" role="dialog" aria-live="polite">
+            <span className="r360-app-intro__rotate-icon" aria-hidden>
+              <svg viewBox="0 0 64 44" width="86" height="60" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="26" height="36" rx="4" />
+                <rect x="34" y="12" width="28" height="20" rx="4" />
+                <path d="M30 34a10 10 0 0 0 4-8" />
+              </svg>
+            </span>
+            <h3 className="r360-app-intro__rotate-title">{rotateTitle}</h3>
+            <p className="r360-app-intro__rotate-text">{rotateText}</p>
+            <div className="r360-app-intro__rotate-actions">
+              <button type="button" className="r360-app-intro__rotate-primary" onClick={playInLandscape}>
+                {rotateLandscapeLabel}
+              </button>
+              <button type="button" className="r360-app-intro__rotate-secondary" onClick={beginPlayback}>
+                {rotatePortraitLabel}
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import type { Language } from '../../types/sectionKeys'
 import { usePortalHashRoute } from '../../hooks/usePortalHashRoute'
 import { useIframeAutoHeight } from '../../hooks/useIframeAutoHeight'
 import { ImageUploadBottomSheet } from '../../components/capacitor/ImageUploadBottomSheet'
-import { capturePhotoWithCamera, pickPhotosFromGallery } from '../../capacitor/imagePicker'
+import { capturePhotoWithCamera, isPickerCancellation, pickPhotosFromGallery } from '../../capacitor/imagePicker'
 import { isCapacitorNativeRuntime } from '../../utils/capacitorRuntime'
 import { normalizeImageFileForUpload } from '../../utils/normalizeImageFile'
 import { analyzeBuildingWithVision } from '../../services/vision'
@@ -139,7 +139,9 @@ export function CostEstimatorPage({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: false,
-        error: error instanceof Error ? error.message : 'Camera capture failed.',
+        error: isPickerCancellation(error)
+          ? 'Image selection was cancelled.'
+          : error instanceof Error ? error.message : 'Camera capture failed.',
       })
     }
   }, [postToIframe])
@@ -184,7 +186,9 @@ export function CostEstimatorPage({
         type: 'r360-native-image-pick-result',
         requestId,
         ok: false,
-        error: error instanceof Error ? error.message : 'Gallery selection failed.',
+        error: isPickerCancellation(error)
+          ? 'Image selection was cancelled.'
+          : error instanceof Error ? error.message : 'Gallery selection failed.',
       })
     }
   }, [postToIframe])

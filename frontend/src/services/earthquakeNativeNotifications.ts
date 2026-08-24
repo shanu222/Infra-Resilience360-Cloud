@@ -1,3 +1,4 @@
+import { loadCapacitorLocalNotifications } from '../capacitor/plugins'
 import type { EarthquakeNotificationPayload } from './earthquakePushNotifications'
 
 const NOTIFIED_IDS_KEY = 'r360-native-eq-notified-ids'
@@ -42,13 +43,10 @@ type LocalNotificationsApi = {
 }
 
 async function loadLocalNotifications(): Promise<LocalNotificationsApi> {
-  const notificationsModule = '@capacitor/local-notifications'
-  try {
-    const mod = (await import(/* @vite-ignore */ notificationsModule)) as { LocalNotifications: LocalNotificationsApi }
-    return mod.LocalNotifications
-  } catch {
-    throw new Error('Native notification module is unavailable in this runtime.')
+  const mod = (await loadCapacitorLocalNotifications()) as unknown as {
+    LocalNotifications: LocalNotificationsApi
   }
+  return mod.LocalNotifications
 }
 
 export async function getNativeNotificationPermission(): Promise<'granted' | 'denied' | 'prompt'> {

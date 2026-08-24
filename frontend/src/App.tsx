@@ -96,7 +96,7 @@ import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
 import { isLikelyImageFile, normalizeImageFileForUpload } from './utils/normalizeImageFile'
 import { ImageUploadBottomSheet } from './components/capacitor/ImageUploadBottomSheet'
 import { NativeAlertDialog } from './components/capacitor/NativeAlertDialog'
-import { capturePhotoWithCamera, pickPhotosFromGallery } from './capacitor/imagePicker'
+import { capturePhotoWithCamera, isPickerCancellation, pickPhotosFromGallery } from './capacitor/imagePicker'
 import { getNativeCurrentPosition, requestNativeLocationPermission } from './capacitor/nativeLocation'
 import { startNativeEarthquakeAlertMonitor } from './services/earthquakeAlertMonitor'
 import { PdfFullscreenViewer } from './components/infra/PdfFullscreenViewer'
@@ -2985,6 +2985,7 @@ function App(_props: AppProps = {}) {
       const file = await capturePhotoWithCamera()
       await addRetrofitUploadFiles([file])
     } catch (error) {
+      if (isPickerCancellation(error)) return
       setRetrofitError(formatApiErrorMessage(error, 'Camera capture failed. Please try again.'))
     }
   }, [])
@@ -2995,6 +2996,7 @@ function App(_props: AppProps = {}) {
       const files = await pickPhotosFromGallery()
       await addRetrofitUploadFiles(files)
     } catch (error) {
+      if (isPickerCancellation(error)) return
       setRetrofitError(formatApiErrorMessage(error, 'Gallery selection failed. Please try again.'))
     }
   }, [])
@@ -7334,6 +7336,10 @@ function App(_props: AppProps = {}) {
       replayLabel={t.appIntroReplay}
       slideHint={t.appIntroSlideHint}
       slideAriaLabel={t.appIntroSlideAria}
+      rotateTitle={t.appIntroRotateTitle}
+      rotateText={t.appIntroRotateText}
+      rotateLandscapeLabel={t.appIntroRotateLandscape}
+      rotatePortraitLabel={t.appIntroRotatePortrait}
       dir={isUrdu ? 'rtl' : 'ltr'}
     />
     <NativeAlertDialog
@@ -7366,7 +7372,9 @@ function App(_props: AppProps = {}) {
     <GlobalBackgroundVideo />
     <div className="r360-app-stack">
     <div
-      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}`}
+      className={`page-wrapper ${isHomeView ? 'page-home' : 'page-section'}${
+        isEmbeddedPortalSection ? ' page-wrapper--content-fit-portals' : ''
+      }`}
       dir={isUrdu ? 'rtl' : 'ltr'}
     >
       <div className="content-layer">

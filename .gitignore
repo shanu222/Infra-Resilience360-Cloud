@@ -71,3 +71,6 @@ key.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Local release artifacts (signed builds are delivered out-of-band)
+release-artifacts/

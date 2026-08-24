@@ -1,89 +1,132 @@
 import { normalizeImageFileForUpload } from '../utils/normalizeImageFile'
+import { loadCapacitorCamera, loadCapacitorCore } from './plugins'
 
-type CapacitorCoreModule = {
-  Capacitor?: {
-    convertFileSrc?: (path: string) => string
-    isNativePlatform?: () => boolean
-  }
-}
+type CapturedPhoto = { path?: string; webPath?: string; format?: string }
 
 type CapacitorCameraModule = {
   Camera: {
-    getPhoto: (opts: Record<string, unknown>) => Promise<{ path?: string; webPath?: string }>
-    pickImages: (opts: Record<string, unknown>) => Promise<{ photos?: Array<{ path?: string; webPath?: string }> }>
+    getPhoto: (opts: Record<string, unknown>) => Promise<CapturedPhoto>
+    pickImages: (opts: Record<string, unknown>) => Promise<{ photos?: CapturedPhoto[] }>
+    checkPermissions?: () => Promise<{ camera?: string; photos?: string }>
+    requestPermissions?: (opts?: Record<string, unknown>) => Promise<{ camera?: string; photos?: string }>
   }
   CameraResultType: { Uri: unknown }
   CameraSource: { Camera: unknown; Photos: unknown }
 }
 
-async function loadCapacitorCore(): Promise<CapacitorCoreModule | null> {
-  const coreModule = '@capacitor/core'
-  try {
-    return (await import(/* @vite-ignore */ coreModule)) as CapacitorCoreModule
-  } catch {
-    return null
-  }
+async function loadCamera(): Promise<CapacitorCameraModule> {
+  return (await loadCapacitorCamera()) as unknown as CapacitorCameraModule
 }
 
-async function loadCapacitorCamera(): Promise<CapacitorCameraModule> {
-  const cameraModule = '@capacitor/camera'
+/**
+ * Turns whatever the Camera plugin handed back into a URL the WebView can read.
+ * `webPath` is already a `http://localhost/_capacitor_file_/…` URL; a bare `path`
+ * is a filesystem path that only becomes readable after `convertFileSrc`.
+ */
+async function resolveReadableUrl(photo: CapturedPhoto): Promise<string> {
+  const webPath = String(photo.webPath ?? '').trim()
+  if (webPath) return webPath
+
+  const rawPath = String(photo.path ?? '').trim()
+  if (!rawPath) return ''
+  if (/^(https?|blob|data):/i.test(rawPath)) return rawPath
+
   try {
-    return (await import(/* @vite-ignore */ cameraModule)) as CapacitorCameraModule
+    const core = (await loadCapacitorCore()) as {
+      Capacitor?: { convertFileSrc?: (path: string) => string }
+    }
+    const convert = core?.Capacitor?.convertFileSrc
+    if (typeof convert === 'function') return convert(rawPath)
   } catch {
-    throw new Error('Native camera module is unavailable in this runtime.')
+    /* core unavailable — fall through */
   }
+  return rawPath
 }
 
-async function uriToFile(uri: string, fallbackName: string): Promise<File> {
-  const core = await loadCapacitorCore()
-  const convertFileSrc = core?.Capacitor?.convertFileSrc
-  const resolved = uri.startsWith('http') ? uri : (typeof convertFileSrc === 'function' ? convertFileSrc(uri) : uri)
-  const response = await fetch(resolved)
+async function photoToFile(photo: CapturedPhoto, fallbackName: string): Promise<File> {
+  const url = await resolveReadableUrl(photo)
+  if (!url) throw new Error('The selected photo could not be read. Please try again.')
+
+  const response = await fetch(url)
   if (!response.ok) {
-    throw new Error('The requested file could not be read. Please try again.')
+    throw new Error('The selected photo could not be read. Please try again.')
   }
   const blob = await response.blob()
-  return normalizeImageFileForUpload(new File([blob], fallbackName, { type: blob.type || 'image/jpeg' }), fallbackName)
+  if (blob.size === 0) {
+    throw new Error('The selected photo is empty. Please choose another image.')
+  }
+  const type = blob.type || (photo.format ? `image/${photo.format}` : 'image/jpeg')
+  return normalizeImageFileForUpload(new File([blob], fallbackName, { type }), fallbackName)
+}
+
+/**
+ * The Camera plugin reports a dismissed picker as a rejection, so callers need to
+ * tell "user changed their mind" apart from a genuine failure worth surfacing.
+ */
+export function isPickerCancellation(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+  return /cancel|dismiss|no image (picked|selected)|user denied/i.test(message)
+}
+
+/** Ask up-front so the OS dialog is tied to the user's tap rather than a later async step. */
+async function ensurePermission(
+  camera: CapacitorCameraModule,
+  kind: 'camera' | 'photos',
+): Promise<void> {
+  const { Camera } = camera
+  if (typeof Camera.checkPermissions !== 'function' || typeof Camera.requestPermissions !== 'function') {
+    return
+  }
+  try {
+    const status = await Camera.checkPermissions()
+    if (status?.[kind] === 'granted' || status?.[kind] === 'limited') return
+    await Camera.requestPermissions({ permissions: [kind] })
+  } catch {
+    /* Let the plugin surface its own error when the actual call runs. */
+  }
 }
 
 export async function capturePhotoWithCamera(): Promise<File> {
-  const camera = await loadCapacitorCamera()
+  const camera = await loadCamera()
   const { Camera, CameraResultType, CameraSource } = camera
+  await ensurePermission(camera, 'camera')
+
   const photo = await Camera.getPhoto({
     quality: 90,
     allowEditing: false,
+    correctOrientation: true,
     resultType: CameraResultType.Uri,
     source: CameraSource.Camera,
     saveToGallery: false,
   })
-  const uri = String(photo.path ?? photo.webPath ?? '').trim()
-  if (!uri) throw new Error('Camera did not return a photo. Please try again.')
-  return uriToFile(uri, `camera-${Date.now()}.jpg`)
+  return photoToFile(photo, `camera-${Date.now()}.jpg`)
 }
 
 export async function pickPhotosFromGallery(): Promise<File[]> {
-  const camera = await loadCapacitorCamera()
+  const camera = await loadCamera()
   const { Camera, CameraResultType, CameraSource } = camera
+  await ensurePermission(camera, 'photos')
+
   try {
-    const result = await Camera.pickImages({ quality: 90, limit: 12 })
+    const result = await Camera.pickImages({ quality: 90, limit: 12, correctOrientation: true })
     const photos = result.photos ?? []
-    if (photos.length === 0) return []
     const files: File[] = []
     for (let index = 0; index < photos.length; index += 1) {
-      const uri = String(photos[index]?.path ?? photos[index]?.webPath ?? '').trim()
-      if (!uri) continue
-      files.push(await uriToFile(uri, `gallery-${Date.now()}-${index + 1}.jpg`))
+      files.push(await photoToFile(photos[index], `gallery-${Date.now()}-${index + 1}.jpg`))
     }
     return files
-  } catch {
-    const photo = await Camera.getPhoto({
-      quality: 90,
-      allowEditing: false,
-      resultType: CameraResultType.Uri,
-      source: CameraSource.Photos,
-    })
-    const uri = String(photo.path ?? photo.webPath ?? '').trim()
-    if (!uri) return []
-    return [await uriToFile(uri, `gallery-${Date.now()}.jpg`)]
+  } catch (error) {
+    // Reopening the picker after a deliberate dismissal would trap the user in a loop.
+    if (isPickerCancellation(error)) return []
+    /* Multi-select unsupported on this OS version — fall back to single pick below. */
   }
+
+  const photo = await Camera.getPhoto({
+    quality: 90,
+    allowEditing: false,
+    correctOrientation: true,
+    resultType: CameraResultType.Uri,
+    source: CameraSource.Photos,
+  })
+  return [await photoToFile(photo, `gallery-${Date.now()}.jpg`)]
 }
