@@ -5625,6 +5625,22 @@ app.delete('/api/admin/material-hubs/entries/:id', async (req, res) => {
 
 // ========== END ADMIN APP ENDPOINTS ==========
 
+/**
+ * Reports which source revision the running container was built from.
+ * Railway injects RAILWAY_GIT_* for services linked to a repository; when those are
+ * absent the deployment is not tracking git, so pushes will never reach production.
+ */
+app.get('/api/version', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store')
+  res.json({
+    commit: process.env.RAILWAY_GIT_COMMIT_SHA || null,
+    branch: process.env.RAILWAY_GIT_BRANCH || null,
+    deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || null,
+    trackingGit: Boolean(process.env.RAILWAY_GIT_COMMIT_SHA),
+    uptimeSeconds: Math.round(process.uptime()),
+  })
+})
+
 /** Live Material Hub inventory: public read + standalone admin portal writes. */
 registerMaterialHubInventoryRoutes(app)
 
