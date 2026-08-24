@@ -13,6 +13,7 @@ import {
 import {
   disableEarthquakeBackgroundAlerts,
   enableEarthquakeBackgroundAlerts,
+  pollEarthquakeBackgroundNow,
 } from '../capacitor/earthquakeBackgroundAlerts'
 
 export type EarthquakeNotificationPayload = {
@@ -61,6 +62,8 @@ class EarthquakePushNotificationService {
     const permission = await getNativeNotificationPermission()
     if (settings.enabled && permission === 'granted') {
       await enableEarthquakeBackgroundAlerts(settings.threshold)
+      // Do not wait for the 15-minute periodic window — check the live feed now.
+      void pollEarthquakeBackgroundNow()
       return
     }
     await disableEarthquakeBackgroundAlerts()
@@ -188,6 +191,7 @@ class EarthquakePushNotificationService {
         // Immediate tray entry so the user knows the grant stuck — do not wait
         // for the next earthquake.
         void showNativeEarthquakeTestNotification()
+        void pollEarthquakeBackgroundNow()
       }
       return permission
     }

@@ -266,6 +266,50 @@ export function CostEstimatorPage({
     return () => window.removeEventListener('message', onMessage)
   }, [isNative, postToIframe])
 
+  // ─── PDF download bridge ──────────────────────────────────────────────────────
+  // iframe jsPDF.pdf.save() is a no-op in Android WebView. FinalReport posts the
+  // base64 PDF here; we hand it to the native PdfExport plugin (Downloads + share).
+  useEffect(() => {
+    if (!isNative) return
+    const onMessage = async (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return
+      const data = event.data as {
+        type?: string
+        requestId?: string
+        filename?: string
+        base64?: string
+      }
+      if (data.type !== 'r360-pdf-download-request' || !data.requestId) return
+      if (!data.base64 || !data.filename) {
+        postToIframe({
+          type: 'r360-pdf-download-result',
+          requestId: data.requestId,
+          ok: false,
+          error: 'Missing PDF data.',
+        })
+        return
+      }
+      try {
+        const { savePdfBase64 } = await import('../../utils/savePdfDocument')
+        await savePdfBase64(data.filename, data.base64)
+        postToIframe({
+          type: 'r360-pdf-download-result',
+          requestId: data.requestId,
+          ok: true,
+        })
+      } catch (error) {
+        postToIframe({
+          type: 'r360-pdf-download-result',
+          requestId: data.requestId,
+          ok: false,
+          error: error instanceof Error ? error.message : 'Could not save the PDF report.',
+        })
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [isNative, postToIframe])
+
   return (
     <div
       className="portal-page-root portal-page-retrofit-calculator"

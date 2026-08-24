@@ -5,7 +5,9 @@ import android.content.SharedPreferences;
 
 import androidx.work.Constraints;
 import androidx.work.ExistingPeriodicWorkPolicy;
+import androidx.work.ExistingWorkPolicy;
 import androidx.work.NetworkType;
+import androidx.work.OneTimeWorkRequest;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
@@ -18,6 +20,7 @@ public final class EarthquakeAlertScheduler {
 
     private static final String PREFS_NAME = "r360_earthquake_alerts";
     private static final String WORK_NAME = "r360-earthquake-alert-poll";
+    private static final String WORK_NAME_NOW = "r360-earthquake-alert-poll-now";
 
     public static final String KEY_ENABLED = "enabled";
     public static final String KEY_THRESHOLD = "threshold";
@@ -58,11 +61,30 @@ public final class EarthquakeAlertScheduler {
         // the interval, so re-opening the app cannot starve the poll.
         WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request);
+
+        // Periodic work can delay the first run by many minutes; kick an immediate
+        // one-shot so enabling alerts actually checks the live feed right away.
+        enqueueImmediatePoll(context);
+    }
+
+    /** One-shot poll used after permission grant and from the settings test path. */
+    public static void enqueueImmediatePoll(Context context) {
+        Constraints constraints = new Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build();
+        OneTimeWorkRequest immediate =
+                new OneTimeWorkRequest.Builder(EarthquakeAlertWorker.class)
+                        .setConstraints(constraints)
+                        .build();
+        WorkManager.getInstance(context)
+                .enqueueUniqueWork(WORK_NAME_NOW, ExistingWorkPolicy.REPLACE, immediate);
     }
 
     public static void disable(Context context) {
         preferences(context).edit().putBoolean(KEY_ENABLED, false).apply();
-        WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME);
+        WorkManager wm = WorkManager.getInstance(context);
+        wm.cancelUniqueWork(WORK_NAME);
+        wm.cancelUniqueWork(WORK_NAME_NOW);
     }
 
     public static boolean isEnabled(Context context) {

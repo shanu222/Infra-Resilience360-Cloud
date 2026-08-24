@@ -130,5 +130,7 @@ export async function downloadUrduHtmlAsPdf(options: UrduHtmlToPdfOptions): Prom
   if (afterRaster) {
     await afterRaster(pdf)
   }
-  pdf.save(filename)
+  // Capacitor WebView ignores pdf.save(); route through native export / blob helper.
+  const { saveJsPdfDocument } = await import('./savePdfDocument')
+  await saveJsPdfDocument(pdf, filename)
 }

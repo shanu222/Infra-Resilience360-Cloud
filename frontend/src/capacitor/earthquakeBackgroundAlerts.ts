@@ -12,12 +12,16 @@ import { loadCapacitorCore } from './plugins'
 export type EarthquakeBackgroundStatus = {
   enabled: boolean
   threshold: number
+  notificationsEnabled?: boolean
 }
 
 type EarthquakeBackgroundApi = {
   enable: (options: { threshold: number }) => Promise<EarthquakeBackgroundStatus>
   disable: () => Promise<EarthquakeBackgroundStatus>
   status: () => Promise<EarthquakeBackgroundStatus>
+  pollNow: () => Promise<EarthquakeBackgroundStatus>
+  requestNotificationsPermission: () => Promise<{ display?: string }>
+  checkNotificationsPermission: () => Promise<{ display?: string }>
 }
 
 async function loadPlugin(): Promise<EarthquakeBackgroundApi | null> {
@@ -76,5 +80,47 @@ export async function getEarthquakeBackgroundStatus(): Promise<EarthquakeBackgro
     return await plugin.status()
   } catch {
     return null
+  }
+}
+
+/** Kick an immediate USGS poll so the user does not wait up to 15 minutes. */
+export async function pollEarthquakeBackgroundNow(): Promise<boolean> {
+  const plugin = await loadPlugin()
+  if (!plugin) return false
+  try {
+    await plugin.pollNow()
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function requestEarthquakeNotificationsPermissionNative(): Promise<
+  'granted' | 'denied' | 'prompt'
+> {
+  const plugin = await loadPlugin()
+  if (!plugin) return 'prompt'
+  try {
+    const status = await plugin.requestNotificationsPermission()
+    if (status.display === 'granted') return 'granted'
+    if (status.display === 'denied') return 'denied'
+    return 'prompt'
+  } catch {
+    return 'denied'
+  }
+}
+
+export async function checkEarthquakeNotificationsPermissionNative(): Promise<
+  'granted' | 'denied' | 'prompt'
+> {
+  const plugin = await loadPlugin()
+  if (!plugin) return 'prompt'
+  try {
+    const status = await plugin.checkNotificationsPermission()
+    if (status.display === 'granted') return 'granted'
+    if (status.display === 'denied') return 'denied'
+    return 'prompt'
+  } catch {
+    return 'prompt'
   }
 }

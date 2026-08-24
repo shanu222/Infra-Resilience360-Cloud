@@ -7,6 +7,7 @@ import { useAppContext } from "../context/AppContext"
 import { useRetrofitStrings } from "../../i18n/retrofitStrings"
 import { usePortalLanguage } from "../../i18n/portalLanguage"
 import { downloadUrduRetrofitReportPdf } from "./urduRetrofitReportPdf"
+import { saveRetrofitPdf } from "../services/savePdfViaBridge"
 
 function formatSeverityLabel(raw: string, r: ReturnType<typeof useRetrofitStrings>): string {
   const s = String(raw || "").trim().toLowerCase()
@@ -141,25 +142,37 @@ export function FinalReport() {
   }
 
   const downloadReport = async () => {
-    if (lang === "ur") {
-      const annotatedImg = await buildAnnotatedImageForPdf()
-      await downloadUrduRetrofitReportPdf({
-        r,
-        location,
-        dateLocale,
-        rows,
-        total,
-        minEstimate,
-        maxEstimate,
-        activeEstimate,
-        manualAnnotation,
-        imagePreview,
-        annotatedImageDataUrl: annotatedImg,
-        formatSeverityLabel: (raw) => formatSeverityLabel(raw, r),
-      })
-      return
-    }
+    try {
+      if (lang === "ur") {
+        const annotatedImg = await buildAnnotatedImageForPdf()
+        await downloadUrduRetrofitReportPdf({
+          r,
+          location,
+          dateLocale,
+          rows,
+          total,
+          minEstimate,
+          maxEstimate,
+          activeEstimate,
+          manualAnnotation,
+          imagePreview,
+          annotatedImageDataUrl: annotatedImg,
+          formatSeverityLabel: (raw) => formatSeverityLabel(raw, r),
+        })
+        return
+      }
 
+      await downloadEnglishReportPdf()
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Could not download the PDF report. Please try again.",
+      )
+    }
+  }
+
+  const downloadEnglishReportPdf = async () => {
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
@@ -420,7 +433,7 @@ export function FinalReport() {
       pdf.text(r.report_pdfFooter, margin, pageHeight - 8, { align: "left" })
     }
 
-    pdf.save(`retrofit-report-${Date.now()}.pdf`)
+    await saveRetrofitPdf(pdf, `retrofit-report-${Date.now()}.pdf`)
   }
 
 

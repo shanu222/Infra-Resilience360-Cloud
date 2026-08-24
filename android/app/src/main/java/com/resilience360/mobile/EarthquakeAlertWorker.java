@@ -184,14 +184,60 @@ public class EarthquakeAlertWorker extends Worker {
                 continue;
             }
 
-            String place = properties.optString("place", "");
-            if (place.isEmpty() || "null".equals(place)) {
-                place = "Location pending review";
+            // Product scope: significant quakes near Pakistan (bbox + place text).
+            if (!isNearPakistan(feature, placeOf(properties))) {
+                continue;
             }
 
+            String place = placeOf(properties);
             result.add(new Quake(id, magnitude, place));
         }
         return result;
+    }
+
+    private static String placeOf(JSONObject properties) {
+        String place = properties.optString("place", "");
+        if (place.isEmpty() || "null".equals(place)) {
+            return "Location pending review";
+        }
+        return place;
+    }
+
+    /**
+     * Pakistan + immediate neighbourhood (Afghanistan border, Kashmir, western India).
+     * Geometry coordinates in GeoJSON are [lon, lat, depth].
+     */
+    private static boolean isNearPakistan(JSONObject feature, String place) {
+        String lower = place == null ? "" : place.toLowerCase(java.util.Locale.US);
+        if (lower.contains("pakistan")
+                || lower.contains("islamabad")
+                || lower.contains("karachi")
+                || lower.contains("lahore")
+                || lower.contains("peshawar")
+                || lower.contains("quetta")
+                || lower.contains("kashmir")
+                || lower.contains("gilgit")
+                || lower.contains("balochistan")
+                || lower.contains("hindu kush")
+                || lower.contains("hindu-kush")) {
+            return true;
+        }
+
+        JSONObject geometry = feature.optJSONObject("geometry");
+        if (geometry == null) {
+            return false;
+        }
+        JSONArray coords = geometry.optJSONArray("coordinates");
+        if (coords == null || coords.length() < 2) {
+            return false;
+        }
+        double lon = coords.optDouble(0, Double.NaN);
+        double lat = coords.optDouble(1, Double.NaN);
+        if (Double.isNaN(lon) || Double.isNaN(lat)) {
+            return false;
+        }
+        // Inclusive buffer around Pakistan mainland.
+        return lat >= 23.0 && lat <= 38.5 && lon >= 60.0 && lon <= 80.0;
     }
 
     private static void postNotification(Context context, Quake quake) {

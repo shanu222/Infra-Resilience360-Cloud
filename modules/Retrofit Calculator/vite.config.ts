@@ -19,6 +19,7 @@ export default defineConfig({
       '@resilience/retrofit-portal-locale': path.resolve(__dirname, '../../frontend/src/i18n/retrofitPortalLocale.ts'),
       '@resilience/urdu-pdf-support': path.resolve(__dirname, '../../frontend/src/utils/urduPdfSupport.ts'),
       '@resilience/urdu-html-to-pdf': path.resolve(__dirname, '../../frontend/src/utils/urduHtmlToPdf.ts'),
+      '@resilience/save-pdf-document': path.resolve(__dirname, '../../frontend/src/utils/savePdfDocument.ts'),
       '@resilience/api-base': path.resolve(__dirname, '../../frontend/src/services/apiBase.ts'),
       '@resilience/normalize-image': path.resolve(__dirname, '../../frontend/src/utils/normalizeImageFile.ts'),
     },
