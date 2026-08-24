@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
-import { mockHubs, mockInventory } from '@/config/materialHubCatalog'
+import { mockHubs } from '@/config/materialHubCatalog'
 import { MaterialHubDetailsPanel } from '../../components/MaterialHubDetailsPanel'
 import { MaterialHubPakistanMap } from '../../components/MaterialHubPakistanMap'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
+import { useLiveMaterialHubInventory } from '@/hooks/useLiveMaterialHubInventory'
 
 export function HubLocations() {
   const s = useMaterialHubStrings()
+  const inventory = useLiveMaterialHubInventory()
   const [selectedHubId, setSelectedHubId] = useState(mockHubs[0]?.id ?? '')
   const [panelOpen, setPanelOpen] = useState(false)
 
@@ -16,8 +18,8 @@ export function HubLocations() {
   )
 
   const selectedInventory = useMemo(
-    () => mockInventory.find((inv) => inv.hubId === selectedHub?.id),
-    [selectedHub?.id],
+    () => inventory.find((inv) => inv.hubId === selectedHub?.id),
+    [inventory, selectedHub?.id],
   )
 
   useEffect(() => {

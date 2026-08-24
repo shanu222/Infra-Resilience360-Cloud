@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { Package, Building2 } from 'lucide-react'
-import { mockHubs, mockInventory } from '@/config/materialHubCatalog'
+import { mockHubs } from '@/config/materialHubCatalog'
 import { formatMaterialStockQuantity } from '@/config/materialHubStockQuantities'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
+import { useLiveMaterialHubInventory } from '@/hooks/useLiveMaterialHubInventory'
 import { usePortalLanguage } from '@/context/PortalLanguageContext'
 
 export function LiveInventory() {
   const s = useMaterialHubStrings()
   const lang = usePortalLanguage()
+  const inventory = useLiveMaterialHubInventory()
   const [selectedHub, setSelectedHub] = useState<string>('all')
 
   const filteredInventory =
-    selectedHub === 'all' ? mockInventory : mockInventory.filter((inv) => inv.hubId === selectedHub)
+    selectedHub === 'all' ? inventory : inventory.filter((inv) => inv.hubId === selectedHub)
 
   const dateLocale = lang === 'ur' ? 'ur-PK' : 'en-US'
 

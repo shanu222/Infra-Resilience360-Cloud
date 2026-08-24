@@ -9,6 +9,9 @@ export const corsOriginAllowlist = [
   'https://infraresilience.org',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  // Live Inventory Admin portal dev server; its production domain is supplied via CORS_ORIGINS.
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
   ...String(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || '')
     .split(/[,;\s]+/)
     .map((v) => stripTrailingSlash(v))

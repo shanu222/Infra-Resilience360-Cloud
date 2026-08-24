@@ -41,6 +41,7 @@ import {
 
 import { registerInstantProbeRoutes } from './routes/probes.routes.mjs'
 import { registerLocalApiRoutes } from './routes/localApi.routes.mjs'
+import { registerMaterialHubInventoryRoutes } from './routes/materialHubInventory.routes.mjs'
 import {
   getLiveEarthquakeResponse,
   startEarthquakeRefreshLoop,
@@ -5623,6 +5624,9 @@ app.delete('/api/admin/material-hubs/entries/:id', async (req, res) => {
 })
 
 // ========== END ADMIN APP ENDPOINTS ==========
+
+/** Live Material Hub inventory: public read + standalone admin portal writes. */
+registerMaterialHubInventoryRoutes(app)
 
 app.use((error, req, res, next) => {
   const apiPath = String(req.path ?? '')

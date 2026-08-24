@@ -22,6 +22,8 @@
     "media:migrate:enterprise": "node scripts/enterprise-media-migration.mjs",
     "media:centralize": "node scripts/centralize-large-media.mjs",
     "build:admin": "vite build --config frontend/vite.config.ts",
+    "dev:inventory-admin": "vite --config frontend/vite.inventory-admin.config.ts",
+    "build:inventory-admin": "vite build --config frontend/vite.inventory-admin.config.ts",
     "build:pwa": "npm run build",
     "lint": "eslint .",
     "preview": "vite preview --config frontend/vite.config.ts",
