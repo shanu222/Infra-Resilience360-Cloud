@@ -236,7 +236,9 @@ const toCounts = (spaces: RoomTemplateInput[]) => {
     lounges,
     stores,
     others,
-    total: spaces.length,
+    /** Habitable rooms only — kitchens / washrooms / stores stay in their own fields. */
+    total: lounges + others,
+    totalSpaces: spaces.length,
   };
 };
 

@@ -19,7 +19,7 @@ function NoData({
 }) {
   return (
     <ModuleBackground>
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-0 flex items-center justify-center p-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">{title}</h2>
           <p className="text-gray-600 mb-6">{message}</p>
@@ -143,10 +143,14 @@ export default function Results() {
       (safe(materials.woodCft) * safe(rates.woodPerCft)) +
       (safe(materials.gaderCount) * safe(rates.gaderPerPiece)) +
       (safe(materials.beamConcreteCft) * safe(rates.beamConcretePerCft)) +
-      (safe(materials.columnConcreteCft) * safe(rates.columnConcretePerCft));
+      (safe(materials.columnConcreteCft) * safe(rates.columnConcretePerCft)) +
+      // Labour is part of the single final BOQ — previously the live total omitted it
+      // and disagreed with every other figure on the page.
+      safe(results.labor?.totalLaborCost) +
+      safe(results.loungeCost);
 
     setLiveTotalCost(Math.round(cost));
-  }, [rates, materials]);
+  }, [rates, materials, results.labor?.totalLaborCost, results.loungeCost]);
 
   const updateRate = (key: string, value: string) => {
     setRates((prev) => ({
@@ -155,9 +159,18 @@ export default function Results() {
     }));
   };
   const roomTemplates = formData.roomTemplates ?? [];
+  // Prefer the calculator's habitable-room count so kitchens / washrooms / stores
+  // are not labelled as "rooms" in the project summary.
   const totalConfiguredRooms = Math.max(
     1,
-    Number(formData.totalRooms ?? roomTemplates.reduce((sum, room) => sum + room.count, 0) ?? formData.rooms),
+    Number(
+      results.roomCountSummary?.totalRooms ??
+        formData.totalRooms ??
+        roomTemplates
+          .filter((room) => room.category !== 'kitchen' && room.category !== 'bathroom' && room.category !== 'store')
+          .reduce((sum, room) => sum + room.count, 0) ??
+        formData.rooms,
+    ),
   );
   const totalTemplateArea = roomTemplates.reduce(
     (sum, room) => sum + room.lengthFt * room.widthFt * room.count,
@@ -166,7 +179,13 @@ export default function Results() {
   const totalDoors = results.openings.totalDoors;
   const totalWindows = results.openings.totalWindows;
   const spaceWiseTotal = (results.spaceCosts || []).reduce((sum, item) => sum + safe(item.total), 0);
-  const grandTotal = spaceWiseTotal + safe(results.boundaryBreakdown?.total) + safe(results.loungeCost);
+  // Same figure as costBreakdown.total / estimatedCost: spaces + boundary +
+  // circulation finish + labour. No parallel invented totals.
+  const grandTotal =
+    spaceWiseTotal +
+    safe(results.boundaryBreakdown?.total) +
+    safe(results.loungeCost) +
+    safe(results.labor?.totalLaborCost);
 
   const toggleTip = (category: string) => {
     if (expandedTips.includes(category)) {
@@ -184,7 +203,7 @@ export default function Results() {
 
   return (
     <ModuleBackground>
-    <div className="min-h-screen">
+    <div className="min-h-0">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

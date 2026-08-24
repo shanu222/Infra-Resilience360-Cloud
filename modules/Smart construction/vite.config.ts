@@ -17,7 +17,7 @@ export default defineConfig({
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
       // Reuse the main shell API base resolver so portal API targets stay aligned.
-      '@resilience/api-base': path.resolve(__dirname, '../src/services/apiBase.ts'),
+      '@resilience/api-base': path.resolve(__dirname, '../../frontend/src/services/apiBase.ts'),
     },
   },
 
