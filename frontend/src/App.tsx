@@ -2084,7 +2084,7 @@ function App(_props: AppProps = {}) {
       if (permission === 'granted') {
         setEarthquakeNotifyStatusMsg(
           isCapacitorNativeRuntime()
-            ? 'Notifications enabled. Test alert sent. Firebase push + background polling are active while the app is closed.'
+            ? 'Notifications enabled. Check your notification shade for a test alert. Live earthquakes will notify even when the app is closed.'
             : 'Permission granted.',
         )
         setShowNotificationPermissionDialog(false)
@@ -2092,7 +2092,7 @@ function App(_props: AppProps = {}) {
       }
       setEarthquakeNotifyStatusMsg(
         isCapacitorNativeRuntime()
-          ? 'Android notification permission was not granted. Open system Settings → Apps → Infra Resilience360 → Notifications if the prompt did not appear.'
+          ? 'Android notification permission was not granted. If no system prompt appeared, open Settings → Apps → Infra Resilience360 → Notifications and turn them on.'
           : 'Notifications were not enabled by the browser.',
       )
       setShowNotificationPermissionDialog(false)
@@ -4275,7 +4275,12 @@ function App(_props: AppProps = {}) {
         : null}
         {isCapacitorNativeRuntime() ?
           <div className="settings-card__actions">
-            <button type="button" onClick={promptForNotificationPermission}>
+            <button
+              type="button"
+              onClick={() => {
+                void enableEarthquakeBrowserNotifications()
+              }}
+            >
               Allow Android Notifications
             </button>
           </div>
@@ -7305,7 +7310,12 @@ function App(_props: AppProps = {}) {
       message="Infra Resilience360 can send native Android notifications when significant earthquakes occur near Pakistan. Alerts use your chosen magnitude threshold and run in the background while the app is installed."
       primaryLabel="Allow Notifications"
       secondaryLabel="Not Now"
-      onPrimary={() => void enableEarthquakeBrowserNotifications()}
+      onPrimary={() => {
+        setShowNotificationPermissionDialog(false)
+        window.setTimeout(() => {
+          void enableEarthquakeBrowserNotifications()
+        }, 80)
+      }}
       onSecondary={dismissNotificationPermissionDialog}
       onClose={dismissNotificationPermissionDialog}
     />

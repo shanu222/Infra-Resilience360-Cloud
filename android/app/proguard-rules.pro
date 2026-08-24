@@ -15,6 +15,9 @@
 -keep class com.resilience360.mobile.EarthquakeBackgroundPlugin { *; }
 -keep class com.resilience360.mobile.EarthquakeBootReceiver { *; }
 -keep class com.resilience360.mobile.EarthquakeFcmPlugin { *; }
+-keep class com.resilience360.mobile.EarthquakeNotificationHelper { *; }
+-keep class com.resilience360.mobile.EarthquakeFirebaseMessagingService { *; }
+-keep class com.resilience360.mobile.MainActivity { *; }
 -keep class com.resilience360.mobile.PdfExportPlugin { *; }
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**

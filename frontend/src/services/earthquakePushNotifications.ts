@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core'
 import { fetchApi } from './apiBase'
 import { EARTHQUAKE_ALERT_SOUND_DATA_URI } from '../assets/audio/earthquakeAlertSound'
 import {
