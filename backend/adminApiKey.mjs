@@ -16,11 +16,6 @@ function getProvidedAdminKey(req) {
   ).trim()
 }
 
-export function isValidAdminApiKey(provided) {
-  const expected = getExpectedAdminApiKey()
-  return String(provided ?? '').trim() === expected
-}
-
 export function assertAdminApiKey(req, res) {
   const expected = getExpectedAdminApiKey()
   const got = getProvidedAdminKey(req)

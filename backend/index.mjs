@@ -47,13 +47,7 @@ import {
 } from './services/earthquake/aggregator.mjs'
 import * as aiOrchestrator from './services/ai/manager.mjs'
 import { isAnyAiProviderConfigured, AI_UNAVAILABLE_MESSAGE } from './services/ai/config.mjs'
-import { assertAdminApiKey, getExpectedAdminApiKey, isValidAdminApiKey } from './adminApiKey.mjs'
-import {
-  loadPublicInventoryPayload,
-  loadInventoryDashboardStats,
-  listInventoryHistory,
-  recordInventoryHistory,
-} from './materialHubInventory.mjs'
+import { assertAdminApiKey } from './adminApiKey.mjs'
 import { readOnlyModeMiddleware } from './middleware/readOnlyMode.mjs'
 import {
   applyApiCorsHeaders,
@@ -665,12 +659,11 @@ app.use('/storage/content', (_req, res) => {
   res.status(404).json({ error: 'media_not_found' })
 })
 
-/** Require `x-admin-key` for authenticated `/api/admin/*` handlers, except the public login route. */
+/** Require `x-admin-key` for `/api/admin/*` mutations (except OPTIONS). */
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return next()
   const p = req.path || ''
   if (!p.startsWith('/api/admin')) return next()
-  if (p === '/api/admin/inventory/login') return next()
   if (!assertAdminApiKey(req, res)) return
   next()
 })
@@ -1734,15 +1727,6 @@ const requireAdminSession = (_req, _res) => ({
   email: 'anonymous',
   expiresAt: Date.now() + 86400000 * 365,
 })
-
-/** Live inventory admin routes require x-admin-key (see ADMIN_API_KEY). */
-const requireInventoryAdmin = (req, res) => {
-  if (!assertAdminApiKey(req, res)) return null
-  return {
-    email: 'inventory-admin',
-    expiresAt: Date.now() + 86400000 * 365,
-  }
-}
 
 // Admin/CMS routes removed for static public platform (media + feature APIs remain).
 
@@ -5397,7 +5381,6 @@ app.delete('/api/admin/green-codes/:id', async (req, res) => {
 app.get('/api/material-hubs', async (_req, res) => {
   try {
     const payload = await loadMaterialHubsAdminPayload()
-    res.setHeader('Cache-Control', 'no-store')
     res.json(payload)
   } catch (error) {
     console.error('[api/material-hubs] GET failed:', error)
@@ -5405,69 +5388,8 @@ app.get('/api/material-hubs', async (_req, res) => {
   }
 })
 
-app.get('/api/material-hubs/inventory', async (_req, res) => {
-  try {
-    const payload = await loadPublicInventoryPayload()
-    res.setHeader('Cache-Control', 'no-store')
-    res.json(payload)
-  } catch (error) {
-    console.error('[api/material-hubs/inventory] GET failed:', error)
-    res.status(500).json({ error: 'Internal server error' })
-  }
-})
-
-app.post('/api/admin/inventory/login', (req, res) => {
-  const password = String(req.body?.password ?? req.body?.apiKey ?? '').trim()
-  if (!isValidAdminApiKey(password)) {
-    res.status(401).json({ error: 'Invalid credentials.' })
-    return
-  }
-  res.json({
-    ok: true,
-    token: getExpectedAdminApiKey(),
-    expiresAt: new Date(Date.now() + 86400000).toISOString(),
-  })
-})
-
-app.get('/api/admin/inventory/session', (req, res) => {
-  const session = requireInventoryAdmin(req, res)
-  if (!session) return
-  res.json({
-    ok: true,
-    email: session.email,
-    expiresAt: new Date(session.expiresAt).toISOString(),
-  })
-})
-
-app.get('/api/admin/material-hubs/dashboard', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
-  if (!session) return
-  try {
-    const stats = await loadInventoryDashboardStats()
-    res.setHeader('Cache-Control', 'no-store')
-    res.json(stats)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load dashboard stats.'
-    res.status(500).json({ error: message })
-  }
-})
-
-app.get('/api/admin/material-hubs/history', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
-  if (!session) return
-  try {
-    const limit = Number(req.query?.limit ?? 100)
-    const history = await listInventoryHistory({ limit })
-    res.setHeader('Cache-Control', 'no-store')
-    res.json(history)
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load update history.'
-    res.status(500).json({ error: message })
-  }
-})
-
 app.get('/api/admin/material-hubs', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const payload = await loadMaterialHubsAdminPayload()
@@ -5480,7 +5402,7 @@ app.get('/api/admin/material-hubs', async (req, res) => {
 })
 
 app.post('/api/admin/material-hubs/hubs', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const name = String(req.body?.name ?? '').trim()
@@ -5516,7 +5438,7 @@ app.post('/api/admin/material-hubs/hubs', async (req, res) => {
 })
 
 app.patch('/api/admin/material-hubs/hubs/:id', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const hubId = String(req.params.id ?? '').trim()
@@ -5557,7 +5479,7 @@ app.patch('/api/admin/material-hubs/hubs/:id', async (req, res) => {
 })
 
 app.delete('/api/admin/material-hubs/hubs/:id', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const hubId = String(req.params.id ?? '').trim()
@@ -5581,7 +5503,7 @@ app.delete('/api/admin/material-hubs/hubs/:id', async (req, res) => {
 })
 
 app.post('/api/admin/material-hubs/entries', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const hubId = String(req.body?.hub_id ?? req.body?.hubId ?? '').trim()
@@ -5621,7 +5543,7 @@ app.post('/api/admin/material-hubs/entries', async (req, res) => {
 })
 
 app.patch('/api/admin/material-hubs/entries/:id', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const entryId = String(req.params.id ?? '').trim()
@@ -5668,12 +5590,6 @@ app.patch('/api/admin/material-hubs/entries/:id', async (req, res) => {
       return
     }
 
-    await recordInventoryHistory({
-      previous: existing,
-      next: updated,
-      updatedBy: session.email,
-    })
-
     res.json(updated)
   } catch (error) {
     const status = typeof error === 'object' && error !== null && 'status' in error ? Number(error.status) : 500
@@ -5683,7 +5599,7 @@ app.patch('/api/admin/material-hubs/entries/:id', async (req, res) => {
 })
 
 app.delete('/api/admin/material-hubs/entries/:id', async (req, res) => {
-  const session = requireInventoryAdmin(req, res)
+  const session = requireAdminSession(req, res)
   if (!session) return
   try {
     const entryId = String(req.params.id ?? '').trim()

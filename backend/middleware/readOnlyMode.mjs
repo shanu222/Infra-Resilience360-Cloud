@@ -23,20 +23,11 @@ function isBlockedAdminUploadPath(path, method) {
   return path === '/api/upload'
 }
 
-function isLiveMaterialHubAdminMutation(path, method) {
-  const m = String(method || '').toUpperCase()
-  if (m === 'POST' && path === '/api/admin/inventory/login') return true
-  if (path.startsWith('/api/admin/material-hubs/')) return true
-  return false
-}
-
 export function readOnlyModeMiddleware(req, res, next) {
   const method = String(req.method || 'GET').toUpperCase()
   if (SAFE_METHODS.has(method)) return next()
 
   const path = requestPath(req)
-
-  if (isLiveMaterialHubAdminMutation(path, method)) return next()
 
   if (
     isAdminMutationPath(path, method) ||

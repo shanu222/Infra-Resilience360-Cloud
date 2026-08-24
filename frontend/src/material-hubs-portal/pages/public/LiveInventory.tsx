@@ -1,45 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Package, Building2 } from 'lucide-react'
-import { mockHubs, mockInventory, type HubInventory, type MaterialHub } from '@/config/materialHubCatalog'
+import { mockHubs, mockInventory } from '@/config/materialHubCatalog'
 import { formatMaterialStockQuantity } from '@/config/materialHubStockQuantities'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
 import { usePortalLanguage } from '@/context/PortalLanguageContext'
-import { fetchMaterialHubPublicInventory } from '@/material-hubs-portal/services/materialHubLiveApi'
 
 export function LiveInventory() {
   const s = useMaterialHubStrings()
   const lang = usePortalLanguage()
   const [selectedHub, setSelectedHub] = useState<string>('all')
-  const [hubs, setHubs] = useState<MaterialHub[]>([])
-  const [inventory, setInventory] = useState<HubInventory[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    async function loadInventory() {
-      try {
-        const payload = await fetchMaterialHubPublicInventory()
-        if (!active) return
-        setHubs(payload.hubs)
-        setInventory(payload.inventory)
-      } catch {
-        if (!active) return
-        setHubs([])
-        setInventory([])
-      } finally {
-        if (active) setIsLoading(false)
-      }
-    }
-
-    void loadInventory()
-    return () => {
-      active = false
-    }
-  }, [])
 
   const filteredInventory =
-    selectedHub === 'all' ? inventory : inventory.filter((inv) => inv.hubId === selectedHub)
+    selectedHub === 'all' ? mockInventory : mockInventory.filter((inv) => inv.hubId === selectedHub)
 
   const dateLocale = lang === 'ur' ? 'ur-PK' : 'en-US'
 
@@ -61,7 +33,7 @@ export function LiveInventory() {
           >
             {s.liveInvAllHubs}
           </button>
-          {hubs.map((hub) => (
+          {mockHubs.map((hub) => (
             <button
               key={hub.id}
               onClick={() => setSelectedHub(hub.id)}
@@ -74,8 +46,6 @@ export function LiveInventory() {
           ))}
         </div>
       </div>
-
-      {isLoading ? <p className="text-center text-sm text-slate-600">{s.liveInvLoading}</p> : null}
 
       <div className="space-y-8">
         {filteredInventory.map((hubInventory) => (

@@ -5,7 +5,6 @@ import { HomePage } from './pages/public/HomePage'
 import { HubLocations } from './pages/public/HubLocations'
 import { LiveInventory } from './pages/public/LiveInventory'
 import { TrainingPortal } from './pages/public/TrainingPortal'
-import { InventoryAdminPage } from './pages/admin/InventoryAdminPage'
 
 /** Native Material Hub Digital Portal (public routes only, static S3-backed data). */
 export function MaterialHubsPortalApp() {
@@ -20,7 +19,6 @@ export function MaterialHubsPortalApp() {
             <Route path="training" element={<TrainingPortal />} />
             <Route path="about" element={<AboutPage />} />
           </Route>
-          <Route path="/inventory-admin" element={<InventoryAdminPage />} />
         </Routes>
       </MemoryRouter>
     </div>

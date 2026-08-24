@@ -1,52 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
-import { mockHubs, mockInventory, type HubInventory, type MaterialHub } from '@/config/materialHubCatalog'
+import { mockHubs, mockInventory } from '@/config/materialHubCatalog'
 import { MaterialHubDetailsPanel } from '../../components/MaterialHubDetailsPanel'
 import { MaterialHubPakistanMap } from '../../components/MaterialHubPakistanMap'
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
-import { fetchMaterialHubPublicInventory } from '@/material-hubs-portal/services/materialHubLiveApi'
 
 export function HubLocations() {
   const s = useMaterialHubStrings()
-  const [hubs, setHubs] = useState<MaterialHub[]>([])
-  const [inventory, setInventory] = useState<HubInventory[]>([])
-  const [selectedHubId, setSelectedHubId] = useState('')
+  const [selectedHubId, setSelectedHubId] = useState(mockHubs[0]?.id ?? '')
   const [panelOpen, setPanelOpen] = useState(false)
 
-  useEffect(() => {
-    let active = true
-
-    async function loadLiveData() {
-      try {
-        const payload = await fetchMaterialHubPublicInventory()
-        if (!active) return
-        setHubs(payload.hubs)
-        setInventory(payload.inventory)
-        if (payload.hubs.length) {
-          setSelectedHubId((current) => current || payload.hubs[0].id)
-        }
-      } catch {
-        if (!active) return
-        setHubs([])
-        setInventory([])
-        setSelectedHubId('')
-      }
-    }
-
-    void loadLiveData()
-    return () => {
-      active = false
-    }
-  }, [])
-
   const selectedHub = useMemo(
-    () => hubs.find((h) => h.id === selectedHubId) ?? hubs[0] ?? null,
-    [hubs, selectedHubId],
+    () => mockHubs.find((h) => h.id === selectedHubId) ?? mockHubs[0],
+    [selectedHubId],
   )
 
   const selectedInventory = useMemo(
-    () => inventory.find((inv) => inv.hubId === selectedHub?.id),
-    [inventory, selectedHub?.id],
+    () => mockInventory.find((inv) => inv.hubId === selectedHub?.id),
+    [selectedHub?.id],
   )
 
   useEffect(() => {
@@ -85,7 +56,7 @@ export function HubLocations() {
         <div className="mh-map-selector-card mx-4 sm:mx-6 mt-4 sm:mt-6 px-4 sm:px-6 py-4">
           <p className="mh-map-selector-label text-sm font-semibold mb-3">{s.selectHub}</p>
           <div className="flex flex-wrap gap-2 sm:gap-3" role="tablist" aria-label={s.navLocations}>
-            {hubs.map((hub) => {
+            {mockHubs.map((hub) => {
               const hubTheme =
                 hub.id === 'gb1' ? 'mh-hub-tab--gilgit' :
                 hub.id === 'mzg1' ? 'mh-hub-tab--muzaffargarh' :
@@ -116,7 +87,7 @@ export function HubLocations() {
               <span className="text-sm font-medium text-gray-200">{s.logisticsMap}</span>
             </div>
             <MaterialHubPakistanMap
-              hubs={hubs}
+              hubs={mockHubs}
               selectedHubId={selectedHubId}
               onSelectHub={selectHub}
               onOpenDetails={openHubDetails}

@@ -1,24 +1,14 @@
-/**
- * The live inventory admin UI accepts a runtime value from the user at login time.
- * We intentionally avoid hard-coding the backend admin key in the frontend.
- */
-export function readAdminApiKeyOverride(): string {
-  try {
-    const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {}
-    return String(env.VITE_ADMIN_API_KEY ?? '').trim()
-  } catch {
-    return ''
-  }
-}
+/** Matches server `ADMIN_API_KEY` (default `secure-key`). */
+export const ADMIN_API_KEY = 'secure-key'
 
-export function adminJsonHeaders(adminKey?: string): Record<string, string> {
+export function adminJsonHeaders(): Record<string, string> {
   return {
     'Content-Type': 'application/json',
-    'x-admin-key': (adminKey ?? readAdminApiKeyOverride()).trim(),
+    'x-admin-key': ADMIN_API_KEY,
   }
 }
 
 /** Use with `FormData` uploads — do not set `Content-Type` (browser sets multipart boundary). */
-export function adminKeyHeader(adminKey?: string): Record<string, string> {
-  return { 'x-admin-key': (adminKey ?? readAdminApiKeyOverride()).trim() }
+export function adminKeyHeader(): Record<string, string> {
+  return { 'x-admin-key': ADMIN_API_KEY }
 }
