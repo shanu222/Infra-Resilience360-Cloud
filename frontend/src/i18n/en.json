@@ -21,8 +21,17 @@
   "navDrawerMenu": "Menu",
   "navDrawerAppVersion": "App Version",
   "navDrawerAppName": "Infra Resilience360",
-  "navDrawerPoweredBy": "Powered by NDMA",
-  "commonBack": "⬅ Back",
+    "navDrawerPoweredBy": "Powered by NDMA",
+    "watchAppIntro": "▶ Watch Application Introduction",
+    "appIntroPreparing": "Preparing Infra Resilience360...",
+    "appIntroSkip": "Skip",
+    "appIntroMute": "Mute",
+    "appIntroUnmute": "Unmute",
+    "appIntroReplay": "Replay",
+    "appIntroSlideHint": "Slide to start introduction",
+    "appIntroSlideAria": "Slide to start the application introduction video",
+    "appIntroShowOnStartup": "Show Introduction on Startup",
+    "commonBack": "⬅ Back",
   "commonBackToHome": "⬅ Back to Home",
   "pakistanHome": "🏠 Home",
   "ndmaLogoAlt": "NDMA Logo",
@@ -43,13 +52,14 @@
     "retrofit": "🧰 Retrofit Guide",
     "smartConstruction": "📐 Smart Construction",
     "learn": "📚 Learn & Train",
+    "helpCenter": "📖 How to Use",
     "settings": "⚙️ Settings"
   },
   "roles": {
     "Engineer / Planner": "Engineer / Planner",
     "Contractor / Builder": "Contractor / Builder",
     "Homeowner / Resident": "Homeowner / Resident",
-    "Admin (Full Access)": "Admin (Full Access)"
+    "Admin (Full Access)": "General"
   },
   "homeCards": {
     "bestPractices": {
@@ -107,6 +117,10 @@
     "learn": {
       "title": "Learn & Train",
       "subtitle": "Guides, Courses, Videos"
+    },
+    "helpCenter": {
+      "title": "How to Use Infra Resilience360°",
+      "subtitle": "Introduction, Quick Start & Retrofit Guide"
     },
     "settings": {
       "title": "Settings",

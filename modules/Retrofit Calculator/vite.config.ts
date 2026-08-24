@@ -15,12 +15,11 @@ export default defineConfig({
     alias: {
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
-      // Shared with Resilience360/src/i18n (same strings as appLocale.retrofitPortal)
+      // Shared with the main frontend (../../frontend/src/)
       '@resilience/retrofit-portal-locale': path.resolve(__dirname, '../../frontend/src/i18n/retrofitPortalLocale.ts'),
       '@resilience/urdu-pdf-support': path.resolve(__dirname, '../../frontend/src/utils/urduPdfSupport.ts'),
       '@resilience/urdu-html-to-pdf': path.resolve(__dirname, '../../frontend/src/utils/urduHtmlToPdf.ts'),
       '@resilience/api-base': path.resolve(__dirname, '../../frontend/src/services/apiBase.ts'),
-      '@resilience/normalize-image': path.resolve(__dirname, '../../frontend/src/utils/normalizeImageFile.ts'),
     },
   },
 

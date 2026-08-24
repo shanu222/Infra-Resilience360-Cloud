@@ -58,6 +58,7 @@ export function initLiveEarthquakeMonitor(root) {
       const ALERT_SOUND_URL = EARTHQUAKE_ALERT_SOUND_DATA_URI;
       const ALERT_SETTINGS_KEY = 'r360-earthquake-alert-settings';
       const NOTIFIED_EVENT_IDS_KEY = 'r360-earthquake-notified-ids';
+      const LIVE_EVENTS_CACHE_KEY = 'r360-earthquake-last-good-features';
       const NOTIFICATION_PERMISSION_KEY = 'r360-earthquake-notify-permission';
       const PENDING_FOCUS_EVENT_KEY = 'r360-earthquake-focus-event';
       const NOTIFIED_EVENT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -555,7 +556,30 @@ export function initLiveEarthquakeMonitor(root) {
       let activeLoadController = null;
       let pendingRefreshReason = '';
       let consecutiveLoadFailures = 0;
-      let lastGoodFeatures = [];
+      function readLastGoodFeatures() {
+        try {
+          const raw = localStorage.getItem(LIVE_EVENTS_CACHE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          const features = Array.isArray(parsed?.features) ? parsed.features : [];
+          return dedupeEarthquakeFeatures(features);
+        } catch {
+          return [];
+        }
+      }
+
+      function persistLastGoodFeatures(features) {
+        try {
+          localStorage.setItem(
+            LIVE_EVENTS_CACHE_KEY,
+            JSON.stringify({ updatedAt: Date.now(), features: dedupeEarthquakeFeatures(features).slice(0, 500) })
+          );
+        } catch {
+          // ignore local storage write failures
+        }
+      }
+
+      let lastGoodFeatures = readLastGoodFeatures();
       let sourceLabelText = eqT('sourceLoading');
       let pageDisposed = false;
       let globeControls = null;
@@ -2130,6 +2154,15 @@ export function initLiveEarthquakeMonitor(root) {
           }
         }
 
+        const persisted = readLastGoodFeatures();
+        if (persisted.length > 0) {
+          return {
+            features: persisted,
+            sourceLabel: 'Live feed temporarily unavailable. Displaying last known cached earthquakes.',
+            fromCache: true,
+          };
+        }
+
         return { features: [], sourceLabel: eqT('sourceUnavailable') };
       }
 
@@ -2915,6 +2948,7 @@ export function initLiveEarthquakeMonitor(root) {
           render(safeFeatures);
           if (safeFeatures.length > 0) {
             lastGoodFeatures = safeFeatures;
+            persistLastGoodFeatures(safeFeatures);
           }
           maybeNotifyForNewEvents(safeFeatures);
           applyPendingFocus(safeFeatures);

@@ -71,7 +71,6 @@ export const DISASTER_DASHBOARD_MEDIA_SPECS: Record<string, DisasterMediaSpec> =
   },
   'load-shedding': {
     folder: 'load-shedding',
-    flatImageFile: 'LOAD SHEDDING.png', image: 'LOAD SHEDDING.png',
     flatVideoFile: 'LOAD SHEDDING.mp4', video: 'LOAD SHEDDING.mp4',
     audio: 'audio.aac',
   },
@@ -149,10 +148,13 @@ function buildFileCandidates(
     }
   }
 
-  // Slug-subfolder fallback: images/flood/FLOOD.png, audio/flood/audio.aac
-  if (specFile) urls.push(fileUrl(kind, spec.folder, specFile))
-  for (const folder of spec[fallbackKey] ?? []) {
-    if (specFile) urls.push(fileUrl(kind, folder, specFile))
+  // Disaster dashboard R2 currently stores image/video assets at flat roots.
+  // Keep folder-based mapping for audio only.
+  if (kind === 'audio' && specFile) {
+    urls.push(fileUrl(kind, spec.folder, specFile))
+    for (const folder of spec[fallbackKey] ?? []) {
+      urls.push(fileUrl(kind, folder, specFile))
+    }
   }
 
   return uniqueUrls(urls)

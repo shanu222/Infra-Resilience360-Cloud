@@ -1,5 +1,7 @@
 @import './styles/r360-mobile-hardening.css';
 @import './styles/r360-fullscreen-media.css';
+@import './styles/r360-app-intro.css';
+@import './styles/r360-help-center.css';
 @import './styles/ndma-authority-badge.css';
 
 @font-face {
@@ -1853,6 +1855,23 @@ button:focus {
   background: var(--dark-orange);
 }
 
+.home-bottom-strip .home-bottom-strip__help-link {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  opacity: 0.95;
+}
+
+.home-bottom-strip .home-bottom-strip__help-link:hover {
+  background: transparent;
+  opacity: 1;
+}
+
 /* Homepage spotlight carousel (optional layout from Settings) */
 .home-carousel {
   margin-top: var(--space-3);
@@ -2360,6 +2379,11 @@ button:focus {
 .section-learn-train,
 .learn-train {
   background: var(--turquoise);
+  color: var(--white);
+}
+
+.section-help-center {
+  background: transparent;
   color: var(--white);
 }
 
@@ -3486,6 +3510,120 @@ h4 {
   margin-top: 0;
 }
 
+.notify-permission-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+    max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  background: rgba(3, 8, 24, 0.62);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  animation: notify-modal-fade-in 220ms ease-out;
+}
+
+.notify-permission-modal__card {
+  width: min(560px, 100%);
+  border: 1px solid rgba(118, 170, 245, 0.38);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(14, 26, 62, 0.96) 0%, rgba(9, 19, 47, 0.96) 100%),
+    radial-gradient(circle at top right, rgba(122, 184, 255, 0.2), transparent 52%);
+  box-shadow: 0 26px 56px rgba(0, 0, 0, 0.45);
+  padding: 18px 18px 16px;
+  color: #eaf2ff;
+  animation: notify-modal-scale-in 240ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.notify-permission-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notify-permission-modal__title {
+  margin: 0;
+  font-size: clamp(1.05rem, 2.2vw, 1.28rem);
+  line-height: 1.35;
+  font-weight: 800;
+  color: #f3f8ff;
+}
+
+.notify-permission-modal__close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 185, 247, 0.4);
+  background: rgba(18, 36, 83, 0.76);
+  color: #d6e7ff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.notify-permission-modal__body {
+  margin: 10px 0 0;
+  color: rgba(226, 239, 255, 0.9);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.notify-permission-modal__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.notify-permission-modal__primary,
+.notify-permission-modal__secondary {
+  min-height: 42px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notify-permission-modal__primary {
+  background: linear-gradient(180deg, #2f8ef8 0%, #1e65cf 100%);
+  border-color: rgba(120, 186, 255, 0.46);
+  color: #f8fbff;
+}
+
+.notify-permission-modal__secondary {
+  background: rgba(14, 34, 77, 0.72);
+  border-color: rgba(120, 169, 237, 0.36);
+  color: rgba(214, 231, 255, 0.95);
+}
+
+@keyframes notify-modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes notify-modal-scale-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .learn-video-modal-error {
   color: #ffc9c9;
   padding: 10px 12px;
@@ -3526,6 +3664,21 @@ h4 {
 }
 
 @media (max-width: 768px) {
+  .notify-permission-modal__card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .notify-permission-modal__actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .notify-permission-modal__primary,
+  .notify-permission-modal__secondary {
+    width: 100%;
+  }
+
   .learn-video-modal-root {
     padding: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px))
       max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
@@ -3918,6 +4071,42 @@ h4 {
   height: auto;
   display: flex;
   flex-direction: column;
+}
+
+/*
+  Retrofit Calculator + Smart Construction:
+  keep section height strictly content-driven (no viewport floor),
+  so page ends right after content with normal spacing.
+*/
+.page-wrapper.page-section.page-wrapper--content-fit-portals {
+  min-height: auto;
+  flex: 0 0 auto;
+  height: auto;
+}
+
+.page-wrapper.page-section.page-wrapper--content-fit-portals .content-layer,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .app-shell,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .app-shell > main,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .section-panel.section-retrofit-calculator,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .section-panel.section-smart-construction,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .portal-page-retrofit-calculator,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .portal-page-smart-construction.smart-construction-layout {
+  min-height: 0;
+  height: auto;
+  flex: 0 0 auto;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.page-wrapper.page-section.page-wrapper--content-fit-portals .retrofit-calculator-portal-frame,
+.page-wrapper.page-section.page-wrapper--content-fit-portals .smart-construction-portal-frame {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  display: block;
 }
 
 .section-infra-models {
@@ -4689,6 +4878,30 @@ h4 {
   opacity: 1;
 }
 
+/* Mobile canvas renderer — replaces the <iframe> on viewports ≤ 640 px
+   where mobile browsers ignore #view=FitH and clip the PDF to a corner. */
+.infra-model-board-canvas-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.infra-model-board-canvas {
+  display: block;
+  /* Let the canvas fill the container horizontally; height is set by JS
+     after the page is rendered so the aspect ratio is always correct. */
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.42);
+  background: rgba(15, 23, 42, 0.86);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.infra-model-board-canvas.is-loaded {
+  opacity: 1;
+}
+
 .infra-model-media-skeleton {
   position: absolute;
   inset: 0;
@@ -4947,6 +5160,18 @@ h4 {
   .infra-model-side-by-side {
     grid-template-columns: 1fr;
     gap: 14px;
+    /* Center each stacked item horizontally so neither stretches edge-to-edge. */
+    justify-items: center;
+  }
+
+  /* Limit each pane to 520 px and centre it.
+     Also reset height: 100% — meaningless in a single-column flow — so the
+     panes size naturally to their content. */
+  .infra-model-left-pane,
+  .infra-model-right-pane {
+    width: 100%;
+    max-width: 520px;
+    height: auto;
   }
 
   .infra-model-preview-image {
@@ -4957,12 +5182,22 @@ h4 {
 
   .infra-model-image-wrap,
   .infra-model-image-frame {
+    width: 100%;
     min-height: min(420px, 52vh);
+    /* Remove any fixed height so the frame sizes to the contained image. */
+    height: auto;
   }
 
   .infra-model-board-pdf {
     min-height: min(260px, 42vh);
     height: min(400px, 52vh);
+  }
+
+  /* Canvas PDF renderer: also centre and cap on mobile. */
+  .infra-model-board-canvas-wrap {
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .infra-layout-video {
@@ -9163,35 +9398,39 @@ embed {
 /* Root cause: viewport min-heights + flex-grow on the shell chain stretch home
    past the card grid (`app-container` → `r360-app-stack` → `page-wrapper` →
    `content-layer` → `.app-shell.home-shell`), leaving a tall tinted panel. */
-.app-container:has(.page-home),
-.r360-app-stack:has(> .page-wrapper.page-home),
 .page-wrapper.page-home,
 .page-home .content-layer {
-  min-height: auto;
-  height: auto;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  min-height: auto !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
 }
 
 .page-home .app-shell.home-shell {
-  min-height: auto;
-  height: auto;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  min-height: auto !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
   align-self: flex-start;
   width: 100%;
   padding-bottom: calc(clamp(16px, 2vw, 32px) + env(safe-area-inset-bottom, 0px));
 }
 
 .page-home .content-layer {
-  min-height: auto;
+  min-height: auto !important;
+}
+
+.r360-app-stack.r360-app-stack--home {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
 }
 
 .page-home .app-shell.home-shell > main {
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
-  flex-grow: 0;
+  flex: 0 0 auto !important;
+  flex-grow: 0 !important;
   min-height: 0;
   gap: var(--space-3);
 }
@@ -9199,6 +9438,8 @@ embed {
 .page-home .home-card-grid {
   margin-bottom: 0;
   align-content: start;
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-home .home-carousel {

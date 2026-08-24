@@ -29,10 +29,7 @@ export function NativeAlertDialog({
       aria-labelledby="r360-native-permission-title"
       onClick={onClose}
     >
-      <div
-        className="r360-native-permission-dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <div className="r360-native-permission-dialog" onClick={(event) => event.stopPropagation()}>
         <h3 id="r360-native-permission-title" className="r360-native-permission-dialog__title">
           {title}
         </h3>
@@ -41,7 +38,7 @@ export function NativeAlertDialog({
           <button type="button" className="r360-native-permission-dialog__primary" onClick={onPrimary}>
             {primaryLabel}
           </button>
-          {secondaryLabel ?
+          {secondaryLabel ? (
             <button
               type="button"
               className="r360-native-permission-dialog__secondary"
@@ -49,7 +46,7 @@ export function NativeAlertDialog({
             >
               {secondaryLabel}
             </button>
-          : null}
+          ) : null}
         </div>
       </div>
     </div>

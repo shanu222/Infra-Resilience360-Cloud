@@ -1,15 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, GraduationCap, Images, X } from 'lucide-react'
-import { MATERIAL_HUB_GUIDANCE_COUNT, MATERIAL_HUB_GUIDANCE_ITEMS } from '@/config/materialHubGuidance'
+import {
+  MATERIAL_HUB_FULL_GUIDANCE_IMAGES,
+  MATERIAL_HUB_GUIDANCE_COUNT,
+  MATERIAL_HUB_GUIDANCE_ITEMS,
+} from '@/config/materialHubGuidance'
 import { mockHubs } from '@/config/materialHubCatalog'
 import { MaterialHubMediaImage, MaterialHubMediaVideo } from '../../components/MaterialHubMedia'
+import { InstallationVideosSection } from '../../components/InstallationVideosSection'
 
 import { useMaterialHubStrings } from '@/hooks/useMaterialHubStrings'
 
 export function TrainingPortal() {
   const s = useMaterialHubStrings()
-  const guidanceItems = MATERIAL_HUB_GUIDANCE_ITEMS
+  // Original guidance items + new full-guidance images appended (no duplicates by id)
+  const existingIds = new Set(MATERIAL_HUB_GUIDANCE_ITEMS.map((g) => g.id))
+  const fullGuidanceAsItems = MATERIAL_HUB_FULL_GUIDANCE_IMAGES
+    .filter((fg) => !existingIds.has(fg.id))
+    .map((fg) => ({
+      id: fg.id,
+      title: fg.title,
+      description: fg.description,
+      guidanceFolder: fg.id,
+      primaryImageFile: fg.fileName,
+      media: { image: fg.url, preview: fg.url, thumbnail: fg.url, poster: fg.url },
+    }))
+  const guidanceItems = [...MATERIAL_HUB_GUIDANCE_ITEMS, ...fullGuidanceAsItems]
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [touchStartX, setTouchStartX] = useState<number | null>(null)
@@ -230,6 +247,8 @@ export function TrainingPortal() {
       </div>
 
       {lightboxPortal}
+
+      <InstallationVideosSection />
     </div>
   )
 }

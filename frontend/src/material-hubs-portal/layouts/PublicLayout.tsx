@@ -17,6 +17,7 @@ export function PublicLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center space-x-3 min-w-0">
+              <span className="h-10 w-10 shrink-0" aria-hidden />
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-gray-900">{s.brandShort}</h1>
                 <p className="text-xs text-gray-600 truncate">{s.brandSubtitle}</p>

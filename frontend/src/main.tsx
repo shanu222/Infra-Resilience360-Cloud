@@ -6,6 +6,9 @@ import { LanguageProvider } from './context/LanguageContext.tsx'
 import { API_BASE_URL } from './config/apiBase'
 import { mediaManager } from './services/mediaManager'
 import { initAndroidBackButton } from './capacitor/androidBackButton'
+import { LegalStandaloneApp } from './legal/LegalStandaloneApp'
+import { isLegalPath } from './legal/legalPages'
+import { isCapacitorNativeRuntime } from './utils/capacitorRuntime'
 
 const SW_UPDATE_CHECK_INTERVAL_MS = 60 * 1000
 const MEDIA_BASE_URL = mediaManager.getMediaBaseUrl()
@@ -130,7 +133,7 @@ async function setupServiceWorkerBootstrap() {
   setupFastSwUpdateChecks()
 }
 
-if (typeof document !== 'undefined' && Capacitor.isNativePlatform()) {
+if (typeof document !== 'undefined' && isCapacitorNativeRuntime()) {
   document.documentElement.classList.add('capacitor-native')
 }
 ensureApiPreconnect()
@@ -151,7 +154,7 @@ initAndroidBackButton(() => {
 root.render(
   <LanguageProvider>
     <div className="app-container">
-      <App />
+      {isLegalPath(window.location.pathname) ? <LegalStandaloneApp pathname={window.location.pathname} /> : <App />}
     </div>
   </LanguageProvider>,
 )

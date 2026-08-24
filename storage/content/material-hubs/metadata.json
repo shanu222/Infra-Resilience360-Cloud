@@ -1,6 +1,6 @@
 {
   "module": "material-hubs",
-  "version": "1.0",
+  "version": "1.1",
   "images": [
     "images/bamboo-installation-guide.png",
     "images/Bamboo.jpg",
@@ -24,9 +24,28 @@
     "images/sukkur-hub.jpg",
     "images/Wooden-Plank.jpg",
     "images/wooden-stick-chick-mat-application.png",
-    "images/Wooden-Stick-Chick-Mat.jpg"
+    "images/Wooden-Stick-Chick-Mat.jpg",
+    "Full Guidance images/Bamboos.png",
+    "Full Guidance images/CGI Sheets.png",
+    "Full Guidance images/EPS Panels.png",
+    "Full Guidance images/Pallets.png",
+    "Full Guidance images/Polythene Sheets.png",
+    "Full Guidance images/Rope.png",
+    "Full Guidance images/Steel Girder.png",
+    "Full Guidance images/Wooden Plank.png",
+    "Full Guidance images/Wooden Sticks.png"
   ],
-  "videos": [],
+  "videos": [
+    "Installation videos for material/Pallets.mp4",
+    "Installation videos for material/Rope.mp4",
+    "Installation videos for material/Wooden_stick_chick_mat_construction_202607211159.mp4",
+    "Installation videos for material/Bamboo_disaster-resilient_house_…_202607211139.mp4",
+    "Installation videos for material/CGI_sheet_roofing_installation_d…_202607211148.mp4",
+    "Installation videos for material/EPS_Panel_Construction_Disaster-…_202607211316.mp4",
+    "Installation videos for material/Polythene_sheet_installation_dis…_202607211216.mp4",
+    "Installation videos for material/Steel_girder_construction_disast…_202607211205.mp4",
+    "Installation videos for material/Wooden_plank_construction_disast…_202607211228.mp4"
+  ],
   "pdfs": [],
   "audio": []
 }

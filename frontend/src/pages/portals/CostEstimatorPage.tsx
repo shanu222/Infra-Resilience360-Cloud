@@ -189,6 +189,22 @@ export function CostEstimatorPage({
     }
   }, [postToIframe])
 
+  // If the embedded portal requests a direct native pick, still route through
+  // the shared bottom-sheet so users always get both options.
+  useEffect(() => {
+    if (!isNative) return
+    const onMessage = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return
+      const data = event.data as { type?: string; requestId?: string; source?: 'camera' | 'gallery' }
+      if (data.type !== 'r360-native-image-pick' || !data.requestId) return
+
+      pendingRequestIdRef.current = data.requestId
+      setUploadSheetOpen(true)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [isNative])
+
   // ─── AI analysis bridge ───────────────────────────────────────────────────────
   // On Android, iframe fetch cannot go through CapacitorHttp (same-origin iframes
   // don't inherit the patched window.fetch from the main frame). The iframe posts

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { loadPdfJsFromCdn } from '../../utils/pdfJsCdn'
 
 type NativePdfCanvasProps = {
   src: string
@@ -24,11 +25,7 @@ export function NativePdfCanvas({ src, className, onLoaded, onError, onFullscree
 
     const render = async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url,
-        ).toString()
+        const pdfjs = await loadPdfJsFromCdn()
 
         const loadingTask = pdfjs.getDocument({ url: src, withCredentials: false })
         const pdf = await loadingTask.promise

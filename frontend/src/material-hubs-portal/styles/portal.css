@@ -1747,3 +1747,166 @@
     max-height: min(66dvh, 520px);
   }
 }
+
+/* --- Installation Video Cards ----------------------------------------------- */
+
+.material-hubs-portal-root .mh-video-card {
+  background: var(--mh-glass) !important;
+  border: 1px solid var(--mh-glass-border) !important;
+  backdrop-filter: var(--mh-blur);
+  -webkit-backdrop-filter: var(--mh-blur);
+  box-shadow: var(--mh-shadow);
+  border-radius: 1rem;
+  border-top: 3px solid #3b82f6;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  padding: 0;
+  overflow: hidden;
+}
+
+.material-hubs-portal-root .mh-video-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.material-hubs-portal-root .mh-video-card__thumb {
+  position: relative;
+  height: 10rem;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  border-radius: 0.875rem 0.875rem 0 0;
+}
+
+.material-hubs-portal-root .mh-video-card__thumb-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 58, 138, 0.7));
+}
+
+.material-hubs-portal-root .mh-video-card__play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.material-hubs-portal-root .mh-video-card:hover .mh-video-card__play-overlay {
+  opacity: 1;
+}
+
+.material-hubs-portal-root .mh-video-card__play-btn {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6);
+  transition: transform 0.15s ease;
+}
+
+.material-hubs-portal-root .mh-video-card:hover .mh-video-card__play-btn {
+  transform: scale(1.08);
+}
+
+.material-hubs-portal-root .mh-video-card__body {
+  padding: 0.875rem 1rem 1rem;
+  flex: 1;
+}
+
+.material-hubs-portal-root .mh-video-card__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 0.35rem;
+  line-height: 1.35;
+}
+
+.material-hubs-portal-root .mh-video-card__desc {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Skeleton shimmer */
+.material-hubs-portal-root .mh-video-card--skeleton {
+  pointer-events: none;
+}
+
+/* --- Installation Video Lightbox --------------------------------------------- */
+
+.mh-video-lightbox {
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.mh-video-lightbox__frame {
+  position: relative;
+  width: min(95vw, 900px);
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7);
+}
+
+.mh-video-lightbox__close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mh-video-lightbox__close:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.mh-video-lightbox__video {
+  width: 100%;
+  max-height: 70dvh;
+  background: #000;
+  display: block;
+}
+
+.mh-video-lightbox__caption {
+  padding: 0.875rem 1.25rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 640px) {
+  .mh-video-lightbox__frame {
+    width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .mh-video-lightbox__video {
+    max-height: 55dvh;
+  }
+}

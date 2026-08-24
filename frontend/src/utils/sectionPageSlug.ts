@@ -15,6 +15,7 @@ const SECTION_TO_SLUG: Record<SectionKey, string> = {
   retrofit: 'retrofit',
   smartConstruction: 'smart-construction',
   learn: 'learn',
+  helpCenter: 'how-to-use',
   settings: 'settings',
 }
 

@@ -21,8 +21,17 @@
   "navDrawerMenu": "مینو",
   "navDrawerAppVersion": "ایپ ورژن",
   "navDrawerAppName": "انفرا ریزیلیئنس۳۶۰",
-  "navDrawerPoweredBy": "این ڈی ایم اے کی طرف سے",
-  "commonBack": "⬅ واپس",
+    "navDrawerPoweredBy": "این ڈی ایم اے کی طرف سے",
+    "watchAppIntro": "▶ ایپلیکیشن تعارف دیکھیں",
+    "appIntroPreparing": "Infra Resilience360 تیار ہو رہا ہے...",
+    "appIntroSkip": "چھوڑیں",
+    "appIntroMute": "خاموش",
+    "appIntroUnmute": "آواز چالو",
+    "appIntroReplay": "دوبارہ چلائیں",
+    "appIntroSlideHint": "تعارف شروع کرنے کے لیے سلائیڈ کریں",
+    "appIntroSlideAria": "ایپلیکیشن تعارف ویڈیو شروع کرنے کے لیے سلائیڈ کریں",
+    "appIntroShowOnStartup": "شروع پر تعارف دکھائیں",
+    "commonBack": "⬅ واپس",
   "commonBackToHome": "⬅ مرکزی صفحہ پر واپس",
   "pakistanHome": "🏠 پاکستان — مرکزی صفحہ",
   "ndmaLogoAlt": "این ڈی ایم اے لوگو",
@@ -43,13 +52,14 @@
     "retrofit": "🧰 ریٹروفٹ رہنمائی",
     "smartConstruction": "📐 ذہین تعمیر",
     "learn": "📚 تعلیم و تربیت",
+    "helpCenter": "📖 استعمال گائیڈ",
     "settings": "⚙️ ترتیبات"
   },
   "roles": {
     "Engineer / Planner": "انجینئر / منصوبہ ساز",
     "Contractor / Builder": "ٹھیکیدار / تعمیر کنندہ",
     "Homeowner / Resident": "گھر مالک / رہائشی",
-    "Admin (Full Access)": "ایڈمن (مکمل رسائی)"
+    "Admin (Full Access)": "عام"
   },
   "homeCards": {
     "bestPractices": {
@@ -107,6 +117,10 @@
     "learn": {
       "title": "تعلیم و تربیت",
       "subtitle": "دستاویزات، کورسز اور ویڈیوز"
+    },
+    "helpCenter": {
+      "title": "Infra Resilience360° کیسے استعمال کریں",
+      "subtitle": "تعارف، فوری آغاز اور Retrofit Guide"
     },
     "settings": {
       "title": "ترتیبات",

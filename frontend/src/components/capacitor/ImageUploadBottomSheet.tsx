@@ -34,10 +34,10 @@ export function ImageUploadBottomSheet({
         onClick={(event) => event.stopPropagation()}
       >
         <button type="button" className="r360-image-upload-sheet__action" onClick={onTakePhoto}>
-          Take Photo
+          📷 Take Photo
         </button>
         <button type="button" className="r360-image-upload-sheet__action" onClick={onChooseGallery}>
-          Choose From Gallery
+          🖼 Choose from Gallery
         </button>
         <button type="button" className="r360-image-upload-sheet__cancel" onClick={onClose}>
           Cancel

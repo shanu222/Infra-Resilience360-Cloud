@@ -50,7 +50,9 @@ export function MaterialHubMediaImage({
       loading={loading}
       decoding="async"
       onError={() => {
-        console.warn('[material-hubs] missing media asset', { src: activeSrc })
+        if (import.meta.env.DEV) {
+          console.warn('[material-hubs] missing media asset', { src: activeSrc })
+        }
         if (fallbackSrc && activeSrc !== fallbackSrc) {
           setActiveSrc(fallbackSrc)
           return

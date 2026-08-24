@@ -29,7 +29,9 @@ import type { MlRetrofitEstimate } from './services/mlRetrofit'
 import {
   type ConstructionGuidanceResult,
   type GuidanceStepImage,
+  generateConstructionGuidance,
 } from './services/constructionGuidance'
+import { buildApiTargets } from './services/apiBase'
 import {
   districtRiskLookupByName,
   findDistrictRiskProfile,
@@ -61,6 +63,14 @@ import { CostEstimatorPage } from './pages/portals/CostEstimatorPage'
 import { DisasterDashboardPage } from './pages/portals/DisasterDashboardPage'
 import { MaterialHubsPage } from './pages/portals/MaterialHubsPage'
 import { SmartConstructionPage } from './pages/portals/SmartConstructionPage'
+import { HelpCenterPage } from './pages/HelpCenterPage'
+import { AppIntroductionExperience } from './components/intro/AppIntroductionExperience'
+import {
+  getAppIntroShowOnStartup,
+  setAppIntroShowOnStartup,
+  setAppIntroWatched,
+  shouldAutoShowAppIntro,
+} from './utils/appIntroPreferences'
 import { PageConfigElementsProvider } from './context/PageConfigElementsContext'
 import { sectionKeyToPageSlug } from './utils/sectionPageSlug'
 import { SHELL_PAGE_BACKGROUND_ID } from './constants/cmsShell'
@@ -115,10 +125,10 @@ import {
 import { preloadAppMedia } from './utils/preloadAppMedia'
 import { preloadSectionModules } from './utils/preloadSectionModules'
 import { earthquakePushNotificationService } from './services/earthquakePushNotifications'
+import { LEGAL_LINKS } from './legal/legalPages'
 import './styles/r360-section-panes.css'
 let visionServicePromise: Promise<typeof import('./services/vision')> | null = null
 let mlRetrofitServicePromise: Promise<typeof import('./services/mlRetrofit')> | null = null
-let constructionGuidanceServicePromise: Promise<typeof import('./services/constructionGuidance')> | null = null
 let advisoryServicePromise: Promise<typeof import('./services/advisory')> | null = null
 let infraModelsMetadataPromise: Promise<Record<string, { image?: string; pdf?: string }> | null> | null = null
 const infraImageSessionCache = new Set<string>()
@@ -126,8 +136,6 @@ const infraPdfSessionCache = new Set<string>()
 
 const loadVisionService = () => (visionServicePromise ??= import('./services/vision'))
 const loadMlRetrofitService = () => (mlRetrofitServicePromise ??= import('./services/mlRetrofit'))
-const loadConstructionGuidanceService = () =>
-  (constructionGuidanceServicePromise ??= import('./services/constructionGuidance'))
 const loadAdvisoryService = () => (advisoryServicePromise ??= import('./services/advisory'))
 
 function resolveInfraRuntimeMediaUrl(url: string): string {
@@ -248,9 +256,17 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
     setIsPdfLoaded(false)
     setShouldRenderPdf(false)
     setPdfFullscreenOpen(false)
-    void import('@capacitor/core').then(({ Capacitor }) => {
-      setUseNativePdfRenderer(Capacitor.isNativePlatform())
-    })
+    const capacitorCoreModule = '@capacitor/core'
+    void import(/* @vite-ignore */ capacitorCoreModule)
+      .then((mod) => {
+        const native = Boolean(
+          (mod as { Capacitor?: { isNativePlatform?: () => boolean } })?.Capacitor?.isNativePlatform?.(),
+        )
+        setUseNativePdfRenderer(native)
+      })
+      .catch(() => {
+        setUseNativePdfRenderer(false)
+      })
   }, [embedKey])
 
   useEffect(() => {
@@ -268,7 +284,9 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
   const src = String(pdfCandidates[0] ?? '').trim()
   useEffect(() => {
     if (!src) {
-      console.warn('[infra-models] Missing model board PDF source.')
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Missing model board PDF source.')
+      }
       return
     }
     if (typeof window === 'undefined') {
@@ -299,7 +317,9 @@ const ModelBoardPdfViewer = memo(function ModelBoardPdfViewer({
 
   if (!src || hasPdfError) {
     if (hasPdfError && src) {
-      console.warn('[infra-models] Model board PDF unavailable.', { src })
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Model board PDF unavailable.', { src })
+      }
     }
     return (
       <div className="infra-model-board-pdf-wrap" ref={wrapperRef}>
@@ -379,7 +399,9 @@ const InfraModelHeroImage = memo(function InfraModelHeroImage({
   const src = String(candidates[0] ?? '').trim()
   if (!src || imageError) {
     if (imageError && src) {
-      console.warn('[infra-models] Model hero image unavailable.', { src })
+      if (import.meta.env.DEV) {
+        console.warn('[infra-models] Model hero image unavailable.', { src })
+      }
     }
     return (
       <div className="infra-model-image-wrap">
@@ -1272,6 +1294,8 @@ function App(_props: AppProps = {}) {
     return initial ? new Set([initial]) : new Set()
   })
   const [homeLayoutMode, setHomeLayoutMode] = useState<'grid' | 'carousel'>(() => readHomeLayoutMode())
+  const [showAppIntro, setShowAppIntro] = useState(false)
+  const [appIntroShowOnStartup, setAppIntroShowOnStartupState] = useState(() => getAppIntroShowOnStartup())
   const [selectedRole, setSelectedRole] = useState<(typeof roleOptions)[number]>(() => 'Admin (Full Access)')
   const [homepageConfig] = useState<HomepageConfigPayload>(() => getStaticHomepageConfig())
   const [selectedProvince, setSelectedProvince] = useState('Punjab')
@@ -1574,8 +1598,14 @@ function App(_props: AppProps = {}) {
     homeShellThemeVars,
   } = homePresentation
 
-  /** Home page: show the original Live Earthquake Alerts tile in grid order. */
-  const homeCardRowsForDisplay = useMemo(() => homeCardRows, [homeCardRows])
+  /** Web app: hide Live Earthquake Alerts home tile (card code retained for native). */
+  const homeCardRowsForDisplay = useMemo(
+    () =>
+      isCapacitorNativeRuntime()
+        ? homeCardRows
+        : homeCardRows.filter((row) => row.key !== 'riskMaps'),
+    [homeCardRows],
+  )
 
 
   const isApplyRegionView = activeSection === 'applyRegion'
@@ -1864,11 +1894,31 @@ function App(_props: AppProps = {}) {
     navigateToSection: () => {},
   })
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (shouldAutoShowAppIntro()) setShowAppIntro(true)
+  }, [])
+
+  const dismissAppIntro = useCallback(() => {
+    setAppIntroWatched(true)
+    setShowAppIntro(false)
+  }, [])
+
+  const openAppIntroReplay = useCallback(() => {
+    setShowAppIntro(true)
+  }, [])
+
+  const updateAppIntroShowOnStartup = useCallback((enabled: boolean) => {
+    setAppIntroShowOnStartup(enabled)
+    setAppIntroShowOnStartupState(enabled)
+  }, [])
+
   androidBackContextRef.current = {
     activeSection,
     hasOpenOverlay: () =>
       Boolean(
-        bestPracticeImageLightbox ||
+        showAppIntro ||
+          bestPracticeImageLightbox ||
           showReadinessLogicModal ||
           showFireSafetyLogicModal ||
           showNotificationPermissionDialog ||
@@ -1885,7 +1935,8 @@ function App(_props: AppProps = {}) {
         closePdfFullscreen()
         return
       }
-      if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
+      if (showAppIntro) dismissAppIntro()
+      else if (bestPracticeImageLightbox) setBestPracticeImageLightbox(null)
       else if (showReadinessLogicModal) setShowReadinessLogicModal(false)
       else if (showFireSafetyLogicModal) setShowFireSafetyLogicModal(false)
       else if (showNotificationPermissionDialog) setShowNotificationPermissionDialog(false)
@@ -2394,7 +2445,6 @@ function App(_props: AppProps = {}) {
     setIsGeneratingGuidance(true)
 
     try {
-      const { generateConstructionGuidance } = await loadConstructionGuidanceService()
       const selectedBestPracticeName = bestPracticeNameOverride ?? applyBestPracticeTitle
 
       const guidance = await generateConstructionGuidance({
@@ -4207,6 +4257,26 @@ function App(_props: AppProps = {}) {
 
   const notificationSettingsPanel = (
     <>
+      <div className="settings-card__group" role="group" aria-label="Application introduction">
+        <label className="switch-row">
+          <span className="settings-card__switch-label">
+            <span className="settings-card__icon" aria-hidden>
+              ▶
+            </span>
+            <span>{t.appIntroShowOnStartup}</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={appIntroShowOnStartup}
+            onChange={(event) => updateAppIntroShowOnStartup(event.target.checked)}
+          />
+        </label>
+        <div className="settings-card__actions">
+          <button type="button" onClick={openAppIntroReplay}>
+            {t.watchAppIntro}
+          </button>
+        </div>
+      </div>
       <div className="settings-card__group" role="group" aria-label="Notification settings">
         <label className="switch-row">
           <span className="settings-card__switch-label">
@@ -4293,6 +4363,30 @@ function App(_props: AppProps = {}) {
       </p>
       {earthquakeNotifyStatusMsg ? <p className="settings-card__status">{earthquakeNotifyStatusMsg}</p> : null}
     </>
+  )
+
+  const legalLinksPanel = (
+    <div className="settings-card__group" role="group" aria-label="Legal and policy pages">
+      <h4 className="settings-card__title" style={{ marginTop: 0 }}>
+        Legal and Policy
+      </h4>
+      <p className="settings-card__subtitle">Privacy, terms, contact, and compliance information.</p>
+      <div className="settings-card__actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <button
+          type="button"
+          className="setting-switch-link"
+          style={{ display: 'inline-flex' }}
+          onClick={() => navigateToSection('helpCenter')}
+        >
+          {t.sections.helpCenter}
+        </button>
+        {LEGAL_LINKS.map((link) => (
+          <a key={link.path} href={link.path} className="setting-switch-link" style={{ display: 'inline-flex' }}>
+            {link.title}
+          </a>
+        ))}
+      </div>
+    </div>
   )
 
   const renderSectionContent = (section: SectionKey) => {
@@ -7085,6 +7179,10 @@ function App(_props: AppProps = {}) {
       )
     }
 
+    if (section === 'helpCenter') {
+      return <HelpCenterPage language={language} />
+    }
+
     return (
       <div className="panel section-panel section-settings">
         <CmsSectionHeading fallback={t.sections.settings} />
@@ -7093,6 +7191,7 @@ function App(_props: AppProps = {}) {
           <h3 className="settings-card__title">Settings</h3>
           <p className="settings-card__subtitle">Notification Preferences</p>
           {notificationSettingsPanel}
+          {legalLinksPanel}
         </div>
       </div>
     )
@@ -7192,13 +7291,18 @@ function App(_props: AppProps = {}) {
       language={language}
       setLanguage={setLanguage}
       showLanguageToggle={true}
-      showSettingsToggle={!isSettingsCardViewport}
+      showSettingsToggle={false}
       selectedRole={selectedRole}
       setSelectedRole={setSelectedRole}
       interfaceToggleLabel={interfaceToggleLabel}
       showInterfaceToggle={false}
       onHome={() => navigateToSection(null)}
       homeLabel={isHomeView ? t.pakistanHome : `🏠 ${t.home}`}
+      onHelpCenter={() => navigateToSection('helpCenter')}
+      helpCenterLabel={t.sections.helpCenter}
+      showHelpCenterToggle={false}
+      onWatchAppIntro={openAppIntroReplay}
+      watchAppIntroLabel={t.watchAppIntro}
       onSettings={() => navigateToSection('settings')}
       settingsLabel={t.sections.settings}
       onNewInterface={() => {
@@ -7217,6 +7321,21 @@ function App(_props: AppProps = {}) {
   return (
     <PageConfigElementsProvider value={pageConfigContextValue}>
     <>
+    <AppIntroductionExperience
+      open={showAppIntro}
+      onDismiss={dismissAppIntro}
+      brandTitle={t.heroTitle}
+      brandSubtitle={t.heroSubtitle}
+      poweredBy={t.navDrawerPoweredBy}
+      preparingLabel={t.appIntroPreparing}
+      skipLabel={t.appIntroSkip}
+      muteLabel={t.appIntroMute}
+      unmuteLabel={t.appIntroUnmute}
+      replayLabel={t.appIntroReplay}
+      slideHint={t.appIntroSlideHint}
+      slideAriaLabel={t.appIntroSlideAria}
+      dir={isUrdu ? 'rtl' : 'ltr'}
+    />
     <NativeAlertDialog
       open={showNotificationPermissionDialog}
       title="Enable earthquake alerts"
@@ -7275,7 +7394,7 @@ function App(_props: AppProps = {}) {
               <div className="navbar-start">{navbarBrandContent}</div>
             </div>
             <div className="navbar-top-strip__authority">
-              <div className="navbar-top-strip__logo-wrap">
+              <div className="navbar-top-strip__logo-wrap" hidden>
                 <NdmaHeaderLogo alt={t.ndmaLogoAlt} />
               </div>
               <NdmaAuthorityBadge t={t} isUrdu={isUrdu} variant="topbar" tone={ndmaBadgeTone} />
@@ -7284,7 +7403,7 @@ function App(_props: AppProps = {}) {
           </div>
         : <>
             <div className="navbar-top-strip">
-              <div className="navbar-top-strip__logo-wrap">
+              <div className="navbar-top-strip__logo-wrap" hidden>
                 <NdmaHeaderLogo alt={t.ndmaLogoAlt} />
               </div>
               <NdmaAuthorityBadge t={t} isUrdu={isUrdu} variant="topbar" tone={ndmaBadgeTone} />
@@ -7320,7 +7439,7 @@ function App(_props: AppProps = {}) {
               onAdminFooterClick={undefined}
               footerCms={homepageConfig.footer}
               showSettingsButton={isCapacitorNativeRuntime()}
-              desktopSettingsCard={desktopHomeSettingsCard}
+              desktopSettingsCard={null}
             />
           : <HomePageHomeBody
             t={t}
@@ -7332,7 +7451,7 @@ function App(_props: AppProps = {}) {
             onAdminFooterClick={undefined}
             footerCms={homepageConfig.footer}
             showSettingsButton={isCapacitorNativeRuntime()}
-            desktopSettingsCard={desktopHomeSettingsCard}
+            desktopSettingsCard={null}
           />)}
         {visitedSections.size > 0 ?
           <PersistentSectionHost
