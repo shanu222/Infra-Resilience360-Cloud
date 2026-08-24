@@ -38,11 +38,21 @@ export function loadCapacitorLocalNotifications() {
   return load(() => import('@capacitor/local-notifications'), 'notification')
 }
 
+export function loadCapacitorPushNotifications() {
+  return load(() => import('@capacitor/push-notifications'), 'push notification')
+}
+
 /** Warm the notification plugin so a later tap can call requestPermissions() without awaiting import first. */
 let localNotificationsWarm: Promise<unknown> | null = null
 export function warmCapacitorLocalNotifications(): void {
   if (localNotificationsWarm) return
   localNotificationsWarm = loadCapacitorLocalNotifications().catch(() => null)
+}
+
+let pushNotificationsWarm: Promise<unknown> | null = null
+export function warmCapacitorPushNotifications(): void {
+  if (pushNotificationsWarm) return
+  pushNotificationsWarm = loadCapacitorPushNotifications().catch(() => null)
 }
 
 export function loadCapacitorScreenOrientation() {

@@ -2084,7 +2084,7 @@ function App(_props: AppProps = {}) {
       if (permission === 'granted') {
         setEarthquakeNotifyStatusMsg(
           isCapacitorNativeRuntime()
-            ? 'Notifications enabled. A test alert was sent — check your notification shade.'
+            ? 'Notifications enabled. Test alert sent. Firebase push + background polling are active while the app is closed.'
             : 'Permission granted.',
         )
         setShowNotificationPermissionDialog(false)

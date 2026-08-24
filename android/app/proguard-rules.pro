@@ -14,7 +14,10 @@
 -keep class com.resilience360.mobile.EarthquakeAlertScheduler { *; }
 -keep class com.resilience360.mobile.EarthquakeBackgroundPlugin { *; }
 -keep class com.resilience360.mobile.EarthquakeBootReceiver { *; }
+-keep class com.resilience360.mobile.EarthquakeFcmPlugin { *; }
 -keep class com.resilience360.mobile.PdfExportPlugin { *; }
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
 
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface

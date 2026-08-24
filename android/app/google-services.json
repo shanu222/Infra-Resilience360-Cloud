@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "707956493754",
+    "project_id": "ir360-d2267",
+    "storage_bucket": "ir360-d2267.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707956493754:android:71567c68712a480e0f6183",
+        "android_client_info": {
+          "package_name": "com.resilience360.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRJyVq-eY0lNzzg_lOyhsaqeGD8uSVm4w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

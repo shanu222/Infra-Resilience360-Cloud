@@ -67,10 +67,18 @@ export function CostEstimatorPage({
   // Expose bridge flag so isNativeEmbeddedPortal() fallback check in the iframe works
   useEffect(() => {
     if (!isNative) return
-    const win = window as Window & { __R360_NATIVE_PORTAL_BRIDGE__?: boolean }
+    const win = window as Window & {
+      __R360_NATIVE_PORTAL_BRIDGE__?: boolean
+      __R360_SAVE_PDF__?: (filename: string, base64: string) => Promise<void>
+    }
     win.__R360_NATIVE_PORTAL_BRIDGE__ = true
+    win.__R360_SAVE_PDF__ = async (filename: string, base64: string) => {
+      const { savePdfBase64Native } = await import('../../utils/savePdfDocument')
+      await savePdfBase64Native(filename, base64)
+    }
     return () => {
       delete win.__R360_NATIVE_PORTAL_BRIDGE__
+      delete win.__R360_SAVE_PDF__
     }
   }, [isNative])
 
@@ -267,10 +275,12 @@ export function CostEstimatorPage({
   }, [isNative, postToIframe])
 
   // ─── PDF download bridge ──────────────────────────────────────────────────────
-  // iframe jsPDF.pdf.save() is a no-op in Android WebView. FinalReport posts the
-  // base64 PDF here; we hand it to the native PdfExport plugin (Downloads + share).
+  // Prefer window.__R360_SAVE_PDF__ (same-origin direct call). Chunked postMessage
+  // is the fallback when the parent function is unreachable.
   useEffect(() => {
     if (!isNative) return
+    const chunks = new Map<string, { filename: string; parts: string[]; total: number }>()
+
     const onMessage = async (event: MessageEvent) => {
       if (!event.data || typeof event.data !== 'object') return
       const data = event.data as {
@@ -278,32 +288,63 @@ export function CostEstimatorPage({
         requestId?: string
         filename?: string
         base64?: string
+        chunk?: string
+        chunkIndex?: number
+        totalChunks?: number
       }
-      if (data.type !== 'r360-pdf-download-request' || !data.requestId) return
-      if (!data.base64 || !data.filename) {
+
+      const reply = (requestId: string, ok: boolean, error?: string) => {
         postToIframe({
           type: 'r360-pdf-download-result',
-          requestId: data.requestId,
-          ok: false,
-          error: 'Missing PDF data.',
+          requestId,
+          ok,
+          error,
         })
+      }
+
+      if (data.type === 'r360-pdf-download-request' && data.requestId) {
+        if (!data.base64 || !data.filename) {
+          reply(data.requestId, false, 'Missing PDF data.')
+          return
+        }
+        try {
+          const { savePdfBase64Native } = await import('../../utils/savePdfDocument')
+          await savePdfBase64Native(data.filename, data.base64)
+          reply(data.requestId, true)
+        } catch (error) {
+          reply(
+            data.requestId,
+            false,
+            error instanceof Error ? error.message : 'Could not save the PDF report.',
+          )
+        }
         return
       }
-      try {
-        const { savePdfBase64 } = await import('../../utils/savePdfDocument')
-        await savePdfBase64(data.filename, data.base64)
-        postToIframe({
-          type: 'r360-pdf-download-result',
-          requestId: data.requestId,
-          ok: true,
-        })
-      } catch (error) {
-        postToIframe({
-          type: 'r360-pdf-download-result',
-          requestId: data.requestId,
-          ok: false,
-          error: error instanceof Error ? error.message : 'Could not save the PDF report.',
-        })
+
+      if (data.type === 'r360-pdf-download-chunk' && data.requestId) {
+        const total = Number(data.totalChunks) || 0
+        const index = Number(data.chunkIndex)
+        if (!data.filename || typeof data.chunk !== 'string' || total < 1 || Number.isNaN(index)) return
+        let entry = chunks.get(data.requestId)
+        if (!entry) {
+          entry = { filename: data.filename, parts: new Array(total).fill(null as unknown as string), total }
+          chunks.set(data.requestId, entry)
+        }
+        entry.parts[index] = data.chunk
+        if (entry.parts.some((part) => part == null)) return
+
+        chunks.delete(data.requestId)
+        try {
+          const { savePdfBase64Native } = await import('../../utils/savePdfDocument')
+          await savePdfBase64Native(entry.filename, entry.parts.join(''))
+          reply(data.requestId, true)
+        } catch (error) {
+          reply(
+            data.requestId,
+            false,
+            error instanceof Error ? error.message : 'Could not save the PDF report.',
+          )
+        }
       }
     }
     window.addEventListener('message', onMessage)

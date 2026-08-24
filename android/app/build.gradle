@@ -19,8 +19,8 @@ android {
         applicationId "com.resilience360.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.0.7"
+        versionCode 9
+        versionName "1.0.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -72,6 +72,10 @@ dependencies {
     // persists its queue across process death and reboots, so alerts keep
     // arriving without the WebView ever being alive.
     implementation "androidx.work:work-runtime:$androidxWorkVersion"
+    // Firebase Cloud Messaging — real push while the app is closed (topic + token).
+    implementation platform('com.google.firebase:firebase-bom:34.18.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

@@ -15,6 +15,11 @@ import {
   enableEarthquakeBackgroundAlerts,
   pollEarthquakeBackgroundNow,
 } from '../capacitor/earthquakeBackgroundAlerts'
+import {
+  disableFirebaseEarthquakePush,
+  enableFirebaseEarthquakePush,
+} from '../capacitor/earthquakeFcm'
+import { warmCapacitorPushNotifications } from '../capacitor/plugins'
 
 export type EarthquakeNotificationPayload = {
   magnitude: number
@@ -44,6 +49,7 @@ class EarthquakePushNotificationService {
       // Warm the plugin before any "Allow" tap so requestPermissions() is not
       // blocked behind a dynamic import (which drops the Android user gesture).
       preloadNativeNotificationPlugin()
+      warmCapacitorPushNotifications()
       await ensureEarthquakeNotificationChannel()
       await this.syncBackgroundAlerts()
     }
@@ -64,9 +70,12 @@ class EarthquakePushNotificationService {
       await enableEarthquakeBackgroundAlerts(settings.threshold)
       // Do not wait for the 15-minute periodic window — check the live feed now.
       void pollEarthquakeBackgroundNow()
+      // FCM topic + token so Firebase / backend can push while the app is closed.
+      void enableFirebaseEarthquakePush()
       return
     }
     await disableEarthquakeBackgroundAlerts()
+    void disableFirebaseEarthquakePush()
   }
 
   isNativeRuntime(): boolean {
@@ -192,6 +201,7 @@ class EarthquakePushNotificationService {
         // for the next earthquake.
         void showNativeEarthquakeTestNotification()
         void pollEarthquakeBackgroundNow()
+        void enableFirebaseEarthquakePush()
       }
       return permission
     }

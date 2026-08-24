@@ -2,11 +2,8 @@
  * Saves a jsPDF (or raw base64 PDF) on web via download, and on Android Capacitor
  * via the native PdfExport plugin (Downloads + share sheet).
  *
- * Android WebView ignores {@code <a download>} / {@code pdf.save()}, which is why
- * Retrofit Calculator "Download PDF Report" appeared to do nothing.
- *
- * When this code runs inside the native retrofit iframe (`?native=1`), Capacitor
- * plugins are unavailable — the PDF is posted to the parent WebView instead.
+ * Large PDFs cannot reliably cross iframe→parent via postMessage on Android
+ * WebView (silent drop → "timed out"). Prefer a same-origin parent function.
  */
 import type { jsPDF } from 'jspdf'
 import { loadCapacitorCore } from '../capacitor/plugins'
@@ -14,6 +11,14 @@ import { isCapacitorNativeRuntime } from './capacitorRuntime'
 
 type PdfExportApi = {
   savePdf: (opts: { filename: string; base64: string }) => Promise<{ ok?: boolean; uri?: string }>
+}
+
+type ParentPdfSaver = (filename: string, base64: string) => Promise<void>
+
+declare global {
+  interface Window {
+    __R360_SAVE_PDF__?: ParentPdfSaver
+  }
 }
 
 type PdfDownloadResult = {
@@ -65,16 +70,34 @@ function triggerBrowserDownload(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
 
+/** Same-origin parent hook — avoids postMessage size limits. */
+async function saveViaParentFunction(filename: string, base64: string): Promise<boolean> {
+  try {
+    const parent = window.parent
+    const saver = parent?.__R360_SAVE_PDF__
+    if (typeof saver !== 'function') return false
+    await saver(filename, base64)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function saveViaParentBridge(filename: string, base64: string): Promise<void> {
+  if (await saveViaParentFunction(filename, base64)) return
+
+  // Fallback: chunked postMessage (full PDF in one message often times out on Android).
   const requestId = `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const chunkSize = 200_000
+  const totalChunks = Math.max(1, Math.ceil(base64.length / chunkSize))
+
   await new Promise<void>((resolve, reject) => {
     const timer = window.setTimeout(() => {
       window.removeEventListener('message', onMessage)
       reject(new Error('PDF download timed out. Please try again.'))
-    }, 45_000)
+    }, 90_000)
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
       const data = event.data as PdfDownloadResult | undefined
       if (!data || data.type !== 'r360-pdf-download-result' || data.requestId !== requestId) return
       window.clearTimeout(timer)
@@ -88,22 +111,37 @@ async function saveViaParentBridge(filename: string, base64: string): Promise<vo
 
     window.addEventListener('message', onMessage)
     try {
-      window.parent.postMessage(
-        {
-          type: 'r360-pdf-download-request',
-          requestId,
-          filename,
-          base64,
-          mimeType: 'application/pdf',
-        },
-        window.location.origin,
-      )
+      for (let i = 0; i < totalChunks; i += 1) {
+        const chunk = base64.slice(i * chunkSize, (i + 1) * chunkSize)
+        window.parent.postMessage(
+          {
+            type: 'r360-pdf-download-chunk',
+            requestId,
+            filename,
+            chunkIndex: i,
+            totalChunks,
+            chunk,
+            mimeType: 'application/pdf',
+          },
+          '*',
+        )
+      }
     } catch (error) {
       window.clearTimeout(timer)
       window.removeEventListener('message', onMessage)
       reject(error instanceof Error ? error : new Error('Could not start PDF download.'))
     }
   })
+}
+
+/** Called only from the parent WebView (never from the iframe). */
+export async function savePdfBase64Native(filename: string, base64: string): Promise<void> {
+  const safeName = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`
+  const plugin = await loadPdfExportPlugin()
+  if (!plugin) {
+    throw new Error('PDF export is unavailable on this device.')
+  }
+  await plugin.savePdf({ filename: safeName, base64 })
 }
 
 export async function savePdfBase64(filename: string, base64: string): Promise<void> {
@@ -115,11 +153,8 @@ export async function savePdfBase64(filename: string, base64: string): Promise<v
   }
 
   if (isCapacitorNativeRuntime()) {
-    const plugin = await loadPdfExportPlugin()
-    if (plugin) {
-      await plugin.savePdf({ filename: safeName, base64 })
-      return
-    }
+    await savePdfBase64Native(safeName, base64)
+    return
   }
 
   const binary = atob(base64)
@@ -132,8 +167,7 @@ export async function savePdfBase64(filename: string, base64: string): Promise<v
 
 export async function saveJsPdfDocument(pdf: jsPDF, filename: string): Promise<void> {
   const safeName = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`
-  const dataUri = pdf.output('datauristring') as string
-  const comma = dataUri.indexOf(',')
-  const base64 = comma >= 0 ? dataUri.slice(comma + 1) : dataUri
+  // Prefer compact base64 without a giant data-URI wrapper string.
+  const base64 = pdf.output('datauristring').split(',')[1] || pdf.output('datauristring')
   await savePdfBase64(safeName, base64)
 }

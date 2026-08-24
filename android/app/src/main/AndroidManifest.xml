@@ -52,6 +52,14 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
+        <!-- Default channel for FCM notification payloads when the app is backgrounded. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="earthquake-alerts" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher" />
+
         <receiver
             android:name=".EarthquakeBootReceiver"
             android:enabled="true"

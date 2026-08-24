@@ -37,7 +37,7 @@ export function getAppVersionLabel(): string {
 /** Human-readable version string for settings UI. Keep in sync with android/app/build.gradle versionName. */
 export function getAppVersionDisplay(): string {
   if (isCapacitorNativeRuntime()) {
-    return `Version 1.0.7`
+    return `Version 1.0.8`
   }
   return 'Web'
 }
