@@ -303,10 +303,16 @@
   display: grid;
   place-items: center;
   margin: 0;
-  padding-inline: 3.5rem;
-  font-size: 0.92rem;
+  /* The knob sits at the start edge and is 3.1rem wide; keep real clearance so
+     a long (e.g. Urdu) hint cannot run underneath it. */
+  padding-inline-start: 4.25rem;
+  padding-inline-end: 1.25rem;
+  font-size: clamp(0.78rem, 3vw, 0.92rem);
+  line-height: 1.25;
+  text-align: center;
+  text-wrap: balance;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
   color: #f2f8ff;
   text-shadow: 0 1px 10px rgba(20, 60, 120, 0.55);
   pointer-events: none;

@@ -15,8 +15,8 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: 500px;
-  max-width: 90vw;
+  width: min(500px, 100%);
+  max-width: 100%;
   background: #ffffff;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -473,8 +473,8 @@
   }
 
   .logic-button {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
   }
 
   .logic-icon {

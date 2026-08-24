@@ -457,6 +457,13 @@
   margin-top: -3rem;
 }
 
+/* On short screens the -3rem pull lifts the title into the banner artwork. */
+@media (max-width: 480px) {
+  .dd-hero-banner__content {
+    margin-top: -1rem;
+  }
+}
+
 .dd-hero-banner__icon {
   width: 3.5rem;
   height: 3.5rem;
@@ -515,8 +522,15 @@
 
 .dd-month-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* Six ~50px cells cramp the month abbreviations on a 360px screen. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.35rem;
+}
+
+@media (min-width: 480px) {
+  .dd-month-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 640px) {
